@@ -1,26 +1,37 @@
 "use client";
 
 import { GitFork } from "lucide-react";
+import { useCanvasStore } from "@/stores/canvas.store";
+import { useUIStore } from "@/stores/ui.store";
+import { TaskDetailPanel } from "@/components/panels/TaskDetailPanel";
 
-interface RightPanelProps {
-  isOpen?: boolean;
-}
+export function RightPanel() {
+  const isOpen = useUIStore((s) => s.isRightPanelOpen);
+  const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
 
-export function RightPanel({ isOpen = false }: RightPanelProps) {
   return (
     <aside
-      className={`w-[360px] shrink-0 border-l border-white/5 bg-surface-container ${isOpen ? "" : "hidden"}`}
+      className={[
+        "flex w-[360px] shrink-0 flex-col overflow-hidden border-l border-white/[0.05] bg-surface-container transition-all duration-200",
+        isOpen
+          ? "translate-x-0"
+          : "pointer-events-none w-0 translate-x-full opacity-0",
+      ].join(" ")}
       aria-hidden={!isOpen}
     >
-      <div className="flex h-full flex-col items-center justify-center px-6">
-        <GitFork size={40} className="mb-4 text-outline" strokeWidth={1.25} />
-        <p className="text-body-md text-center text-on-surface-variant">
-          Select a node to inspect
-        </p>
-        <p className="text-body-sm mt-1 text-center text-outline">
-          or press T to create a new task
-        </p>
-      </div>
+      {selectedNodeId ? (
+        <TaskDetailPanel />
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+          <GitFork size={40} className="mb-4 text-outline" strokeWidth={1.25} />
+          <p className="text-body-md text-on-surface-variant">
+            Select a node to inspect
+          </p>
+          <p className="text-body-sm mt-1 text-outline">
+            or press T to create a new task
+          </p>
+        </div>
+      )}
     </aside>
   );
 }

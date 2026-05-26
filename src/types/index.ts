@@ -129,11 +129,14 @@ export interface CPMResult {
 export interface ProjectClusterNodeData {
   project: Project;
   isExpanded: boolean;
+  onToggleExpand: (projectId: string) => void;
+  [key: string]: unknown;
 }
 
 export interface PhaseClusterNodeData {
   phase: Phase;
   projectColor: ProjectAccentColor;
+  [key: string]: unknown;
 }
 
 export interface TaskCardNodeData {
@@ -142,11 +145,14 @@ export interface TaskCardNodeData {
   projectColor: ProjectAccentColor;
   isCriticalPath: boolean;
   slackTime?: number;
+  isExpanded?: boolean;
+  [key: string]: unknown;
 }
 
 export interface PersonAvatarNodeData {
   user: User;
   isVisible: boolean;
+  [key: string]: unknown;
 }
 
 export interface MilestoneNodeData {

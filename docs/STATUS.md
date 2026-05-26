@@ -3,9 +3,9 @@
 > Auto-updated after each Cursor prompt session.  
 > Last updated: Tuesday, May 26, 2026
 
-## Current Phase: Phase 1 — Foundation
+## Current Phase: Phase 2 — Canvas Nodes (COMPLETE)
 
-**Status:** IN PROGRESS — UI foundation complete, backend setup pending
+**Status:** Phase 2 complete — canvas nodes, seed data, semantic zoom, task detail panel
 
 ## Phase 1 Progress
 
@@ -23,35 +23,57 @@
 - [ ] better-auth JWT auth
 - [ ] Stitch HTML files in `/stitch-reference/`
 
-## Phase 2 Status: NOT STARTED
+## Phase 2 Progress
+
+- [x] TaskCardNode — status dot, priority chip, assignee avatars, blocked pulse, critical path bar
+- [x] ProjectClusterNode — accent bar, progress bar, expand chevron
+- [x] PhaseClusterNode — completion bar, task count
+- [x] PersonAvatarNode — load ring, load level color (workload layer only)
+- [x] DependencyEdge — bezier with arrows, gold on critical path, dashed on blocked
+- [x] Mock seed data — 3 projects, 4 users, 9 tasks, dependency graph
+- [x] Semantic zoom — Z0 shows projects, Z1 shows phases, Z2/Z3 shows tasks
+- [x] RightPanel task detail — status, priority, assignees, CPM info, dependency list
+- [x] Node click → panel open (`selectedNodeId` + `isRightPanelOpen`)
 
 ## Phase 3 Status: NOT STARTED
 
 ## Phase 4 Status: NOT STARTED
 
-## File Inventory
+## File Inventory (UPDATED)
 
 ### `src/components/ui/`
 | File | Status |
 |------|--------|
 | `AppShell.tsx` | ✅ |
-| `TopBar.tsx` | ✅ (wired to `useUIStore`) |
-| `LeftSidebar.tsx` | ✅ (placeholder data) |
-| `RightPanel.tsx` | ✅ (empty state, `isOpen` prop) |
+| `TopBar.tsx` | ✅ |
+| `LeftSidebar.tsx` | ✅ |
+| `RightPanel.tsx` | ✅ (TaskDetailPanel + slide transition) |
 | `FlowCanvasLogo.tsx` | ✅ |
 
 ### `src/components/canvas/`
 | File | Status |
 |------|--------|
-| `CanvasWrapper.tsx` | ✅ (`ReactFlowProvider`) |
-| `FlowCanvas.tsx` | ✅ (Background + MiniMap) |
+| `CanvasWrapper.tsx` | ✅ |
+| `FlowCanvas.tsx` | ✅ (nodeTypes + edgeTypes, seed on mount) |
 | `CanvasArea.tsx` | ✅ |
+| `nodes/TaskCardNode.tsx` | ✅ |
+| `nodes/ProjectClusterNode.tsx` | ✅ |
+| `nodes/PhaseClusterNode.tsx` | ✅ |
+| `nodes/PersonAvatarNode.tsx` | ✅ |
+| `nodes/DependencyEdge.tsx` | ✅ |
+
+### `src/components/panels/`
+| File | Status |
+|------|--------|
+| `TaskDetailPanel.tsx` | ✅ |
 
 ### `src/lib/`
 | File | Status |
 |------|--------|
 | `providers.tsx` | ✅ |
-| `canvas/useSemanticZoom.ts` | ✅ (level tracking only) |
+| `canvas/useSemanticZoom.ts` | ✅ (visibility + workload layer + Z3 expand) |
+| `canvas/seedToNodes.ts` | ✅ |
+| `seed/mockData.ts` | ✅ |
 
 ### `src/stores/`
 | File | Status |
@@ -64,39 +86,34 @@
 |------|--------|
 | `index.ts` | ✅ |
 
-### `src/app/`
-| File | Status |
-|------|--------|
-| `layout.tsx` | ✅ |
-| `page.tsx` | ✅ (`AppShell`) |
-| `globals.css` | ✅ |
-
 ### `server/`
-EMPTY — Phase 1 backend pending (Fastify deps installed in package.json)
+EMPTY — Phase 1 backend pending
 
 ### `stitch-reference/`
 README only — add S1–S11 HTML manually
 
-## Installed Stack (versions from lockfile)
+## Current Visual State
 
-- Next.js 16.2.6
-- React 19.2.6
-- @xyflow/react 12.10.2
-- Tailwind CSS 4.3.0
-- Zustand 5.0.13
-- Fastify 5.8.5 (not bootstrapped)
+- Canvas shows 9 task cards connected by bezier dependency edges
+- Critical path: t1→t2→t5 in gold edges
+- Blocked task t4 has red pulsing border + dashed incoming edge
+- RightPanel opens on task click with full detail
+- Zoom out → project cluster pills appear, task cards hide
+- Zoom in → task cards visible, clusters hide
+- Z3 (zoom ≥ 1.5) expands task cards with description, due date, effort
 
 ## Known Issues
 
-1. `create next-app` could not run in non-empty directory — Next.js was installed manually (equivalent outcome).
-2. Right panel hidden by default (`isRightPanelOpen: false`) — toggle wiring for task select comes in Phase 2.
-3. Dashboard/Gantt tabs show placeholder text (by design until Phase 4/5).
-4. `stitch-reference/S1-app-shell.html` not present — shell built from docs + design tokens.
+1. Phase cluster nodes not yet spawned when a project expands (expand chevron toggles state only).
+2. Person avatar nodes seeded but only visible when `activeLayer === 'workload'`.
+3. `stitch-reference/` HTML not present — nodes built from prompt specs + design tokens.
 
-## Next Session
+## Next Session: Prompt Set 3
 
-**Option A:** Phase 1 backend — Fastify server entry, Drizzle schema, PostgreSQL, better-auth  
-**Option B:** Phase 2 canvas nodes — `TaskCardNode` + mock seed data on canvas  
-**Option C:** Add Stitch HTML to `stitch-reference/` and refine shell to pixel-match S1
+Goal options:
 
-**Recommended:** **B** — validates ReactFlow + design system with visible nodes before backend complexity.
+**A)** Phase 3 — Blocking Chain Cascade View (S7) + Workload Heatmap Layer (S8)  
+**B)** Phase 1 backend — Fastify + Drizzle + PostgreSQL (replace mock data with real API)  
+**C)** Command Palette (S10) + keyboard shortcuts
+
+**Recommended:** **A** — builds on visible canvas nodes and edges; validates workload layer and blocking UX before backend.

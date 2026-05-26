@@ -7,7 +7,6 @@ import { RightPanel } from "./RightPanel";
 import { TopBar } from "./TopBar";
 
 export function AppShell() {
-  const isRightPanelOpen = useUIStore((s) => s.isRightPanelOpen);
   const activeView = useUIStore((s) => s.activeView);
 
   return (
@@ -26,7 +25,7 @@ export function AppShell() {
             </p>
           </main>
         )}
-        <RightPanel isOpen={isRightPanelOpen} />
+        <RightPanel />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -14,9 +14,24 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
+import { buildInitialGraph } from "@/lib/canvas/seedToNodes";
+import { TaskCardNode } from "./nodes/TaskCardNode";
+import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
+import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
+import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
+import { DependencyEdge } from "./nodes/DependencyEdge";
+import type { ProjectClusterNodeData } from "@/types";
 
-const nodeTypes = {};
-const edgeTypes = {};
+const nodeTypes = {
+  taskCard: TaskCardNode,
+  projectCluster: ProjectClusterNode,
+  phaseCluster: PhaseClusterNode,
+  personAvatar: PersonAvatarNode,
+};
+
+const edgeTypes = {
+  dependency: DependencyEdge,
+};
 
 const defaultEdgeOptions = {
   style: { stroke: "rgba(137, 146, 148, 0.4)", strokeWidth: 1.5 },
@@ -35,6 +50,36 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   const setEdges = useCanvasStore((s) => s.setEdges);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const selectNode = useCanvasStore((s) => s.selectNode);
+  const toggleProjectExpanded = useCanvasStore((s) => s.toggleProjectExpanded);
+  const expandedProjects = useCanvasStore((s) => s.expandedProjects);
+
+  useEffect(() => {
+    const onToggleExpand = (projectId: string) => {
+      toggleProjectExpanded(projectId);
+      setNodes((current) =>
+        current.map((node) => {
+          if (node.type !== "projectCluster") return node;
+          const data = node.data as ProjectClusterNodeData;
+          if (data.project.id !== projectId) return node;
+          return {
+            ...node,
+            data: {
+              ...data,
+              isExpanded: !data.isExpanded,
+            },
+          };
+        }),
+      );
+    };
+
+    const { nodes: seedNodes, edges: seedEdges } = buildInitialGraph(
+      onToggleExpand,
+      expandedProjects,
+    );
+    setNodes(seedNodes);
+    setEdges(seedEdges);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount
+  }, []);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -53,7 +98,10 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   }, [selectNode]);
 
   const onMoveEnd = useCallback(
-    (_: MouseEvent | TouchEvent | null, viewport: { x: number; y: number; zoom: number }) => {
+    (
+      _: MouseEvent | TouchEvent | null,
+      viewport: { x: number; y: number; zoom: number },
+    ) => {
       setViewport(viewport);
     },
     [setViewport],
