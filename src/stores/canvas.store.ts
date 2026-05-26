@@ -26,6 +26,7 @@ interface CanvasState {
   toggleProjectExpanded: (projectId: string) => void;
   setCascadeChain: (taskIds: string[] | null) => void;
   setCascadeImpact: (impact: CascadeImpact | null) => void;
+  dismissCascade: () => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -64,4 +65,6 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     }),
   setCascadeChain: (cascadeChainTaskIds) => set({ cascadeChainTaskIds }),
   setCascadeImpact: (cascadeImpact) => set({ cascadeImpact }),
+  dismissCascade: () =>
+    set({ cascadeImpact: null, cascadeChainTaskIds: null }),
 }));

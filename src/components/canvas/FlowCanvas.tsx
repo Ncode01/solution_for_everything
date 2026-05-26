@@ -15,15 +15,14 @@ import "@xyflow/react/dist/style.css";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
-import {
-  buildInitialGraph,
-  restoreDependencyEdgeStyles,
-} from "@/lib/canvas/seedToNodes";
+import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
+import { useOrgGraph } from "@/lib/api/useOrgGraph";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
 import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
+import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
 import type { ProjectClusterNodeData } from "@/types";
 
 const nodeTypes = {
@@ -59,13 +58,7 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   const activeLayer = useCanvasStore((s) => s.activeLayer);
 
   const { handleToggleExpand } = useProjectExpand();
-
-  useEffect(() => {
-    const { nodes: seedNodes, edges: seedEdges } = buildInitialGraph();
-    setNodes(seedNodes);
-    setEdges(seedEdges);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount
-  }, []);
+  useOrgGraph();
 
   useEffect(() => {
     setNodes((current) =>
@@ -199,6 +192,7 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
       className="canvas-dot-grid"
       proOptions={{ hideAttribution: true }}
     >
+      <ReactFlowApiBridge />
       <SemanticZoomTracker />
       <Background
         variant={BackgroundVariant.Dots}

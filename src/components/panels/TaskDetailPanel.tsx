@@ -11,10 +11,9 @@ import {
 } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
-import { MOCK_TASKS, MOCK_PROJECTS, USER_MAP } from "@/lib/seed/mockData";
 import { computeCPM, computeCascadeImpact } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
-import type { Task } from "@/types";
+import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: "Not Started",
@@ -48,6 +47,7 @@ const ACCENT_COLORS: Record<string, string> = {
 };
 
 export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
+  const nodes = useCanvasStore((s) => s.nodes);
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
   const selectedNodeType = useCanvasStore((s) => s.selectedNodeType);
   const selectNode = useCanvasStore((s) => s.selectNode);
@@ -55,41 +55,46 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const setCascadeChain = useCanvasStore((s) => s.setCascadeChain);
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
 
+  const allTasks = useMemo(() => {
+    return nodes
+      .filter((n) => n.id.startsWith("task-"))
+      .map((n) => (n.data as TaskCardNodeData).task);
+  }, [nodes]);
+
   const task: Task | null = useMemo(() => {
     if (!selectedNodeId || selectedNodeType !== "task") return null;
-    const taskId = selectedNodeId.replace("task-", "");
-    return MOCK_TASKS.find((t) => t.id === taskId) ?? null;
-  }, [selectedNodeId, selectedNodeType]);
+    const node = nodes.find((n) => n.id === selectedNodeId);
+    if (!node) return null;
+    return (node.data as TaskCardNodeData).task;
+  }, [selectedNodeId, selectedNodeType, nodes]);
 
-  const project = useMemo(
-    () => (task ? MOCK_PROJECTS.find((p) => p.id === task.projectId) : null),
-    [task],
-  );
+  const project = useMemo(() => {
+    if (!task) return null;
+    const projectNode = nodes.find((n) => n.id === `project-${task.projectId}`);
+    if (!projectNode) return null;
+    return (projectNode.data as ProjectClusterNodeData).project;
+  }, [task, nodes]);
 
-  const assignees = useMemo(
-    () =>
-      task
-        ? task.assigneeIds.map((id) => USER_MAP[id]).filter(Boolean)
-        : [],
-    [task],
-  );
+  const assignees = useMemo(() => {
+    if (!task) return [];
+    const node = nodes.find((n) => n.id === selectedNodeId);
+    if (!node) return [];
+    return (node.data as TaskCardNodeData).assignees;
+  }, [task, nodes, selectedNodeId]);
 
-  const dependencyTasks = useMemo(
-    () =>
-      task
-        ? task.dependencies
-            .map((id) => MOCK_TASKS.find((t) => t.id === id))
-            .filter((t): t is Task => Boolean(t))
-        : [],
-    [task],
-  );
+  const dependencyTasks = useMemo(() => {
+    if (!task) return [];
+    const byId = new Map(allTasks.map((t) => [t.id, t]));
+    return task.dependencies
+      .map((id) => byId.get(id))
+      .filter((t): t is Task => Boolean(t));
+  }, [task, allTasks]);
 
   const handleClose = useCallback(() => {
     selectNode(null, null);
-    setCascadeImpact(null);
-    setCascadeChain(null);
+    useCanvasStore.getState().dismissCascade();
     toggleRightPanel(false);
-  }, [selectNode, setCascadeImpact, setCascadeChain, toggleRightPanel]);
+  }, [selectNode, toggleRightPanel]);
 
   useEffect(() => {
     if (!task || task.status !== "blocked") {
@@ -98,7 +103,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
       return;
     }
 
-    const cpmlTasks: CPMTask[] = MOCK_TASKS.map((t) => ({
+    const cpmlTasks: CPMTask[] = allTasks.map((t) => ({
       id: t.id,
       duration: t.effortEstimate ?? 8,
       dependencies: t.dependencies,
@@ -111,7 +116,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
 
     setCascadeImpact(impact);
     setCascadeChain(impact.cascadeChain);
-  }, [task, setCascadeImpact, setCascadeChain]);
+  }, [task, allTasks, setCascadeImpact, setCascadeChain]);
 
   if (!task || !project) return null;
 

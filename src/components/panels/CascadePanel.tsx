@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertTriangle, ArrowRight, GitFork, Clock } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas.store";
-import { MOCK_TASKS, MOCK_PROJECTS, USER_MAP } from "@/lib/seed/mockData";
-import type { Task } from "@/types";
+import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
   not_started: "#4f4f4d",
@@ -25,18 +24,18 @@ const PROJECT_COLORS: Record<string, string> = {
 
 function CascadeTaskChip({
   task,
+  assignees,
+  projectColor,
   isSource,
   isOnCriticalPath,
 }: {
   task: Task;
+  assignees: TaskCardNodeData["assignees"];
+  projectColor: string;
   isSource: boolean;
   isOnCriticalPath: boolean;
 }) {
-  const project = MOCK_PROJECTS.find((p) => p.id === task.projectId);
-  const accentColor = PROJECT_COLORS[project?.color ?? "sky"];
-  const assignees = task.assigneeIds
-    .map((id) => USER_MAP[id])
-    .filter(Boolean);
+  const accentColor = PROJECT_COLORS[projectColor] ?? PROJECT_COLORS.sky;
 
   return (
     <div
@@ -84,32 +83,51 @@ function CascadeTaskChip({
 }
 
 export const CascadePanel = React.memo(function CascadePanel() {
+  const nodes = useCanvasStore((s) => s.nodes);
   const cascadeImpact = useCanvasStore((s) => s.cascadeImpact);
-  const setCascadeImpact = useCanvasStore((s) => s.setCascadeImpact);
-  const setCascadeChain = useCanvasStore((s) => s.setCascadeChain);
+  const dismissCascade = useCanvasStore((s) => s.dismissCascade);
+
+  const taskById = useMemo(() => {
+    const map = new Map<string, Task>();
+    for (const n of nodes) {
+      if (!n.id.startsWith("task-")) continue;
+      const t = (n.data as TaskCardNodeData).task;
+      map.set(t.id, t);
+    }
+    return map;
+  }, [nodes]);
 
   const handleDismiss = useCallback(() => {
-    setCascadeImpact(null);
-    setCascadeChain(null);
-  }, [setCascadeImpact, setCascadeChain]);
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleDismiss();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [handleDismiss]);
+    dismissCascade();
+  }, [dismissCascade]);
 
   const sourceTask = cascadeImpact
-    ? MOCK_TASKS.find((t) => t.id === cascadeImpact.sourceTaskId)
+    ? (taskById.get(cascadeImpact.sourceTaskId) ?? null)
     : null;
 
   const cascadeTasks = cascadeImpact
     ? cascadeImpact.cascadeChain
-        .map((id) => MOCK_TASKS.find((t) => t.id === id))
+        .map((id) => taskById.get(id))
         .filter((t): t is Task => Boolean(t))
     : [];
+
+  const projectColorFor = useCallback(
+    (task: Task) => {
+      const projectNode = nodes.find((n) => n.id === `project-${task.projectId}`);
+      return projectNode
+        ? (projectNode.data as ProjectClusterNodeData).project.color
+        : "sky";
+    },
+    [nodes],
+  );
+
+  const assigneesFor = useCallback(
+    (task: Task) => {
+      const node = nodes.find((n) => n.id === `task-${task.id}`);
+      return node ? (node.data as TaskCardNodeData).assignees : [];
+    },
+    [nodes],
+  );
 
   return (
     <AnimatePresence>
@@ -167,6 +185,8 @@ export const CascadePanel = React.memo(function CascadePanel() {
               {sourceTask && (
                 <CascadeTaskChip
                   task={sourceTask}
+                  assignees={assigneesFor(sourceTask)}
+                  projectColor={projectColorFor(sourceTask)}
                   isSource={true}
                   isOnCriticalPath={false}
                 />
@@ -180,6 +200,8 @@ export const CascadePanel = React.memo(function CascadePanel() {
                   </div>
                   <CascadeTaskChip
                     task={task}
+                    assignees={assigneesFor(task)}
+                    projectColor={projectColorFor(task)}
                     isSource={false}
                     isOnCriticalPath={
                       cascadeImpact.criticalPathImpacted &&

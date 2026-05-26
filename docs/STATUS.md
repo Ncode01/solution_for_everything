@@ -3,98 +3,90 @@
 > Auto-updated after each Cursor prompt session.  
 > Last updated: Tuesday, May 26, 2026
 
-## Current Phase: Phase 3 — Blocking Chain + Workload (COMPLETE)
+## Current Phase: Phase 5 — Neon DB + API Hydration + Firebase Realtime
 
-**Status:** Phase 3 complete — project expand, CPM engine, cascade panel, workload layer
+**Status:** Phase 5 code complete — awaiting manual Neon `.env.server` + seed + `NEXT_PUBLIC_ORG_ID`
 
-## Phase 1 Progress
+## Phase 5 Progress
 
-- [x] Next.js bootstrap + path aliases (`@/*`)
-- [x] Tailwind v4 full token config
-- [x] Geist + JetBrains Mono fonts
-- [x] App Shell (TopBar + LeftSidebar + CanvasArea + RightPanel)
-- [x] ReactFlow mounted with dot-grid + MiniMap
-- [x] Zustand stores (`canvas.store` + `ui.store`)
-- [x] TypeScript types (`src/types/index.ts`)
-- [x] Dark mode locked
-- [x] Fastify packages installed (server code not written)
-- [ ] Fastify server process + routes
-- [ ] PostgreSQL + Drizzle schema + migrations
-- [ ] better-auth JWT auth
+- [x] Neon-compatible Drizzle client (`@neondatabase/serverless` + `drizzle-orm/neon-http`)
+- [x] Drizzle schema + `drizzle.config.ts` (loads `.env.server`)
+- [x] Seed script (`pnpm db:seed`) — prints `ORG_ID` for `.env.local`
+- [x] `getOrgGraph()` query + `GET /api/graph/:orgId`
+- [x] Frontend API client + TanStack Query `useOrgGraph`
+- [x] `buildGraphFromApi` — replaces mock graph hydration on mount
+- [x] Canvas loading overlay + error states
+- [x] Firebase SDK + `useCanvasEvents` (skips when env vars missing)
+- [x] `firestore.rules` (deploy with `firebase deploy --only firestore:rules`)
+- [x] Self-diagnostic script (`pnpm diagnose`)
+- [ ] **Manual:** Create Neon project → set `DATABASE_URL` in `.env.server`
+- [ ] **Manual:** `pnpm db:push` + `pnpm db:seed`
+- [ ] **Manual:** Copy `ORG_ID` to `.env.local` as `NEXT_PUBLIC_ORG_ID`
+- [ ] **Manual:** Firebase project + env vars + rules deploy
+- [ ] better-auth JWT (Phase 6)
+- [ ] Collaborative presence cursors (Phase 6)
+- [ ] Task create/edit form (Phase 6)
 
-## Phase 2 Progress
+## Phase 4B Progress (complete)
 
-- [x] TaskCardNode, ProjectClusterNode, PhaseClusterNode, PersonAvatarNode
-- [x] DependencyEdge + mock seed data (9 tasks, 3 projects)
-- [x] Semantic zoom (Z0–Z3) + RightPanel task detail
+- [x] Escape chain, ReactFlow fitView, command palette polish
+- [x] Fastify bootstrap on port 3001
 
-## Phase 3 Progress
+## File Inventory (Phase 5)
 
-- [x] Project expand → spawns PhaseClusterNodes dynamically
-- [x] Project collapse → removes phase nodes + connecting edges
-- [x] CPM engine — topological sort, forward/backward pass, float computation
-- [x] Cascade impact computation — BFS downstream traversal, delay estimation
-- [x] CPM wired to seed data — `isCriticalPath` + `slackTime` from engine
-- [x] CascadePanel — spring animation, chain cards, Escape dismiss, edge dimming
-- [x] Workload heatmap layer — person avatars, task fade, overloaded edge highlight
-- [x] WorkloadBanner — floating pill with overload count
-- [x] TopBar workload toggle button
+### `server/db/`
+| File | Status |
+|------|--------|
+| `schema.ts` | ✅ 8 tables |
+| `client.ts` | ✅ Neon serverless |
+| `queries.ts` | ✅ `getOrgGraph` |
+| `seed.ts` | ✅ demo org/projects/tasks |
 
-## Phase 4 Status: NOT STARTED
-
-## File Inventory (UPDATED)
-
-### `src/lib/cpm/`
+### `src/lib/api/`
 | File | Status |
 |------|--------|
 | `types.ts` | ✅ |
-| `engine.ts` | ✅ |
-| `engine.test.ts` | ✅ (smoke test) |
-| `index.ts` | ✅ |
+| `client.ts` | ✅ |
+| `useOrgGraph.ts` | ✅ staleTime 30s |
 
 ### `src/lib/canvas/`
 | File | Status |
 |------|--------|
-| `useSemanticZoom.ts` | ✅ |
-| `useProjectExpand.ts` | ✅ |
-| `useWorkloadLayer.ts` | ✅ |
-| `seedToNodes.ts` | ✅ (CPM-enhanced tasks, centroid person nodes) |
+| `buildGraphFromApi.ts` | ✅ CPM + nodes/edges |
 
-### `src/components/panels/`
+### `src/lib/firebase/`
 | File | Status |
 |------|--------|
-| `TaskDetailPanel.tsx` | ✅ (cascade computation wired) |
-| `CascadePanel.tsx` | ✅ |
+| `config.ts` | ✅ optional init |
+| `useCanvasEvents.ts` | ✅ realtime task status |
 
-### `src/components/canvas/`
-| File | Status |
-|------|--------|
-| `FlowCanvas.tsx` | ✅ |
-| `CanvasArea.tsx` | ✅ (CascadePanel + WorkloadBanner) |
-| `WorkloadBanner.tsx` | ✅ |
-| `nodes/*` | ✅ |
+## Dev Commands
 
-### `server/`
-EMPTY — backend pending
+```bash
+# 1. Copy env templates and fill Neon URL
+cp .env.server.example .env.server   # set DATABASE_URL?sslmode=require
+cp .env.local.example .env.local     # set NEXT_PUBLIC_ORG_ID after seed
 
-## Current Visual State
+pnpm db:push
+pnpm db:seed
+pnpm dev:all
 
-- Click any task → RightPanel shows full detail
-- Click blocked task t4 → CascadePanel slides up from canvas bottom (t4 → t5 chain)
-- Toggle **Workload** in TopBar → person avatars float at task centroids
-- Zoom out (< 0.7) → project cluster pills; chevron expand spawns phase nodes
-- Zoom in → 9 task cards with CPM-computed critical path edges
+curl http://localhost:3001/health
+curl http://localhost:3001/api/graph/YOUR_ORG_ID
+
+pnpm diagnose   # needs .env.server + dev:server for API check
+pnpm build
+pnpm typecheck
+pnpm typecheck:server
+```
 
 ## Known Issues
 
-1. Escape on CascadePanel dismisses cascade but keeps task selected (by design).
-2. Deactivating workload layer re-runs semantic zoom visibility on next zoom change only for person nodes (toggle off hides persons immediately).
-3. `stitch-reference/` HTML not present — UI built from prompt specs.
+1. **`.env.server` not present in repo** — Neon URL must be added locally before `db:push` / `db:seed` / `diagnose`.
+2. Without `NEXT_PUBLIC_ORG_ID`, canvas shows "Missing org configuration" overlay.
+3. Firebase realtime is no-op until `NEXT_PUBLIC_FIREBASE_*` vars are set.
+4. `src/lib/seed/mockData.ts` retained for reference; canvas no longer hydrates from it on mount.
 
-## Next Session: Prompt Set 4
+## Next Session (Phase 6)
 
-**A)** Command Palette (S10) + keyboard shortcuts (⌘K, T, Escape)  
-**B)** Phase 1 backend — Fastify + Drizzle + PostgreSQL  
-**C)** Dashboard view (S9) — Recharts KPIs
-
-**Recommended:** **A** — completes core canvas UX loop before backend or dashboard.
+**Recommended:** better-auth JWT, task create/edit, canvas position persistence API, collaborative presence cursors.
