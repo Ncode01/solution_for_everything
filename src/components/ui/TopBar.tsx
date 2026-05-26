@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Users } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
+import { useWorkloadLayer } from "@/lib/canvas/useWorkloadLayer";
 import { FlowCanvasLogo } from "./FlowCanvasLogo";
 
 const VIEWS = [
@@ -14,6 +15,7 @@ export function TopBar() {
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
+  const { toggleWorkloadLayer, isWorkloadActive } = useWorkloadLayer();
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/5 bg-surface-container px-4">
@@ -48,6 +50,21 @@ export function TopBar() {
       </nav>
 
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleWorkloadLayer}
+          className={[
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+            isWorkloadActive
+              ? "border border-primary/30 bg-primary/20 text-primary"
+              : "border border-white/10 bg-surface-container-low text-on-surface-variant hover:bg-white/5",
+          ].join(" ")}
+          aria-label="Toggle workload layer"
+        >
+          <Users size={13} />
+          <span>Workload</span>
+        </button>
+
         <button
           type="button"
           onClick={openCommandPalette}

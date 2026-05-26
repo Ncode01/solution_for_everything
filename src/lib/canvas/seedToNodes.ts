@@ -5,6 +5,8 @@ import {
   MOCK_USERS,
   USER_MAP,
 } from "@/lib/seed/mockData";
+import { computeCPM } from "@/lib/cpm";
+import type { CPMTask } from "@/lib/cpm";
 import type {
   PersonAvatarNodeData,
   ProjectClusterNodeData,
@@ -17,7 +19,15 @@ const PROJECT_Y_POSITIONS: Record<string, number> = {
   p3: 820,
 };
 
-const PERSON_X_POSITIONS = [900, 980, 1060, 1140];
+const cpmTasks: CPMTask[] = MOCK_TASKS.map((t) => ({
+  id: t.id,
+  duration: t.effortEstimate ?? 8,
+  dependencies: t.dependencies,
+  dependents: t.dependents,
+  status: t.status,
+}));
+
+const cpmResult = computeCPM(cpmTasks);
 
 function buildProjectNodes(
   onToggleExpand: (projectId: string) => void,
@@ -42,42 +52,69 @@ function buildTaskNodes(): Node<TaskCardNodeData>[] {
     const assignees = task.assigneeIds
       .map((id) => USER_MAP[id])
       .filter(Boolean);
+    const cpmNode = cpmResult.nodes[task.id];
     return {
       id: `task-${task.id}`,
       type: "taskCard",
       position: { x: task.canvasX, y: task.canvasY },
       data: {
-        task,
+        task: {
+          ...task,
+          isCriticalPath: cpmNode?.isCriticalPath ?? task.isCriticalPath,
+          slackTime: cpmNode
+            ? Math.round(cpmNode.float / 8)
+            : task.slackTime,
+        },
         assignees,
         projectColor: project.color,
-        isCriticalPath: task.isCriticalPath,
-        slackTime: task.slackTime,
+        isCriticalPath: cpmNode?.isCriticalPath ?? task.isCriticalPath,
+        slackTime: cpmNode ? Math.round(cpmNode.float / 8) : task.slackTime,
         isExpanded: false,
       },
     };
   });
 }
 
-function buildPersonNodes(): Node<PersonAvatarNodeData>[] {
-  return MOCK_USERS.map((user, i) => ({
-    id: `person-${user.id}`,
-    type: "personAvatar",
-    position: { x: PERSON_X_POSITIONS[i] ?? 900, y: 400 },
-    data: {
-      user,
-      isVisible: false,
-    },
-    hidden: true,
-  }));
+function buildPersonAvatarNodes(): Node<PersonAvatarNodeData>[] {
+  return MOCK_USERS.map((user) => {
+    const userTasks = MOCK_TASKS.filter((t) =>
+      t.assigneeIds.includes(user.id),
+    );
+
+    const avgX =
+      userTasks.length > 0
+        ? userTasks.reduce((sum, t) => sum + t.canvasX, 0) / userTasks.length
+        : 200;
+    const avgY =
+      userTasks.length > 0
+        ? userTasks.reduce((sum, t) => sum + t.canvasY, 0) / userTasks.length -
+          120
+        : 100;
+
+    return {
+      id: `person-${user.id}`,
+      type: "personAvatar",
+      position: { x: avgX, y: avgY },
+      data: {
+        user,
+        isVisible: false,
+      },
+      hidden: true,
+      zIndex: 1000,
+    };
+  });
 }
 
-function buildDependencyEdges(): Edge[] {
+export function buildDependencyEdges(): Edge[] {
   const edges: Edge[] = [];
   for (const task of MOCK_TASKS) {
     for (const depId of task.dependencies) {
       const upstream = MOCK_TASKS.find((t) => t.id === depId);
+      const upstreamCpm = cpmResult.nodes[depId];
+      const taskCpm = cpmResult.nodes[task.id];
       const isBothCritical =
-        task.isCriticalPath && (upstream?.isCriticalPath ?? false);
+        (taskCpm?.isCriticalPath ?? task.isCriticalPath) &&
+        (upstreamCpm?.isCriticalPath ?? upstream?.isCriticalPath ?? false);
       const strokeColor = isBothCritical
         ? "rgba(232, 175, 52, 0.7)"
         : "rgba(137, 146, 148, 0.35)";
@@ -91,6 +128,7 @@ function buildDependencyEdges(): Edge[] {
           stroke: strokeColor,
           strokeWidth: isBothCritical ? 2 : 1.5,
           strokeDasharray: task.status === "blocked" ? "6 3" : undefined,
+          opacity: 1,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -105,16 +143,30 @@ function buildDependencyEdges(): Edge[] {
   return edges;
 }
 
+/** Restore dependency edge styles after workload/cascade overlays */
+export function restoreDependencyEdgeStyles(edges: Edge[]): Edge[] {
+  const defaults = buildDependencyEdges();
+  const defaultById = new Map(defaults.map((e) => [e.id, e]));
+  return edges.map((edge) => {
+    if (!edge.id.startsWith("dep-")) return edge;
+    const def = defaultById.get(edge.id);
+    if (!def) return edge;
+    return { ...edge, style: def.style, markerEnd: def.markerEnd };
+  });
+}
+
 export function buildInitialGraph(
-  onToggleExpand: (projectId: string) => void,
+  onToggleExpand: (projectId: string) => void = () => {},
   expandedProjects: Set<string> = new Set(),
 ): { nodes: Node[]; edges: Edge[] } {
   return {
     nodes: [
       ...buildProjectNodes(onToggleExpand, expandedProjects),
       ...buildTaskNodes(),
-      ...buildPersonNodes(),
+      ...buildPersonAvatarNodes(),
     ],
     edges: buildDependencyEdges(),
   };
 }
+
+export { cpmResult, cpmTasks };

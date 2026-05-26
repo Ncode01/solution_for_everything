@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   X,
   Calendar,
@@ -12,6 +12,8 @@ import {
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { MOCK_TASKS, MOCK_PROJECTS, USER_MAP } from "@/lib/seed/mockData";
+import { computeCPM, computeCascadeImpact } from "@/lib/cpm";
+import type { CPMTask } from "@/lib/cpm";
 import type { Task } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -49,6 +51,8 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
   const selectedNodeType = useCanvasStore((s) => s.selectedNodeType);
   const selectNode = useCanvasStore((s) => s.selectNode);
+  const setCascadeImpact = useCanvasStore((s) => s.setCascadeImpact);
+  const setCascadeChain = useCanvasStore((s) => s.setCascadeChain);
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
 
   const task: Task | null = useMemo(() => {
@@ -82,8 +86,32 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
 
   const handleClose = useCallback(() => {
     selectNode(null, null);
+    setCascadeImpact(null);
+    setCascadeChain(null);
     toggleRightPanel(false);
-  }, [selectNode, toggleRightPanel]);
+  }, [selectNode, setCascadeImpact, setCascadeChain, toggleRightPanel]);
+
+  useEffect(() => {
+    if (!task || task.status !== "blocked") {
+      setCascadeImpact(null);
+      setCascadeChain(null);
+      return;
+    }
+
+    const cpmlTasks: CPMTask[] = MOCK_TASKS.map((t) => ({
+      id: t.id,
+      duration: t.effortEstimate ?? 8,
+      dependencies: t.dependencies,
+      dependents: t.dependents,
+      status: t.status,
+    }));
+
+    const cpmResult = computeCPM(cpmlTasks);
+    const impact = computeCascadeImpact(task.id, cpmlTasks, cpmResult);
+
+    setCascadeImpact(impact);
+    setCascadeChain(impact.cascadeChain);
+  }, [task, setCascadeImpact, setCascadeChain]);
 
   if (!task || !project) return null;
 

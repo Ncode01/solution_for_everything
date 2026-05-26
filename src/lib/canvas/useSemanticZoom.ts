@@ -38,6 +38,17 @@ export function useSemanticZoom() {
 
     setNodes((nodes) =>
       nodes.map((node) => {
+        if (node.id.startsWith("person-")) {
+          return {
+            ...node,
+            hidden: activeLayer !== "workload",
+          };
+        }
+
+        if (activeLayer === "workload" && node.id.startsWith("task-")) {
+          return node;
+        }
+
         let hidden = node.hidden ?? false;
         if (show.some((prefix) => node.id.startsWith(prefix))) {
           hidden = false;
@@ -59,7 +70,7 @@ export function useSemanticZoom() {
         return { ...node, hidden };
       }),
     );
-  }, [zoom, setZoomLevel, setNodes]);
+  }, [zoom, setZoomLevel, setNodes, activeLayer]);
 
   useEffect(() => {
     setNodes((nodes) =>

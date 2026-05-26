@@ -14,7 +14,11 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
-import { buildInitialGraph } from "@/lib/canvas/seedToNodes";
+import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
+import {
+  buildInitialGraph,
+  restoreDependencyEdgeStyles,
+} from "@/lib/canvas/seedToNodes";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
@@ -50,36 +54,107 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   const setEdges = useCanvasStore((s) => s.setEdges);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const selectNode = useCanvasStore((s) => s.selectNode);
-  const toggleProjectExpanded = useCanvasStore((s) => s.toggleProjectExpanded);
-  const expandedProjects = useCanvasStore((s) => s.expandedProjects);
+  const cascadeChainTaskIds = useCanvasStore((s) => s.cascadeChainTaskIds);
+  const cascadeImpact = useCanvasStore((s) => s.cascadeImpact);
+  const activeLayer = useCanvasStore((s) => s.activeLayer);
+
+  const { handleToggleExpand } = useProjectExpand();
 
   useEffect(() => {
-    const onToggleExpand = (projectId: string) => {
-      toggleProjectExpanded(projectId);
-      setNodes((current) =>
-        current.map((node) => {
-          if (node.type !== "projectCluster") return node;
-          const data = node.data as ProjectClusterNodeData;
-          if (data.project.id !== projectId) return node;
-          return {
-            ...node,
-            data: {
-              ...data,
-              isExpanded: !data.isExpanded,
-            },
-          };
-        }),
-      );
-    };
-
-    const { nodes: seedNodes, edges: seedEdges } = buildInitialGraph(
-      onToggleExpand,
-      expandedProjects,
-    );
+    const { nodes: seedNodes, edges: seedEdges } = buildInitialGraph();
     setNodes(seedNodes);
     setEdges(seedEdges);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount
   }, []);
+
+  useEffect(() => {
+    setNodes((current) =>
+      current.map((node) => {
+        if (node.type === "projectCluster") {
+          return {
+            ...node,
+            data: {
+              ...(node.data as ProjectClusterNodeData),
+              onToggleExpand: handleToggleExpand,
+            },
+          };
+        }
+        return node;
+      }),
+    );
+  }, [handleToggleExpand, setNodes]);
+
+  useEffect(() => {
+    if (!cascadeChainTaskIds && !cascadeImpact) {
+      setNodes((current) =>
+        current.map((node) => {
+          if (!node.id.startsWith("task-")) return node;
+          const { style: _style, ...rest } = node;
+          void _style;
+          return rest;
+        }),
+      );
+      return;
+    }
+    if (activeLayer === "workload") return;
+
+    const highlightIds = new Set(cascadeChainTaskIds ?? []);
+    if (cascadeImpact?.sourceTaskId) {
+      highlightIds.add(cascadeImpact.sourceTaskId);
+    }
+
+    setNodes((current) =>
+      current.map((node) => {
+        if (!node.id.startsWith("task-")) return node;
+        const taskId = node.id.replace("task-", "");
+        if (!highlightIds.has(taskId)) {
+          const { style: _style, ...rest } = node;
+          void _style;
+          return rest;
+        }
+        const isSource = taskId === cascadeImpact?.sourceTaskId;
+        return {
+          ...node,
+          style: {
+            boxShadow: isSource
+              ? "0 0 0 2px rgba(221, 105, 116, 0.6)"
+              : "0 0 0 2px rgba(232, 175, 52, 0.6)",
+          },
+        };
+      }),
+    );
+  }, [cascadeChainTaskIds, cascadeImpact, activeLayer, setNodes]);
+
+  useEffect(() => {
+    if (!cascadeChainTaskIds || activeLayer === "workload") return;
+
+    const chainSet = new Set(cascadeChainTaskIds);
+    setEdges((current) =>
+      current.map((edge) => {
+        if (!edge.id.startsWith("dep-")) return edge;
+        const sourceTaskId = edge.source.replace("task-", "");
+        const targetTaskId = edge.target.replace("task-", "");
+        const isInChain =
+          chainSet.has(sourceTaskId) || chainSet.has(targetTaskId);
+        return {
+          ...edge,
+          style: {
+            ...edge.style,
+            opacity: isInChain ? 1 : 0.15,
+            stroke: isInChain
+              ? "rgba(232, 175, 52, 0.8)"
+              : edge.style?.stroke,
+          },
+        };
+      }),
+    );
+  }, [cascadeChainTaskIds, activeLayer, setEdges]);
+
+  useEffect(() => {
+    if (cascadeChainTaskIds) return;
+    if (activeLayer === "workload") return;
+    setEdges((current) => restoreDependencyEdgeStyles(current));
+  }, [cascadeChainTaskIds, activeLayer, setEdges]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>

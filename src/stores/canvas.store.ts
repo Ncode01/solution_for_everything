@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Edge, Node, Viewport } from "@xyflow/react";
+import type { CascadeImpact } from "@/lib/cpm";
 import type { ActiveLayer, ZoomLevel } from "@/types";
 
 interface CanvasState {
@@ -12,6 +13,7 @@ interface CanvasState {
   activeLayer: ActiveLayer;
   expandedProjects: Set<string>;
   cascadeChainTaskIds: string[] | null;
+  cascadeImpact: CascadeImpact | null;
   setNodes: (nodes: Node[] | ((prev: Node[]) => Node[])) => void;
   setEdges: (edges: Edge[] | ((prev: Edge[]) => Edge[])) => void;
   setViewport: (viewport: Viewport) => void;
@@ -23,6 +25,7 @@ interface CanvasState {
   setActiveLayer: (layer: ActiveLayer) => void;
   toggleProjectExpanded: (projectId: string) => void;
   setCascadeChain: (taskIds: string[] | null) => void;
+  setCascadeImpact: (impact: CascadeImpact | null) => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -35,6 +38,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   activeLayer: "default",
   expandedProjects: new Set(),
   cascadeChainTaskIds: null,
+  cascadeImpact: null,
   setNodes: (nodes) =>
     set((state) => ({
       nodes: typeof nodes === "function" ? nodes(state.nodes) : nodes,
@@ -59,4 +63,5 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       return { expandedProjects: next };
     }),
   setCascadeChain: (cascadeChainTaskIds) => set({ cascadeChainTaskIds }),
+  setCascadeImpact: (cascadeImpact) => set({ cascadeImpact }),
 }));

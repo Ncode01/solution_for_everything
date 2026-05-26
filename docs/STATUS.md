@@ -3,117 +3,98 @@
 > Auto-updated after each Cursor prompt session.  
 > Last updated: Tuesday, May 26, 2026
 
-## Current Phase: Phase 2 — Canvas Nodes (COMPLETE)
+## Current Phase: Phase 3 — Blocking Chain + Workload (COMPLETE)
 
-**Status:** Phase 2 complete — canvas nodes, seed data, semantic zoom, task detail panel
+**Status:** Phase 3 complete — project expand, CPM engine, cascade panel, workload layer
 
 ## Phase 1 Progress
 
 - [x] Next.js bootstrap + path aliases (`@/*`)
-- [x] Tailwind v4 full token config (`tailwind.config.ts` + `@config` in globals)
-- [x] Geist (next/font) + JetBrains Mono (Google Fonts)
+- [x] Tailwind v4 full token config
+- [x] Geist + JetBrains Mono fonts
 - [x] App Shell (TopBar + LeftSidebar + CanvasArea + RightPanel)
 - [x] ReactFlow mounted with dot-grid + MiniMap
 - [x] Zustand stores (`canvas.store` + `ui.store`)
 - [x] TypeScript types (`src/types/index.ts`)
-- [x] Dark mode locked (`html.dark`, no toggle)
+- [x] Dark mode locked
 - [x] Fastify packages installed (server code not written)
 - [ ] Fastify server process + routes
 - [ ] PostgreSQL + Drizzle schema + migrations
 - [ ] better-auth JWT auth
-- [ ] Stitch HTML files in `/stitch-reference/`
 
 ## Phase 2 Progress
 
-- [x] TaskCardNode — status dot, priority chip, assignee avatars, blocked pulse, critical path bar
-- [x] ProjectClusterNode — accent bar, progress bar, expand chevron
-- [x] PhaseClusterNode — completion bar, task count
-- [x] PersonAvatarNode — load ring, load level color (workload layer only)
-- [x] DependencyEdge — bezier with arrows, gold on critical path, dashed on blocked
-- [x] Mock seed data — 3 projects, 4 users, 9 tasks, dependency graph
-- [x] Semantic zoom — Z0 shows projects, Z1 shows phases, Z2/Z3 shows tasks
-- [x] RightPanel task detail — status, priority, assignees, CPM info, dependency list
-- [x] Node click → panel open (`selectedNodeId` + `isRightPanelOpen`)
+- [x] TaskCardNode, ProjectClusterNode, PhaseClusterNode, PersonAvatarNode
+- [x] DependencyEdge + mock seed data (9 tasks, 3 projects)
+- [x] Semantic zoom (Z0–Z3) + RightPanel task detail
 
-## Phase 3 Status: NOT STARTED
+## Phase 3 Progress
+
+- [x] Project expand → spawns PhaseClusterNodes dynamically
+- [x] Project collapse → removes phase nodes + connecting edges
+- [x] CPM engine — topological sort, forward/backward pass, float computation
+- [x] Cascade impact computation — BFS downstream traversal, delay estimation
+- [x] CPM wired to seed data — `isCriticalPath` + `slackTime` from engine
+- [x] CascadePanel — spring animation, chain cards, Escape dismiss, edge dimming
+- [x] Workload heatmap layer — person avatars, task fade, overloaded edge highlight
+- [x] WorkloadBanner — floating pill with overload count
+- [x] TopBar workload toggle button
 
 ## Phase 4 Status: NOT STARTED
 
 ## File Inventory (UPDATED)
 
-### `src/components/ui/`
+### `src/lib/cpm/`
 | File | Status |
 |------|--------|
-| `AppShell.tsx` | ✅ |
-| `TopBar.tsx` | ✅ |
-| `LeftSidebar.tsx` | ✅ |
-| `RightPanel.tsx` | ✅ (TaskDetailPanel + slide transition) |
-| `FlowCanvasLogo.tsx` | ✅ |
+| `types.ts` | ✅ |
+| `engine.ts` | ✅ |
+| `engine.test.ts` | ✅ (smoke test) |
+| `index.ts` | ✅ |
 
-### `src/components/canvas/`
+### `src/lib/canvas/`
 | File | Status |
 |------|--------|
-| `CanvasWrapper.tsx` | ✅ |
-| `FlowCanvas.tsx` | ✅ (nodeTypes + edgeTypes, seed on mount) |
-| `CanvasArea.tsx` | ✅ |
-| `nodes/TaskCardNode.tsx` | ✅ |
-| `nodes/ProjectClusterNode.tsx` | ✅ |
-| `nodes/PhaseClusterNode.tsx` | ✅ |
-| `nodes/PersonAvatarNode.tsx` | ✅ |
-| `nodes/DependencyEdge.tsx` | ✅ |
+| `useSemanticZoom.ts` | ✅ |
+| `useProjectExpand.ts` | ✅ |
+| `useWorkloadLayer.ts` | ✅ |
+| `seedToNodes.ts` | ✅ (CPM-enhanced tasks, centroid person nodes) |
 
 ### `src/components/panels/`
 | File | Status |
 |------|--------|
-| `TaskDetailPanel.tsx` | ✅ |
+| `TaskDetailPanel.tsx` | ✅ (cascade computation wired) |
+| `CascadePanel.tsx` | ✅ |
 
-### `src/lib/`
+### `src/components/canvas/`
 | File | Status |
 |------|--------|
-| `providers.tsx` | ✅ |
-| `canvas/useSemanticZoom.ts` | ✅ (visibility + workload layer + Z3 expand) |
-| `canvas/seedToNodes.ts` | ✅ |
-| `seed/mockData.ts` | ✅ |
-
-### `src/stores/`
-| File | Status |
-|------|--------|
-| `canvas.store.ts` | ✅ |
-| `ui.store.ts` | ✅ |
-
-### `src/types/`
-| File | Status |
-|------|--------|
-| `index.ts` | ✅ |
+| `FlowCanvas.tsx` | ✅ |
+| `CanvasArea.tsx` | ✅ (CascadePanel + WorkloadBanner) |
+| `WorkloadBanner.tsx` | ✅ |
+| `nodes/*` | ✅ |
 
 ### `server/`
-EMPTY — Phase 1 backend pending
-
-### `stitch-reference/`
-README only — add S1–S11 HTML manually
+EMPTY — backend pending
 
 ## Current Visual State
 
-- Canvas shows 9 task cards connected by bezier dependency edges
-- Critical path: t1→t2→t5 in gold edges
-- Blocked task t4 has red pulsing border + dashed incoming edge
-- RightPanel opens on task click with full detail
-- Zoom out → project cluster pills appear, task cards hide
-- Zoom in → task cards visible, clusters hide
-- Z3 (zoom ≥ 1.5) expands task cards with description, due date, effort
+- Click any task → RightPanel shows full detail
+- Click blocked task t4 → CascadePanel slides up from canvas bottom (t4 → t5 chain)
+- Toggle **Workload** in TopBar → person avatars float at task centroids
+- Zoom out (< 0.7) → project cluster pills; chevron expand spawns phase nodes
+- Zoom in → 9 task cards with CPM-computed critical path edges
 
 ## Known Issues
 
-1. Phase cluster nodes not yet spawned when a project expands (expand chevron toggles state only).
-2. Person avatar nodes seeded but only visible when `activeLayer === 'workload'`.
-3. `stitch-reference/` HTML not present — nodes built from prompt specs + design tokens.
+1. Escape on CascadePanel dismisses cascade but keeps task selected (by design).
+2. Deactivating workload layer re-runs semantic zoom visibility on next zoom change only for person nodes (toggle off hides persons immediately).
+3. `stitch-reference/` HTML not present — UI built from prompt specs.
 
-## Next Session: Prompt Set 3
+## Next Session: Prompt Set 4
 
-Goal options:
+**A)** Command Palette (S10) + keyboard shortcuts (⌘K, T, Escape)  
+**B)** Phase 1 backend — Fastify + Drizzle + PostgreSQL  
+**C)** Dashboard view (S9) — Recharts KPIs
 
-**A)** Phase 3 — Blocking Chain Cascade View (S7) + Workload Heatmap Layer (S8)  
-**B)** Phase 1 backend — Fastify + Drizzle + PostgreSQL (replace mock data with real API)  
-**C)** Command Palette (S10) + keyboard shortcuts
-
-**Recommended:** **A** — builds on visible canvas nodes and edges; validates workload layer and blocking UX before backend.
+**Recommended:** **A** — completes core canvas UX loop before backend or dashboard.
