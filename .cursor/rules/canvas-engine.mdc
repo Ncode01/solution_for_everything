@@ -1,0 +1,60 @@
+---
+description: ReactFlow canvas engine rules. Apply to all canvas/ components.
+globs: ["src/components/canvas/**/*.tsx", "src/stores/canvas*.ts"]
+---
+
+# Canvas Engine Rules
+
+## ReactFlow Setup
+- Use @xyflow/react v12 (not v11 — API is different)
+- Wrap in <ReactFlowProvider> at the app level (not per-page)
+- Always pass nodeTypes and edgeTypes as STATIC objects (defined outside component or useMemo)
+- Never define nodeTypes/edgeTypes inline — causes re-render loops
+
+## Performance Rules (CRITICAL)
+- Wrap ALL custom node components in React.memo()
+- Wrap ALL node event handlers in useCallback()
+- Wrap defaultEdgeOptions and snapGrid in useMemo()
+- Store selected node IDs separately in Zustand — NEVER derive from nodes array
+- Use node.hidden = true for semantic zoom level switching (don't unmount)
+- Limit visible nodes to current zoom level's semantic set
+- NEVER use backdrop-filter: blur() on node components — tanks FPS at 100+ nodes
+- Use CSS transform only (no opacity animations) for node transitions
+
+## Semantic Zoom Implementation
+Zoom levels map to what's rendered:
+- viewport.zoom < 0.3 → Z0: Show ProjectClusterNode only (hide all phase/task nodes)
+- 0.3 ≤ zoom < 0.7 → Z1: Show ProjectClusterNode + PhaseClusterNode (hide task nodes)
+- 0.7 ≤ zoom < 1.5 → Z2: Show all nodes including TaskCardNode
+- zoom ≥ 1.5 → Z3: TaskCardNode expands to show full detail
+
+Implement via useViewport() hook + node.hidden toggling in a useEffect.
+Do NOT use CSS zoom — use ReactFlow's built-in zoom system only.
+
+## Node Types (locked)
+- ProjectClusterNode: Outer container for a project (non-draggable position, resizable)
+- PhaseClusterNode: Sub-container within a project
+- TaskCardNode: Individual task card (the primary interactive element)
+- MilestoneNode: Diamond-shaped milestone marker
+- PersonAvatarNode: Floating workload avatar (workload layer only, hidden by default)
+
+## Edge Types (locked)
+- DependencyEdge: Standard FS dependency (bezier, animated when source is in-progress)
+- BlockedEdge: Same as DependencyEdge but amber color + dashed
+- CriticalPathEdge: Gold, 2px strokeWidth — rendered on top of all other edges
+- CrossProjectEdge: Dashed gray — only visible at Z0/Z1
+
+## Zustand Canvas Store (src/stores/canvas.store.ts)
+Must contain:
+- nodes: Node[] + edges: Edge[] (source of truth for ReactFlow)
+- viewport: { x, y, zoom }
+- selectedNodeId: string | null (NOT derived from nodes)
+- activeLayer: 'default' | 'workload' | 'criticalPath'
+- zoomLevel: 'Z0' | 'Z1' | 'Z2' | 'Z3'
+- expandedProjects: Set<string>
+
+## CPM Integration
+- After any task mutation, call lib/cpm/compute.ts with the full task graph
+- CPM result updates node data (isCriticalPath, slackTime, cascadeRisk)
+- This triggers a shallow ReactFlow node update (not a full re-render)
+- CPM runs client-side for instant feedback, server-side for persistence

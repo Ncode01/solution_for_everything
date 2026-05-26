@@ -1,0 +1,57 @@
+---
+description: Backend rules for the Fastify server process.
+globs: ["server/**/*.ts"]
+---
+
+# Backend Rules
+
+## Stack
+- Fastify v5 + TypeScript
+- @fastify/websocket for WebSocket support
+- Drizzle ORM + postgres (node-postgres driver)
+- better-auth for JWT authentication
+- Runs as separate process on port 3001 (Next.js runs on 3000)
+
+## Database Schema (PostgreSQL)
+Tables:
+- organizations (id, name, slug, created_at)
+- users (id, org_id, name, email, avatar_url, role, created_at)
+- projects (id, org_id, name, color, status, owner_id, start_date, end_date, created_at)
+- phases (id, project_id, name, order_index, entry_conditions jsonb)
+- tasks (id, phase_id, title, description, status, priority, effort_estimate, due_date, canvas_x float, canvas_y float, is_critical_path bool, slack_time int, created_at, updated_at)
+- task_assignments (task_id, user_id) — many-to-many
+- task_dependencies (upstream_task_id, downstream_task_id, type) — type: FS|FF|SS
+- comments (id, task_id, user_id, content, created_at)
+- canvas_bookmarks (id, user_id, name, viewport_x, viewport_y, viewport_zoom)
+
+## WebSocket Events
+All WS messages follow: { type: string, payload: any, orgId: string, userId: string }
+
+Inbound (client → server):
+- TASK_UPDATE: { taskId, changes }
+- TASK_CREATE: { phaseId, data }
+- DEPENDENCY_ADD: { upstreamId, downstreamId, depType }
+- DEPENDENCY_REMOVE: { upstreamId, downstreamId }
+- CANVAS_MOVE: { nodeId, x, y } — debounced, 500ms
+- CURSOR_MOVE: { x, y } — presence only, not persisted
+
+Outbound (server → all org clients):
+- TASK_UPDATED: broadcast after DB write + CPM recompute
+- CPM_RESULT: { criticalPath: string[], taskFloats: Record<string, number> }
+- PRESENCE_UPDATE: { userId, cursor: {x,y}, activeNodeId }
+- WORKLOAD_UPDATE: { userId, loadPercent, taskCount }
+
+## CPM Server-Side
+- server/graph/cpm.ts runs topological sort on task dependency graph
+- Triggered after any TASK_UPDATE or DEPENDENCY_ADD/REMOVE event
+- Result broadcast to all connected org clients via CPM_RESULT event
+- Max recompute time target: < 50ms for up to 500 tasks
+
+## REST Endpoints
+- GET /api/org/:orgId/graph — returns full project/phase/task graph for canvas hydration
+- GET /api/org/:orgId/workload — returns person workload aggregation
+- POST /api/tasks — create task
+- PATCH /api/tasks/:id — update task
+- POST /api/dependencies — add dependency
+- DELETE /api/dependencies — remove dependency
+- GET /api/projects/:id/critical-path — returns current critical path

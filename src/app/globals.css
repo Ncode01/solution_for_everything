@@ -1,0 +1,57 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap");
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* Canvas dot-grid background */
+.canvas-dot-grid {
+  background-image: radial-gradient(
+    circle,
+    rgba(205, 204, 202, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  background-color: #0e0d0c;
+}
+
+/* Amber pulse for blocked status */
+@keyframes blocked-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-blocked-pulse {
+  animation: blocked-pulse 1.8s ease-in-out infinite;
+}
+
+/* Hide scrollbar utility */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ReactFlow overrides — must not conflict with our tokens */
+.react-flow__background {
+  background-color: #0e0d0c !important;
+}
+
+.react-flow__minimap {
+  background: #1f201e !important;
+  border-radius: 0.5rem;
+}
+
+.react-flow__controls {
+  display: none;
+}
+
+.react-flow__panel {
+  background: transparent;
+}
