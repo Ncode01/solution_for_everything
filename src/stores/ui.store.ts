@@ -15,6 +15,12 @@ export interface TaskCreateDefaults {
   canvasY?: number;
 }
 
+export interface ToastMessage {
+  id: string;
+  type: "success" | "error";
+  message: string;
+}
+
 interface UIState {
   isCommandPaletteOpen: boolean;
   isRightPanelOpen: boolean;
@@ -29,6 +35,8 @@ interface UIState {
   presenceUsers: PresenceUser[];
   broadcastCursor: ((x: number, y: number) => void) | null;
   broadcastViewport: ((x: number, y: number, zoom: number) => void) | null;
+  showKeyboardHelp: boolean;
+  toasts: ToastMessage[];
   setCanvasLoading: (isCanvasLoading: boolean) => void;
   setCanvasError: (canvasError: string | null) => void;
   setSkipInitialFitView: (skip: boolean) => void;
@@ -47,6 +55,9 @@ interface UIState {
   setBroadcastViewport: (
     fn: ((x: number, y: number, zoom: number) => void) | null,
   ) => void;
+  toggleKeyboardHelp: (open?: boolean) => void;
+  addToast: (type: ToastMessage["type"], message: string) => void;
+  dismissToast: (id: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -63,6 +74,8 @@ export const useUIStore = create<UIState>((set) => ({
   presenceUsers: [],
   broadcastCursor: null,
   broadcastViewport: null,
+  showKeyboardHelp: false,
+  toasts: [],
   setCanvasLoading: (isCanvasLoading) => set({ isCanvasLoading }),
   setCanvasError: (canvasError) => set({ canvasError }),
   setSkipInitialFitView: (skipInitialFitView) => set({ skipInitialFitView }),
@@ -105,4 +118,19 @@ export const useUIStore = create<UIState>((set) => ({
   setPresenceUsers: (presenceUsers) => set({ presenceUsers }),
   setBroadcastCursor: (broadcastCursor) => set({ broadcastCursor }),
   setBroadcastViewport: (broadcastViewport) => set({ broadcastViewport }),
+  toggleKeyboardHelp: (open) =>
+    set((state) => ({
+      showKeyboardHelp: open !== undefined ? open : !state.showKeyboardHelp,
+    })),
+  addToast: (type, message) =>
+    set((state) => ({
+      toasts: [
+        ...state.toasts,
+        { id: `toast-${Date.now()}-${Math.random()}`, type, message },
+      ],
+    })),
+  dismissToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
 }));

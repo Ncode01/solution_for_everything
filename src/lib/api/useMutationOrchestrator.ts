@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasEvents } from "@/lib/firebase/useCanvasEvents";
 import { useCPMSync } from "@/lib/canvas/useCPMSync";
+import { useUIStore } from "@/stores/ui.store";
 import {
   useCreateTaskMutation,
   useUpdateTaskMutation,
@@ -23,10 +24,17 @@ export function useMutationOrchestrator() {
     recomputeCPM();
   };
 
+  const toastSuccess = (message: string) =>
+    useUIStore.getState().addToast("success", message);
+  const toastError = (error: Error) =>
+    useUIStore.getState().addToast("error", error.message);
+
   const createTask = useCreateTaskMutation({
     onSuccess: (task) => {
+      toastSuccess("Task created");
       void publishEvent("task_created", task.id, { task });
     },
+    onError: toastError,
     onSettled: async () => {
       await invalidateAndRecompute();
     },
@@ -34,8 +42,10 @@ export function useMutationOrchestrator() {
 
   const updateTask = useUpdateTaskMutation({
     onSuccess: (task) => {
+      toastSuccess("Task saved");
       void publishEvent("task_updated", task.id, { task });
     },
+    onError: toastError,
     onSettled: async () => {
       await invalidateAndRecompute();
     },
@@ -43,8 +53,10 @@ export function useMutationOrchestrator() {
 
   const archiveTask = useArchiveTaskMutation({
     onSuccess: (task) => {
+      toastSuccess("Task archived");
       void publishEvent("task_archived", task.id, {});
     },
+    onError: toastError,
     onSettled: async () => {
       await invalidateAndRecompute();
     },
@@ -56,6 +68,7 @@ export function useMutationOrchestrator() {
         upstreamTaskId: vars.upstreamTaskId,
       });
     },
+    onError: toastError,
     onSettled: async () => {
       await invalidateAndRecompute();
     },
@@ -67,6 +80,7 @@ export function useMutationOrchestrator() {
         upstreamTaskId: vars.upstreamTaskId,
       });
     },
+    onError: toastError,
     onSettled: async () => {
       await invalidateAndRecompute();
     },

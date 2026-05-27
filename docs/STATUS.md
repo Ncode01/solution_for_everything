@@ -2,36 +2,34 @@
 
 > Last updated: Tuesday, May 27, 2026
 
-## Current Phase: Phase 8 — COMPLETE
+## Current Phase: Phase 9 — COMPLETE
 
-**Status:** Collaborative presence, cursor broadcast, invite system, and domain user linking shipped.
+**Status:** Production hardening, route authorization, UI polish, and deploy configuration shipped.
 
-## Phase 8 Progress
+## Phase 9 Progress
 
-- [x] Firestore presence schema with throttled writes (30s heartbeat, 2s cursor, 5s viewport)
-- [x] `usePresence` + `PresenceOrchestrator` at AppShell level
-- [x] `RemoteCursors` on canvas (ReactFlow screen projection)
-- [x] Presence chips in TopBar
-- [x] Firestore rules tightened (catch-all deny)
-- [x] `invite_tokens` table + `authUserId` on domain users
-- [x] Invite API routes (create, validate, accept)
-- [x] `GET /api/users/me` domain user lookup
-- [x] `/invite/[token]` page (sign-up + accept flow)
-- [x] TopBar invite form with copy link
-- [x] `useCurrentUser` hook
-- [x] Diagnostic v4.0 (50 checks)
+- [x] `requireSession` helper on all mutating API routes
+- [x] `credentials: 'include'` + 401 redirect in `apiFetch`
+- [x] Owner auto-link script (`pnpm auth:link-owner`)
+- [x] Keyboard help overlay (`?`)
+- [x] Error boundaries on canvas, gantt, dashboard, right panel
+- [x] Toast system wired to mutations
+- [x] Canvas + Gantt empty states
+- [x] Gantt loading skeleton
+- [x] CORS hardened (no wildcard)
+- [x] Seed production guard
+- [x] `vercel.json`, `railway.json`, `docs/DEPLOY.md`
+- [x] Diagnostic v5.0 (62 checks)
 
-### Not in this session
+### Deploy follow-up (manual)
 
-- [ ] Production Firestore security rules with auth.uid checks (Phase 10)
-- [ ] Email delivery for invites (copy-link only)
+- [ ] `firebase use --add` + `firebase deploy --only firestore:rules` (if not yet run)
+- [ ] Phase 10 — live deploy to Vercel + Railway/Render
 
-## Phase 7 Progress (complete)
+## Phase 8 Progress (complete)
 
-- [x] Gantt view, Dashboard view, Recharts workload chart
-- [x] Diagnostic v3.0 (38 checks)
+- [x] Presence, cursors, invites, domain user linking
 
 ## Next
 
-- Phase 9 — Polish + production hardening
-- Phase 10 — Deploy (Vercel + Railway/Render free tier)
+- Phase 10 — Deploy (Vercel + Railway/Render, live) — tag `v1.0.0`

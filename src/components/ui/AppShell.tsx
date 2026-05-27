@@ -12,6 +12,9 @@ import { CommandPalette } from "@/components/panels/CommandPalette";
 import { useCanvasEvents } from "@/lib/firebase/useCanvasEvents";
 import { useOrgGraph } from "@/lib/api/useOrgGraph";
 import { PresenceOrchestrator } from "./PresenceOrchestrator";
+import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
+import { ToastContainer } from "./Toast";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 function CanvasEventListener() {
   useCanvasEvents();
@@ -33,17 +36,27 @@ export function AppShell() {
       <PresenceOrchestrator />
       <CanvasEventListener />
       <CommandPalette />
+      <KeyboardHelpOverlay />
+      <ToastContainer />
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar />
         {activeView === "canvas" ? (
-          <CanvasArea />
+          <ErrorBoundary fallbackLabel="Canvas failed to load">
+            <CanvasArea />
+          </ErrorBoundary>
         ) : activeView === "gantt" ? (
-          <GanttView />
+          <ErrorBoundary fallbackLabel="Gantt view failed to load">
+            <GanttView />
+          </ErrorBoundary>
         ) : activeView === "dashboard" ? (
-          <DashboardView />
+          <ErrorBoundary fallbackLabel="Dashboard failed to load">
+            <DashboardView />
+          </ErrorBoundary>
         ) : null}
-        <RightPanel />
+        <ErrorBoundary fallbackLabel="Panel failed to load">
+          <RightPanel />
+        </ErrorBoundary>
       </div>
     </div>
   );

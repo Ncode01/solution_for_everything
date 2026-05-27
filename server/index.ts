@@ -17,8 +17,20 @@ async function buildServer() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, {
-    origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    origin: (origin, cb) => {
+      const allowed = process.env.APP_URL ?? "http://localhost:3000";
+      if (
+        !origin ||
+        origin === allowed ||
+        origin.startsWith("http://localhost")
+      ) {
+        cb(null, true);
+      } else {
+        cb(new Error("Not allowed by CORS"), false);
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
   });
 
   app.get("/health", async () => ({

@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { requireSession } from "../lib/auth";
 import { getViewport, upsertViewport } from "../db/viewport-queries";
 
 export const canvasRoutes: FastifyPluginAsync = async (fastify) => {
@@ -29,21 +30,29 @@ export const canvasRoutes: FastifyPluginAsync = async (fastify) => {
       authUserId: string;
     };
   }>("/viewport/:orgId", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
+
     const { orgId } = req.params;
     const { viewportX, viewportY, viewportZoom, authUserId } = req.body ?? {};
 
+    if (authUserId && authUserId !== session.userId) {
+      return reply.code(403).send({ error: "Cannot save viewport for another user" });
+    }
+
     if (
-      authUserId === undefined ||
       viewportX === undefined ||
       viewportY === undefined ||
       viewportZoom === undefined
     ) {
       return reply.code(400).send({
-        error: "authUserId, viewportX, viewportY, viewportZoom required",
+        error: "viewportX, viewportY, viewportZoom required",
       });
     }
 
-    const row = await upsertViewport(orgId, authUserId, {
+    const effectiveAuthUserId = authUserId ?? session.userId;
+
+    const row = await upsertViewport(orgId, effectiveAuthUserId, {
       viewportX,
       viewportY,
       viewportZoom,

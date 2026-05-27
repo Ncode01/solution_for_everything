@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
 import { apiClient } from "./client";
 import { useCanvasStore } from "@/stores/canvas.store";
@@ -16,17 +17,29 @@ export function useViewportPersistence(graphReady: boolean) {
   const restoredRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const viewportQuery = useQuery({
+    queryKey: ["canvas-viewport", ORG_ID, session?.user?.id],
+    queryFn: async () => {
+      try {
+        return await apiClient.getViewport(ORG_ID, session!.user.id);
+      } catch {
+        return null;
+      }
+    },
+    enabled: graphReady && Boolean(session?.user?.id && ORG_ID),
+    staleTime: 10_000,
+    retry: false,
+  });
+
   useEffect(() => {
     if (!graphReady || restoredRef.current || !session?.user?.id || !ORG_ID) {
       return;
     }
-
-    let cancelled = false;
+    if (viewportQuery.isLoading) return;
 
     void (async () => {
       try {
-        const saved = await apiClient.getViewport(ORG_ID, session.user.id);
-        if (cancelled) return;
+        const saved = viewportQuery.data ?? null;
         if (saved) {
           await applyCanvasViewport({
             x: saved.viewportX,
@@ -38,16 +51,18 @@ export function useViewportPersistence(graphReady: boolean) {
           void fitCanvasView();
         }
       } catch {
-        if (!cancelled) void fitCanvasView();
+        void fitCanvasView();
       } finally {
         restoredRef.current = true;
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [graphReady, session?.user?.id, setSkipInitialFitView]);
+  }, [
+    graphReady,
+    session?.user?.id,
+    setSkipInitialFitView,
+    viewportQuery.data,
+    viewportQuery.isLoading,
+  ]);
 
   useEffect(() => {
     if (!restoredRef.current || !session?.user?.id || !ORG_ID) return;

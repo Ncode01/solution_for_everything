@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { BarChart2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
@@ -88,18 +89,24 @@ export function GanttView() {
 
   if (query.isLoading) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-surface-container-low">
-        <p className="font-mono-label text-mono-label text-outline">
-          Loading Gantt…
-        </p>
+      <main className="flex min-w-0 flex-1 flex-col bg-surface-container-low">
+        <div className="flex flex-col gap-2 p-4">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-[44px] animate-pulse rounded-lg bg-surface-container-high"
+            />
+          ))}
+        </div>
       </main>
     );
   }
 
   if (!query.data || groups.length === 0) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-surface-container-low">
-        <p className="font-mono-label text-mono-label text-outline">
+      <main className="flex flex-1 flex-col items-center justify-center gap-2 bg-surface-container-low">
+        <BarChart2 className="text-outline" size={32} />
+        <p className="text-body-md text-on-surface-variant">
           No tasks to display
         </p>
       </main>

@@ -54,6 +54,11 @@ export function useGlobalShortcuts() {
       const ui = useUIStore.getState();
       const canvas = useCanvasStore.getState();
 
+      if (ui.showKeyboardHelp) {
+        ui.toggleKeyboardHelp(false);
+        return;
+      }
+
       if (ui.isCommandPaletteOpen) {
         ui.closeCommandPalette();
         ui.setCommandQuery("");
@@ -128,6 +133,17 @@ export function useGlobalShortcuts() {
       }
 
       if (typing) return;
+
+      if (
+        event.key === "?" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        useUIStore.getState().toggleKeyboardHelp();
+        return;
+      }
 
       const now = Date.now();
       const lower = event.key.toLowerCase();

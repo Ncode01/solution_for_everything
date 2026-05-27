@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { requireSession } from "../lib/auth";
 import {
   acceptInviteRecord,
   createInviteRecord,
@@ -17,6 +18,9 @@ export const inviteRoutes: FastifyPluginAsync = async (fastify) => {
       createdBy?: string;
     };
   }>("/", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
+
     const { orgId, email, role, createdBy } = req.body ?? {};
     if (!orgId || !email?.trim()) {
       return reply.code(400).send({ error: "orgId and email are required" });

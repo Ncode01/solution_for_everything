@@ -194,7 +194,9 @@ check("API: POST /api/tasks route exists", async () => {
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(3000),
     });
-    return res.status === 400 ? "PASS — route reachable (400 validation)" : `PASS — HTTP ${res.status}`;
+    return res.status === 400 || res.status === 401
+      ? "PASS — route reachable (auth or validation)"
+      : `PASS — HTTP ${res.status}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }
@@ -243,8 +245,8 @@ check("API: DELETE /api/tasks/:id route exists (archive)", async () => {
         signal: AbortSignal.timeout(5000),
       },
     );
-    return res.status === 404
-      ? "PASS — route exists (404 on missing id)"
+    return res.status === 404 || res.status === 401
+      ? "PASS — route exists (404/401)"
       : `FAIL — status ${res.status}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
@@ -547,8 +549,8 @@ check("API: POST /api/invites route exists", async () => {
       body: JSON.stringify({}),
       signal: AbortSignal.timeout(3000),
     });
-    return res.status === 400
-      ? "PASS — route reachable (400 validation)"
+    return res.status === 400 || res.status === 401
+      ? "PASS — route reachable (auth or validation)"
       : `PASS — HTTP ${res.status}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
@@ -617,6 +619,116 @@ check("SRC: AppShell mounts PresenceOrchestrator", async () => {
   }
 });
 
+check("SRC: ErrorBoundary component exists", async () =>
+  fileExists("src/components/ui/ErrorBoundary.tsx") ? "PASS" : "FAIL",
+);
+
+check("SRC: KeyboardHelpOverlay component exists", async () =>
+  fileExists("src/components/ui/KeyboardHelpOverlay.tsx") ? "PASS" : "FAIL",
+);
+
+check("SRC: Toast/ToastContainer component exists", async () =>
+  fileExists("src/components/ui/Toast.tsx") &&
+  /ToastContainer/.test(
+    readFileSync(
+      resolve(process.cwd(), "src/components/ui/Toast.tsx"),
+      "utf8",
+    ),
+  )
+    ? "PASS"
+    : "FAIL",
+);
+
+check("SRC: No firebase/compat imports", async () => {
+  const hits: string[] = [];
+  for (const file of walkTsFiles(resolve(process.cwd(), "src"))) {
+    if (/firebase\/compat/.test(readFileSync(file, "utf8"))) {
+      hits.push(file);
+    }
+  }
+  return hits.length > 0 ? `FAIL — ${hits.join(", ")}` : "PASS";
+});
+
+check("SRC: All Zustand selectors use selector functions", async () => {
+  const bareCanvas = /useCanvasStore\s*\(\s*\)/;
+  const bareUi = /useUIStore\s*\(\s*\)/;
+  const hits: string[] = [];
+  for (const file of walkTsFiles(resolve(process.cwd(), "src"))) {
+    const content = readFileSync(file, "utf8");
+    if (bareCanvas.test(content) || bareUi.test(content)) {
+      hits.push(file);
+    }
+  }
+  return hits.length > 0 ? `FAIL — bare store calls: ${hits.join(", ")}` : "PASS";
+});
+
+check("SRC: Seed has production guard", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "server/db/seed.ts"),
+    "utf8",
+  );
+  return /NODE_ENV.*production/.test(content) && /SEED BLOCKED/.test(content)
+    ? "PASS"
+    : "FAIL";
+});
+
+check("SRC: vercel.json exists", async () =>
+  fileExists("vercel.json") ? "PASS" : "FAIL",
+);
+
+check("SRC: DEPLOY.md exists", async () =>
+  fileExists("docs/DEPLOY.md") ? "PASS" : "FAIL",
+);
+
+check("SRC: AppShell wraps views in ErrorBoundary", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "src/components/ui/AppShell.tsx"),
+    "utf8",
+  );
+  return content.includes("ErrorBoundary") &&
+    content.includes("Canvas failed to load")
+    ? "PASS"
+    : "FAIL";
+});
+
+check("SRC: TaskCardNode is wrapped in React.memo", async () => {
+  const content = readFileSync(
+    resolve(
+      process.cwd(),
+      "src/components/canvas/nodes/TaskCardNode.tsx",
+    ),
+    "utf8",
+  );
+  return /React\.memo|memo\s*\(/.test(content) ? "PASS" : "FAIL";
+});
+
+check("SERVER: CORS does not use wildcard origin", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "server/index.ts"),
+    "utf8",
+  );
+  if (/origin:\s*['"]\*['"]/.test(content)) {
+    return "FAIL — wildcard CORS origin";
+  }
+  return /credentials:\s*true/.test(content) ? "PASS" : "FAIL — no credentials";
+});
+
+check("SRC: scripts/link-owner.ts exists", async () =>
+  fileExists("scripts/link-owner.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: requireSession helper exists", async () =>
+  fileExists("server/lib/auth.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: apiFetch uses credentials include", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "src/lib/api/client.ts"),
+    "utf8",
+  );
+  return content.includes('credentials: "include"') ? "PASS" : "FAIL";
+});
+
 check("FIRESTORE: rules file has no open wildcard allow all", async () => {
   try {
     const content = readFileSync(
@@ -637,8 +749,8 @@ check("FIRESTORE: rules file has no open wildcard allow all", async () => {
 
 async function run() {
   console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   FlowCanvas Self-Diagnostic v4.0    ║");
-  console.log("║    Phase 8 — Presence + Invites      ║");
+  console.log("║   FlowCanvas Self-Diagnostic v5.0    ║");
+  console.log("║   Phase 9 — Hardening + Deploy Prep  ║");
   console.log("╚══════════════════════════════════════╝\n");
 
   let passed = 0;

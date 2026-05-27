@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { requireSession } from "../lib/auth";
 import {
   createTaskRecord,
   getTaskById,
@@ -20,6 +21,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post<{ Body: CreateTaskInput }>("/", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
     try {
       const body = req.body;
       if (!body?.title || !body?.projectId || !body?.phaseId) {
@@ -39,6 +42,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { taskId: string };
     Body: UpdateTaskInput;
   }>("/:taskId", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
     try {
       const task = await updateTaskRecord(req.params.taskId, req.body ?? {});
       if (!task) return reply.code(404).send({ error: "Task not found" });
@@ -52,6 +57,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{ Params: { taskId: string } }>(
     "/:taskId",
     async (req, reply) => {
+      const session = await requireSession(req, reply);
+      if (!session) return;
       try {
         const task = await archiveTaskRecord(req.params.taskId);
         if (!task) return reply.code(404).send({ error: "Task not found" });
@@ -66,6 +73,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { taskId: string };
     Body: { upstreamTaskId: string };
   }>("/:taskId/dependencies", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
     try {
       const { taskId } = req.params;
       const { upstreamTaskId } = req.body ?? {};
@@ -87,6 +96,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { taskId: string; upstreamTaskId: string };
   }>("/:taskId/dependencies/:upstreamTaskId", async (req, reply) => {
+    const session = await requireSession(req, reply);
+    if (!session) return;
     try {
       const { taskId, upstreamTaskId } = req.params;
       const task = await removeTaskDependency(taskId, upstreamTaskId);

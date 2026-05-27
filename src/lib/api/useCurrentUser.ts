@@ -9,7 +9,7 @@ export function useCurrentUser() {
   const authUserId = session?.user?.id;
 
   const query = useQuery({
-    queryKey: ["domain-user", authUserId],
+    queryKey: ["current-user", authUserId],
     queryFn: () => apiClient.getMyDomainUser(authUserId!),
     enabled: Boolean(authUserId),
     staleTime: 60_000,

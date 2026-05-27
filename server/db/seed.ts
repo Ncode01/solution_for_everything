@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 
 config({ path: resolve(process.cwd(), ".env.server") });
 
+if (process.env.NODE_ENV === "production") {
+  console.error("SEED BLOCKED: Do not run seed in production. Use migrations.");
+  process.exit(1);
+}
+
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq, inArray } from "drizzle-orm";
