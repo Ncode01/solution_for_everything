@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useCanvasStore } from "@/stores/canvas.store";
 
 export type RightPanelMode =
   | "closed"
@@ -77,6 +78,16 @@ export const useUIStore = create<UIState>((set) => ({
       rightPanelMode: "closed",
       taskCreateDefaults: null,
     }),
-  setActiveView: (activeView) => set({ activeView }),
+  setActiveView: (activeView) =>
+    set((state) => {
+      if (state.activeView === activeView) return { activeView };
+      useCanvasStore.getState().dismissCascade();
+      return {
+        activeView,
+        isRightPanelOpen: false,
+        rightPanelMode: "closed",
+        taskCreateDefaults: null,
+      };
+    }),
   toggleFocusMode: () => set((state) => ({ isFocusMode: !state.isFocusMode })),
 }));

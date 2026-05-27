@@ -16,7 +16,6 @@ import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
 import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
-import { useOrgGraph } from "@/lib/api/useOrgGraph";
 import { useUIStore } from "@/stores/ui.store";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
@@ -60,7 +59,6 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
 
   const skipInitialFitView = useUIStore((s) => s.skipInitialFitView);
   const { handleToggleExpand } = useProjectExpand();
-  useOrgGraph();
 
   useEffect(() => {
     setNodes((current) =>

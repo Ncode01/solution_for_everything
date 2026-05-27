@@ -293,18 +293,27 @@ check("AUTH: login page exists", async () =>
 );
 
 check("SRC: FlowCanvas has no mock seed hydration", async () => {
-  const content = readFileSync(
+  const flowContent = readFileSync(
     resolve(process.cwd(), "src/components/canvas/FlowCanvas.tsx"),
     "utf8",
   );
   if (
-    /buildInitialGraph|from ["']@\/lib\/seed\/mockData|MOCK_TASKS/.test(content)
+    /buildInitialGraph|from ["']@\/lib\/seed\/mockData|MOCK_TASKS/.test(
+      flowContent,
+    )
   ) {
     return "FAIL — mock graph hydration still present";
   }
-  return fileContains("src/components/canvas/FlowCanvas.tsx", /useOrgGraph/)
-    ? "PASS"
-    : "FAIL — useOrgGraph not wired";
+  const shellContent = fileExists("src/components/ui/AppShell.tsx")
+    ? readFileSync(
+        resolve(process.cwd(), "src/components/ui/AppShell.tsx"),
+        "utf8",
+      )
+    : "";
+  const graphWired =
+    /useOrgGraph|OrgGraphHydrator/.test(flowContent) ||
+    /useOrgGraph|OrgGraphHydrator/.test(shellContent);
+  return graphWired ? "PASS" : "FAIL — useOrgGraph not wired";
 });
 
 check("SRC: TaskDetailPanel supports create/edit", async () => {
@@ -352,10 +361,156 @@ check("SRC: No backdrop-filter on canvas nodes", async () => {
     : "PASS";
 });
 
+check("SRC: nodeTypes declared outside FlowCanvas component", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/components/canvas/FlowCanvas.tsx"),
+      "utf8",
+    );
+    const funcStart = Math.max(
+      content.indexOf("function FlowCanvas"),
+      content.indexOf("const FlowCanvas = "),
+    );
+    const nodeTypesPos = content.indexOf("const nodeTypes");
+    if (nodeTypesPos === -1) return "FAIL — nodeTypes not found";
+    return nodeTypesPos < funcStart
+      ? "PASS"
+      : "FAIL — nodeTypes is inside component body (performance bug)";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: edgeTypes declared outside FlowCanvas component", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/components/canvas/FlowCanvas.tsx"),
+      "utf8",
+    );
+    const funcStart = Math.max(
+      content.indexOf("function FlowCanvas"),
+      content.indexOf("const FlowCanvas = "),
+    );
+    const edgeTypesPos = content.indexOf("const edgeTypes");
+    if (edgeTypesPos === -1) return "SKIP — edgeTypes not found";
+    return edgeTypesPos < funcStart
+      ? "PASS"
+      : "FAIL — edgeTypes is inside component body (performance bug)";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: No raw fetch() in component files", async () => {
+  const hits: string[] = [];
+  const componentsDir = resolve(process.cwd(), "src/components");
+  for (const file of walkTsFiles(componentsDir)) {
+    if (!file.endsWith(".tsx")) continue;
+    const lines = readFileSync(file, "utf8").split("\n");
+    for (const line of lines) {
+      if (line.trim().startsWith("//")) continue;
+      if (
+        /\bfetch\s*\(/.test(line) &&
+        !/apiFetch/.test(line) &&
+        !/\.refetch\s*\(/.test(line)
+      ) {
+        hits.push(`${file}: ${line.trim()}`);
+      }
+    }
+  }
+  return hits.length > 0 ? `FAIL — raw fetch found:\n${hits.join("\n")}` : "PASS";
+});
+
+check("SRC: No server imports in src/", async () => {
+  const hits: string[] = [];
+  for (const file of walkTsFiles(resolve(process.cwd(), "src"))) {
+    const content = readFileSync(file, "utf8");
+    if (/from\s+['"].*server\//.test(content)) {
+      hits.push(file);
+    }
+  }
+  return hits.length > 0 ? `FAIL — ${hits.join(", ")}` : "PASS";
+});
+
+check("SRC: GanttView component exists", async () =>
+  fileExists("src/components/views/GanttView.tsx") ||
+  fileExists("src/app/gantt/page.tsx")
+    ? "PASS"
+    : "FAIL — GanttView not found",
+);
+
+check("SRC: DashboardView component exists", async () =>
+  fileExists("src/components/views/DashboardView.tsx") ||
+  fileExists("src/app/dashboard/page.tsx")
+    ? "PASS"
+    : "FAIL — DashboardView not found",
+);
+
+check("SRC: ganttUtils.ts exists", async () =>
+  fileExists("src/lib/gantt/ganttUtils.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: dashboardUtils.ts exists", async () =>
+  fileExists("src/lib/dashboard/dashboardUtils.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: Firebase config uses only env vars", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/lib/firebase/config.ts"),
+      "utf8",
+    );
+    const hardcoded = /apiKey:\s*["'][A-Za-z0-9_-]{10,}["']/.test(content);
+    return hardcoded ? "FAIL — hardcoded Firebase key found" : "PASS";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: AppShell renders GanttView", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/components/ui/AppShell.tsx"),
+      "utf8",
+    );
+    return content.includes("GanttView") && /['"]gantt['"]/.test(content)
+      ? "PASS"
+      : "FAIL — GanttView not in AppShell";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: AppShell renders DashboardView", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/components/ui/AppShell.tsx"),
+      "utf8",
+    );
+    return content.includes("DashboardView") &&
+      /['"]dashboard['"]/.test(content)
+      ? "PASS"
+      : "FAIL — DashboardView not in AppShell";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: recharts dependency installed", async () => {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+    ) as { dependencies?: Record<string, string> };
+    return pkg.dependencies?.recharts ? "PASS" : "FAIL — recharts not in package.json";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
 async function run() {
   console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   FlowCanvas Self-Diagnostic v2.0    ║");
-  console.log("║         Phase 6A + 6B                ║");
+  console.log("║   FlowCanvas Self-Diagnostic v3.0    ║");
+  console.log("║         Phase 7 — Gantt + Dashboard  ║");
   console.log("╚══════════════════════════════════════╝\n");
 
   let passed = 0;
