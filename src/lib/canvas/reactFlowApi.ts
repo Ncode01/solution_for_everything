@@ -17,6 +17,16 @@ export async function fitCanvasView(): Promise<void> {
   useCanvasStore.getState().setViewport(instance.getViewport());
 }
 
+export async function applyCanvasViewport(viewport: {
+  x: number;
+  y: number;
+  zoom: number;
+}): Promise<void> {
+  if (!instance) return;
+  await instance.setViewport(viewport, { duration: 0 });
+  useCanvasStore.getState().setViewport(viewport);
+}
+
 export async function focusCanvasNode(nodeId: string): Promise<void> {
   if (!instance) return;
   const node = instance.getNode(nodeId);

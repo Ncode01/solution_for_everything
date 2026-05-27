@@ -66,7 +66,7 @@ export function useGlobalShortcuts() {
       }
 
       if (ui.isRightPanelOpen) {
-        ui.toggleRightPanel(false);
+        ui.closeRightPanel();
         canvas.selectNode(null, null);
         return;
       }

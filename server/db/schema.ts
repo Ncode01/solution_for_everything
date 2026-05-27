@@ -10,6 +10,7 @@ import {
   jsonb,
   primaryKey,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const projectStatusEnum = pgEnum("project_status", [
@@ -179,3 +180,27 @@ export const canvasBookmarks = pgTable("canvas_bookmarks", {
   viewportY: real("viewport_y").notNull(),
   viewportZoom: real("viewport_zoom").notNull(),
 });
+
+/** Per-auth-user viewport persistence (Better Auth id, not domain users) */
+export const canvasPositions = pgTable(
+  "canvas_positions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    authUserId: text("auth_user_id").notNull(),
+    viewportX: real("viewport_x").notNull(),
+    viewportY: real("viewport_y").notNull(),
+    viewportZoom: real("viewport_zoom").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("canvas_positions_org_auth_user_idx").on(
+      table.orgId,
+      table.authUserId,
+    ),
+  ],
+);

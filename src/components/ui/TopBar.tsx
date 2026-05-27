@@ -1,8 +1,10 @@
 "use client";
 
-import { Bell, Users } from "lucide-react";
+import { Bell, LogOut, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useUIStore } from "@/stores/ui.store";
 import { useWorkloadLayer } from "@/lib/canvas/useWorkloadLayer";
+import { authClient } from "@/lib/auth-client";
 import { FlowCanvasLogo } from "./FlowCanvasLogo";
 
 const VIEWS = [
@@ -12,10 +14,26 @@ const VIEWS = [
 ];
 
 export function TopBar() {
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const { toggleWorkloadLayer, isWorkloadActive } = useWorkloadLayer();
+
+  const userInitials =
+    session?.user?.name
+      ?.split(" ")
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ?? "FC";
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/5 bg-surface-container px-4">
@@ -82,11 +100,20 @@ export function TopBar() {
           <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-error" />
         </button>
 
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          className="text-on-surface-variant hover:text-on-surface"
+          aria-label="Sign out"
+        >
+          <LogOut size={16} />
+        </button>
+
         <div
           className="text-body-sm flex h-8 w-8 items-center justify-center rounded-full bg-tertiary-container font-bold text-on-tertiary-container"
-          aria-label="User Sarah L."
+          aria-label={session?.user?.name ?? "Signed in user"}
         >
-          SL
+          {userInitials}
         </div>
       </div>
     </header>

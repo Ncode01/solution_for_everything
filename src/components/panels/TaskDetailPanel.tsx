@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   X,
   Calendar,
@@ -8,12 +9,26 @@ import {
   GitBranch,
   AlertTriangle,
   Flag,
+  Pencil,
 } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { computeCPM, computeCascadeImpact } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
+import { apiClient } from "@/lib/api/client";
+import {
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+} from "@/lib/api/useTaskMutations";
 import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
+import type { TaskFormValues } from "./TaskForm";
+import {
+  TaskForm,
+  formValuesToCreateBody,
+  formValuesToUpdateBody,
+} from "./TaskForm";
+
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: "Not Started",
@@ -46,6 +61,40 @@ const ACCENT_COLORS: Record<string, string> = {
   mint: "#6DAA45",
 };
 
+function taskToFormValues(task: Task): TaskFormValues {
+  return {
+    title: task.title,
+    description: task.description ?? "",
+    status: task.status,
+    priority: task.priority,
+    effortEstimate:
+      task.effortEstimate !== undefined ? String(task.effortEstimate) : "",
+    dueDate: task.dueDate
+      ? new Date(task.dueDate).toISOString().slice(0, 10)
+      : "",
+    projectId: task.projectId,
+    phaseId: task.phaseId,
+    assigneeIds: [...task.assigneeIds],
+  };
+}
+
+function emptyCreateValues(
+  projectId: string,
+  phaseId: string,
+): TaskFormValues {
+  return {
+    title: "",
+    description: "",
+    status: "not_started",
+    priority: "medium",
+    effortEstimate: "",
+    dueDate: "",
+    projectId,
+    phaseId,
+    assigneeIds: [],
+  };
+}
+
 export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const nodes = useCanvasStore((s) => s.nodes);
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
@@ -53,7 +102,23 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const selectNode = useCanvasStore((s) => s.selectNode);
   const setCascadeImpact = useCanvasStore((s) => s.setCascadeImpact);
   const setCascadeChain = useCanvasStore((s) => s.setCascadeChain);
-  const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
+
+  const rightPanelMode = useUIStore((s) => s.rightPanelMode);
+  const taskCreateDefaults = useUIStore((s) => s.taskCreateDefaults);
+  const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const openTaskView = useUIStore((s) => s.openTaskView);
+  const openTaskEdit = useUIStore((s) => s.openTaskEdit);
+
+  const { data: graph } = useQuery({
+    queryKey: ["org-graph", ORG_ID],
+    queryFn: () => apiClient.getOrgGraph(ORG_ID),
+    enabled: ORG_ID.length > 0,
+    staleTime: 30_000,
+  });
+
+  const createMutation = useCreateTaskMutation();
+  const updateMutation = useUpdateTaskMutation();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const allTasks = useMemo(() => {
     return nodes
@@ -90,14 +155,50 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
       .filter((t): t is Task => Boolean(t));
   }, [task, allTasks]);
 
+  const defaultProjectId =
+    graph?.projects[0]?.id ?? task?.projectId ?? "";
+  const defaultPhaseId =
+    taskCreateDefaults?.phaseId ??
+    graph?.phases.find((p) => p.projectId === defaultProjectId)?.id ??
+    task?.phaseId ??
+    "";
+
+  const [formValues, setFormValues] = useState<TaskFormValues>(() =>
+    emptyCreateValues(defaultProjectId, defaultPhaseId),
+  );
+
+  useEffect(() => {
+    if (rightPanelMode === "task-create") {
+      setFormValues(
+        emptyCreateValues(
+          taskCreateDefaults?.projectId ?? defaultProjectId,
+          taskCreateDefaults?.phaseId ?? defaultPhaseId,
+        ),
+      );
+      setFormError(null);
+    } else if (rightPanelMode === "task-edit" && task) {
+      setFormValues(taskToFormValues(task));
+      setFormError(null);
+    }
+  }, [
+    rightPanelMode,
+    task,
+    taskCreateDefaults,
+    defaultProjectId,
+    defaultPhaseId,
+  ]);
+
   const handleClose = useCallback(() => {
     selectNode(null, null);
     useCanvasStore.getState().dismissCascade();
-    toggleRightPanel(false);
-  }, [selectNode, toggleRightPanel]);
+    closeRightPanel();
+  }, [selectNode, closeRightPanel]);
 
   useEffect(() => {
-    if (!task || task.status !== "blocked") {
+    if (rightPanelMode !== "task-view" || !task) {
+      return;
+    }
+    if (task.status !== "blocked") {
       setCascadeImpact(null);
       setCascadeChain(null);
       return;
@@ -113,10 +214,93 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
 
     const cpmResult = computeCPM(cpmlTasks);
     const impact = computeCascadeImpact(task.id, cpmlTasks, cpmResult);
-
     setCascadeImpact(impact);
     setCascadeChain(impact.cascadeChain);
-  }, [task, allTasks, setCascadeImpact, setCascadeChain]);
+  }, [
+    task,
+    allTasks,
+    setCascadeImpact,
+    setCascadeChain,
+    rightPanelMode,
+  ]);
+
+  const handleSaveCreate = async () => {
+    setFormError(null);
+    try {
+      const created = await createMutation.mutateAsync(
+        formValuesToCreateBody(formValues),
+      );
+      selectNode(`task-${created.id}`, "task");
+      openTaskView();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Failed to create task");
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!task) return;
+    setFormError(null);
+    try {
+      await updateMutation.mutateAsync({
+        taskId: task.id,
+        body: formValuesToUpdateBody(formValues),
+      });
+      openTaskView();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Failed to update task");
+    }
+  };
+
+  if (rightPanelMode === "task-create") {
+    if (!graph) return null;
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        <PanelHeader title="New task" onClose={handleClose} />
+        <div className="flex-1 overflow-y-auto">
+          <TaskForm
+            values={formValues}
+            onChange={setFormValues}
+            projects={graph.projects}
+            phases={graph.phases}
+            users={graph.users}
+            isCreate
+          />
+        </div>
+        <FormActions
+          error={formError}
+          pending={createMutation.isPending}
+          onCancel={handleClose}
+          onSave={() => void handleSaveCreate()}
+          saveLabel="Create task"
+        />
+      </div>
+    );
+  }
+
+  if (rightPanelMode === "task-edit" && task && graph) {
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        <PanelHeader title="Edit task" onClose={handleClose} />
+        <div className="flex-1 overflow-y-auto">
+          <TaskForm
+            values={formValues}
+            onChange={setFormValues}
+            projects={graph.projects}
+            phases={graph.phases}
+            users={graph.users}
+            isCreate={false}
+          />
+        </div>
+        <FormActions
+          error={formError}
+          pending={updateMutation.isPending}
+          onCancel={openTaskView}
+          onSave={() => void handleSaveEdit()}
+          saveLabel="Save changes"
+        />
+      </div>
+    );
+  }
 
   if (!task || !project) return null;
 
@@ -139,14 +323,24 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
             {task.title}
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-white/10"
-          aria-label="Close panel"
-        >
-          <X size={14} />
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={openTaskEdit}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-white/10"
+            aria-label="Edit task"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-white/10"
+            aria-label="Close panel"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
 
       {task.status === "blocked" && (
@@ -257,16 +451,6 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
                   {user.role}
                 </p>
               </div>
-              <div
-                className={[
-                  "ml-auto h-1.5 w-1.5 shrink-0 rounded-full",
-                  user.loadLevel === "available"
-                    ? "bg-[#6DAA45]"
-                    : user.loadLevel === "at_capacity"
-                      ? "bg-[#E8AF34]"
-                      : "bg-[#DD6974]",
-                ].join(" ")}
-              />
             </div>
           ))}
         </div>
@@ -297,11 +481,6 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
                 <span className="text-body-sm truncate text-on-surface">
                   {dep.title}
                 </span>
-                <span
-                  className={`font-mono-label ml-auto shrink-0 text-[9px] ${dep.status === "done" ? "text-[#6DAA45]" : "text-on-surface-variant"}`}
-                >
-                  {dep.status === "done" ? "✓" : STATUS_LABELS[dep.status]}
-                </span>
               </div>
             ))}
           </div>
@@ -310,3 +489,66 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
     </div>
   );
 });
+
+function PanelHeader({
+  title,
+  onClose,
+}: {
+  title: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/[0.06] p-4">
+      <h2 className="text-headline-sm font-medium text-on-surface">{title}</h2>
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-white/10"
+        aria-label="Close"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+function FormActions({
+  error,
+  pending,
+  onCancel,
+  onSave,
+  saveLabel,
+}: {
+  error: string | null;
+  pending: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  saveLabel: string;
+}) {
+  return (
+    <div className="border-t border-white/[0.06] p-4">
+      {error && (
+        <p className="text-body-sm mb-3 rounded-lg border border-[#DD6974]/40 bg-[#DD6974]/10 px-3 py-2 text-[#DD6974]">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-body-sm flex-1 rounded-lg border border-white/10 px-4 py-2 text-on-surface-variant hover:bg-white/5"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onSave}
+          className="text-body-sm flex-1 rounded-lg bg-primary px-4 py-2 font-medium text-on-primary disabled:opacity-50"
+        >
+          {pending ? "Saving…" : saveLabel}
+        </button>
+      </div>
+    </div>
+  );
+}

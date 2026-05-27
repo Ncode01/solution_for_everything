@@ -43,12 +43,12 @@ export const TaskCardNode = React.memo(function TaskCardNode({
 }: NodeProps) {
   const nodeData = data as TaskCardNodeData;
   const selectNode = useCanvasStore((s) => s.selectNode);
-  const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
+  const openTaskView = useUIStore((s) => s.openTaskView);
 
   const handleClick = useCallback(() => {
     selectNode(id, "task");
-    toggleRightPanel(true);
-  }, [id, selectNode, toggleRightPanel]);
+    openTaskView();
+  }, [id, selectNode, openTaskView]);
 
   const isBlocked = nodeData.task.status === "blocked";
   const isExpanded = nodeData.isExpanded === true;

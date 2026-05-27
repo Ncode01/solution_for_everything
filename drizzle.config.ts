@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 config({ path: resolve(process.cwd(), ".env.server") });
 
 export default defineConfig({
-  schema: "./server/db/schema.ts",
+  schema: ["./server/db/schema.ts", "./src/lib/auth/schema.ts"],
   out: "./server/db/migrations",
   dialect: "postgresql",
   dbCredentials: {

@@ -58,3 +58,34 @@ export interface ApiDependency {
   downstreamTaskId: string;
   type: string;
 }
+
+export interface CreateTaskBody {
+  title: string;
+  description?: string | null;
+  status?: string;
+  priority?: string;
+  effortEstimate?: number | null;
+  dueDate?: string | null;
+  projectId: string;
+  phaseId: string;
+  assigneeIds?: string[];
+  canvasX?: number;
+  canvasY?: number;
+}
+
+export interface UpdateTaskBody {
+  title?: string;
+  description?: string | null;
+  status?: string;
+  priority?: string;
+  effortEstimate?: number | null;
+  dueDate?: string | null;
+  phaseId?: string;
+  assigneeIds?: string[];
+}
+
+export interface ViewportPayload {
+  viewportX: number;
+  viewportY: number;
+  viewportZoom: number;
+}

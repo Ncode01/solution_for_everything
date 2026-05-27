@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { graphRoutes } from "./routes/graph";
+import { taskRoutes } from "./routes/tasks";
+import { canvasRoutes } from "./routes/canvas";
 
 config({ path: resolve(process.cwd(), ".env.server") });
 
@@ -24,6 +26,8 @@ async function buildServer() {
   }));
 
   await app.register(graphRoutes, { prefix: "/api/graph" });
+  await app.register(taskRoutes, { prefix: "/api/tasks" });
+  await app.register(canvasRoutes, { prefix: "/api/canvas" });
 
   return app;
 }

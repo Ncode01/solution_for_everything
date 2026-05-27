@@ -1,4 +1,10 @@
-import type { OrgGraphResponse } from "./types";
+import type {
+  OrgGraphResponse,
+  CreateTaskBody,
+  UpdateTaskBody,
+  ApiTask,
+  ViewportPayload,
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -17,12 +23,43 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(message);
   }
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }
 
 export const apiClient = {
   getOrgGraph: (orgId: string) =>
     apiFetch<OrgGraphResponse>(`/api/graph/${orgId}`),
+
+  createTask: (body: CreateTaskBody) =>
+    apiFetch<ApiTask>(`/api/tasks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateTask: (taskId: string, body: UpdateTaskBody) =>
+    apiFetch<ApiTask>(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  getViewport: (orgId: string, authUserId: string) =>
+    apiFetch<ViewportPayload>(
+      `/api/canvas/viewport/${orgId}?authUserId=${encodeURIComponent(authUserId)}`,
+    ),
+
+  saveViewport: (
+    orgId: string,
+    body: ViewportPayload & { authUserId: string },
+  ) =>
+    apiFetch<ViewportPayload>(`/api/canvas/viewport/${orgId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
   updateTaskStatus: (taskId: string, status: string) =>
     apiFetch(`/api/graph/tasks/${taskId}/status`, {
       method: "PATCH",

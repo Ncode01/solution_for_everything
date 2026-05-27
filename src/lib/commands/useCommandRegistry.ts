@@ -1,20 +1,28 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
+import type { OrgGraphResponse } from "@/lib/api/types";
 import { useWorkloadLayer } from "@/lib/canvas/useWorkloadLayer";
 import { fitCanvasView, focusCanvasNode } from "@/lib/canvas/reactFlowApi";
 import type { CommandDefinition } from "@/types/commands";
 import type { TaskCardNodeData } from "@/types";
 
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+
 export function useCommandRegistry(): CommandDefinition[] {
+  const queryClient = useQueryClient();
   const setActiveView = useUIStore((s) => s.setActiveView);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
   const isCommandPaletteOpen = useUIStore((s) => s.isCommandPaletteOpen);
   const isRightPanelOpen = useUIStore((s) => s.isRightPanelOpen);
   const toggleRightPanel = useUIStore((s) => s.toggleRightPanel);
+  const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const openTaskCreate = useUIStore((s) => s.openTaskCreate);
+  const openTaskEdit = useUIStore((s) => s.openTaskEdit);
 
   const selectNode = useCanvasStore((s) => s.selectNode);
   const nodes = useCanvasStore((s) => s.nodes);
@@ -82,7 +90,7 @@ export function useCommandRegistry(): CommandDefinition[] {
         shortcut: ["Escape"],
         contexts: ["global"],
         isVisible: () => isRightPanelOpen,
-        perform: () => toggleRightPanel(false),
+        perform: () => closeRightPanel(),
       },
       {
         id: "toggle-workload-view",
@@ -131,13 +139,33 @@ export function useCommandRegistry(): CommandDefinition[] {
         keywords: ["create", "task", "add", "new"],
         group: "tasks",
         shortcut: ["T"],
-        contexts: ["global"],
+        contexts: ["global", "canvas"],
         perform: () => {
-          toggleRightPanel(true);
-          console.info(
-            "[FlowCanvas] New task placeholder — inline canvas placement coming in a later phase",
-          );
+          const graph = queryClient.getQueryData<OrgGraphResponse>([
+            "org-graph",
+            ORG_ID,
+          ]);
+          const selected = getSelectedTask();
+          let projectId = graph?.projects[0]?.id ?? "";
+          let phaseId =
+            graph?.phases.find((p) => p.projectId === projectId)?.id ?? "";
+          if (selected) {
+            projectId = selected.projectId;
+            phaseId = selected.phaseId;
+          }
+          if (!projectId || !phaseId) return;
+          openTaskCreate({ projectId, phaseId });
         },
+      },
+      {
+        id: "edit-selected-task",
+        label: "Edit Selected Task",
+        keywords: ["edit", "task", "update"],
+        group: "tasks",
+        shortcut: ["E"],
+        contexts: ["canvas"],
+        isVisible: () => selectedNodeType === "task" && selectedNodeId !== null,
+        perform: () => openTaskEdit(),
       },
       {
         id: "log-current-state",
@@ -165,6 +193,10 @@ export function useCommandRegistry(): CommandDefinition[] {
     isCommandPaletteOpen,
     isRightPanelOpen,
     toggleRightPanel,
+    closeRightPanel,
+    openTaskCreate,
+    openTaskEdit,
+    queryClient,
     selectNode,
     nodes,
     selectedNodeId,

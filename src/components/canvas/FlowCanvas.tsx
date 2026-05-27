@@ -17,6 +17,7 @@ import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
 import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
 import { useOrgGraph } from "@/lib/api/useOrgGraph";
+import { useUIStore } from "@/stores/ui.store";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
@@ -57,6 +58,7 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   const cascadeImpact = useCanvasStore((s) => s.cascadeImpact);
   const activeLayer = useCanvasStore((s) => s.activeLayer);
 
+  const skipInitialFitView = useUIStore((s) => s.skipInitialFitView);
   const { handleToggleExpand } = useProjectExpand();
   useOrgGraph();
 
@@ -188,7 +190,7 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
       defaultEdgeOptions={defaultEdgeOptions}
       minZoom={0.05}
       maxZoom={3}
-      fitView
+      fitView={!skipInitialFitView}
       className="canvas-dot-grid"
       proOptions={{ hideAttribution: true }}
     >

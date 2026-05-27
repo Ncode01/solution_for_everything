@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import { eq, inArray } from "drizzle-orm";
 import * as schema from "./schema";
 import {
   organizations,
@@ -11,6 +12,8 @@ import {
   taskDependencies,
 } from "./schema";
 
+const DEMO_SLUG = "flowcanvas-demo";
+
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   console.error("DATABASE_URL missing — set it in .env.server");
@@ -20,14 +23,57 @@ if (!connectionString) {
 const sql = neon(connectionString);
 const db = drizzle(sql, { schema });
 
+async function wipeDemoOrg(orgId: string) {
+  const projectRows = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.orgId, orgId));
+  const projectIds = projectRows.map((p) => p.id);
+
+  const taskRows =
+    projectIds.length > 0
+      ? await db
+          .select({ id: tasks.id })
+          .from(tasks)
+          .where(inArray(tasks.projectId, projectIds))
+      : [];
+  const taskIds = taskRows.map((t) => t.id);
+
+  if (taskIds.length > 0) {
+    await db
+      .delete(taskDependencies)
+      .where(inArray(taskDependencies.upstreamTaskId, taskIds));
+    await db.delete(taskAssignees).where(inArray(taskAssignees.taskId, taskIds));
+    await db.delete(tasks).where(inArray(tasks.id, taskIds));
+  }
+
+  if (projectIds.length > 0) {
+    await db.delete(phases).where(inArray(phases.projectId, projectIds));
+    await db.delete(projects).where(inArray(projects.id, projectIds));
+  }
+
+  await db.delete(users).where(eq(users.orgId, orgId));
+  await db.delete(organizations).where(eq(organizations.id, orgId));
+}
+
 async function seed() {
   console.log("Seeding FlowCanvas database...");
+
+  const existing = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.slug, DEMO_SLUG));
+
+  if (existing[0]) {
+    console.log(`Demo org exists (${existing[0].id}) — wiping demo data...`);
+    await wipeDemoOrg(existing[0].id);
+  }
 
   const [org] = await db
     .insert(organizations)
     .values({
       name: "FlowCanvas Demo Org",
-      slug: "flowcanvas-demo",
+      slug: DEMO_SLUG,
     })
     .returning();
 
@@ -241,8 +287,20 @@ async function seed() {
     { upstreamTaskId: t8.id, downstreamTaskId: t9.id, type: "FS" },
   ]);
 
+  const depCount = await db.select().from(taskDependencies);
+  const depsForOrg = depCount.filter(
+    (d) =>
+      [t1, t2, t3, t4, t5, t6, t7, t8, t9].some(
+        (t) =>
+          t.id === d.upstreamTaskId || t.id === d.downstreamTaskId,
+      ),
+  );
+
   console.log("Seed complete.");
   console.log(`ORG_ID=${org.id}`);
+  console.log(`PROJECTS=${projectRows.length}`);
+  console.log(`TASKS=${taskRows.length}`);
+  console.log(`DEPENDENCIES=${depsForOrg.length}`);
   console.log("Add to .env.local: NEXT_PUBLIC_ORG_ID=" + org.id);
   process.exit(0);
 }
