@@ -11,6 +11,7 @@ import {
   primaryKey,
   pgEnum,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const projectStatusEnum = pgEnum("project_status", [
@@ -57,10 +58,36 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   avatarUrl: text("avatar_url"),
   role: text("role").notNull().default("member"),
+  authUserId: text("auth_user_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
+
+export const inviteTokens = pgTable(
+  "invite_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    token: text("token").notNull().unique(),
+    role: text("role").notNull().default("member"),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("invite_tokens_token_idx").on(t.token),
+    index("invite_tokens_org_idx").on(t.orgId),
+  ],
+);
 
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),

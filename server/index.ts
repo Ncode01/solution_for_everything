@@ -5,6 +5,8 @@ import cors from "@fastify/cors";
 import { graphRoutes } from "./routes/graph";
 import { taskRoutes } from "./routes/tasks";
 import { canvasRoutes } from "./routes/canvas";
+import { inviteRoutes } from "./routes/invites";
+import { userRoutes } from "./routes/users";
 
 config({ path: resolve(process.cwd(), ".env.server") });
 
@@ -28,6 +30,8 @@ async function buildServer() {
   await app.register(graphRoutes, { prefix: "/api/graph" });
   await app.register(taskRoutes, { prefix: "/api/tasks" });
   await app.register(canvasRoutes, { prefix: "/api/canvas" });
+  await app.register(inviteRoutes, { prefix: "/api/invites" });
+  await app.register(userRoutes, { prefix: "/api/users" });
 
   return app;
 }

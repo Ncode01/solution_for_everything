@@ -11,6 +11,7 @@ import { GlobalCommandOrchestrator } from "./GlobalCommandOrchestrator";
 import { CommandPalette } from "@/components/panels/CommandPalette";
 import { useCanvasEvents } from "@/lib/firebase/useCanvasEvents";
 import { useOrgGraph } from "@/lib/api/useOrgGraph";
+import { PresenceOrchestrator } from "./PresenceOrchestrator";
 
 function CanvasEventListener() {
   useCanvasEvents();
@@ -29,6 +30,7 @@ export function AppShell() {
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0E0D0C]">
       <GlobalCommandOrchestrator />
       <OrgGraphHydrator />
+      <PresenceOrchestrator />
       <CanvasEventListener />
       <CommandPalette />
       <TopBar />

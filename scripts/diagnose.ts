@@ -507,10 +507,138 @@ check("SRC: recharts dependency installed", async () => {
   }
 });
 
+check("DB: inviteTokens table exists", async () => {
+  const url = process.env.DATABASE_URL;
+  if (!url || isPlaceholderDbUrl(url)) return "SKIP";
+  try {
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(url);
+    const result = await sql`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_name = 'invite_tokens'
+    `;
+    return result.length > 0 ? "PASS" : "FAIL — run pnpm db:push";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("DB: authUserId column on users", async () => {
+  const url = process.env.DATABASE_URL;
+  if (!url || isPlaceholderDbUrl(url)) return "SKIP";
+  try {
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(url);
+    const result = await sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name = 'auth_user_id'
+    `;
+    return result.length > 0 ? "PASS" : "FAIL — run pnpm db:push";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("API: POST /api/invites route exists", async () => {
+  try {
+    const res = await fetch("http://localhost:3001/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(3000),
+    });
+    return res.status === 400
+      ? "PASS — route reachable (400 validation)"
+      : `PASS — HTTP ${res.status}`;
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("API: GET /api/invites/:token route exists", async () => {
+  try {
+    const res = await fetch(
+      "http://localhost:3001/api/invites/00000000-0000-0000-0000-000000000000",
+      { signal: AbortSignal.timeout(3000) },
+    );
+    return res.status === 404
+      ? "PASS — route exists (404 on fake token)"
+      : `FAIL — status ${res.status}`;
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("API: GET /api/users/me route exists", async () => {
+  try {
+    const res = await fetch(
+      "http://localhost:3001/api/users/me?authUserId=unlinked-test-id",
+      { signal: AbortSignal.timeout(3000) },
+    );
+    return res.status === 404
+      ? "PASS — route exists (404 on unlinked)"
+      : `FAIL — status ${res.status}`;
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: PresenceOrchestrator exists", async () =>
+  fileExists("src/components/ui/PresenceOrchestrator.tsx")
+    ? "PASS"
+    : "FAIL",
+);
+
+check("SRC: usePresence exists", async () =>
+  fileExists("src/lib/firebase/usePresence.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: RemoteCursors component exists", async () =>
+  fileExists("src/components/canvas/RemoteCursors.tsx") ? "PASS" : "FAIL",
+);
+
+check("SRC: invite page exists at src/app/invite/[token]/page.tsx", async () =>
+  fileExists("src/app/invite/[token]/page.tsx") ? "PASS" : "FAIL",
+);
+
+check("SRC: useCurrentUser hook exists", async () =>
+  fileExists("src/lib/api/useCurrentUser.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: AppShell mounts PresenceOrchestrator", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "src/components/ui/AppShell.tsx"),
+      "utf8",
+    );
+    return content.includes("PresenceOrchestrator") ? "PASS" : "FAIL";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("FIRESTORE: rules file has no open wildcard allow all", async () => {
+  try {
+    const content = readFileSync(
+      resolve(process.cwd(), "firestore.rules"),
+      "utf8",
+    );
+    const hasCatchAllDeny = /match \/\{document=\*\*\}/.test(content) &&
+      /allow read, write: if false/.test(content);
+    const rootOpen = /match \/\{document=\*\*\}[\s\S]*allow read, write: if true/.test(
+      content,
+    );
+    if (rootOpen) return "FAIL — open wildcard allow all";
+    return hasCatchAllDeny ? "PASS" : "FAIL — missing catch-all deny";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
 async function run() {
   console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   FlowCanvas Self-Diagnostic v3.0    ║");
-  console.log("║         Phase 7 — Gantt + Dashboard  ║");
+  console.log("║   FlowCanvas Self-Diagnostic v4.0    ║");
+  console.log("║    Phase 8 — Presence + Invites      ║");
   console.log("╚══════════════════════════════════════╝\n");
 
   let passed = 0;

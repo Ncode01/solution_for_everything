@@ -8,6 +8,7 @@ import {
   MiniMap,
   applyNodeChanges,
   applyEdgeChanges,
+  useReactFlow,
   type NodeChange,
   type EdgeChange,
 } from "@xyflow/react";
@@ -46,7 +47,7 @@ function SemanticZoomTracker() {
   return null;
 }
 
-export const FlowCanvas = React.memo(function FlowCanvas() {
+function FlowCanvasInner() {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const setNodes = useCanvasStore((s) => s.setNodes);
@@ -58,6 +59,9 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
   const activeLayer = useCanvasStore((s) => s.activeLayer);
 
   const skipInitialFitView = useUIStore((s) => s.skipInitialFitView);
+  const broadcastCursor = useUIStore((s) => s.broadcastCursor);
+  const broadcastViewport = useUIStore((s) => s.broadcastViewport);
+  const { screenToFlowPosition } = useReactFlow();
   const { handleToggleExpand } = useProjectExpand();
 
   useEffect(() => {
@@ -171,8 +175,20 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
       viewport: { x: number; y: number; zoom: number },
     ) => {
       setViewport(viewport);
+      broadcastViewport?.(viewport.x, viewport.y, viewport.zoom);
     },
-    [setViewport],
+    [setViewport, broadcastViewport],
+  );
+
+  const onPaneMouseMove = useCallback(
+    (event: React.MouseEvent) => {
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      broadcastCursor?.(position.x, position.y);
+    },
+    [broadcastCursor, screenToFlowPosition],
   );
 
   return (
@@ -182,6 +198,7 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onPaneClick={onPaneClick}
+      onPaneMouseMove={onPaneMouseMove}
       onMoveEnd={onMoveEnd}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
@@ -209,4 +226,8 @@ export const FlowCanvas = React.memo(function FlowCanvas() {
       />
     </ReactFlow>
   );
+}
+
+export const FlowCanvas = React.memo(function FlowCanvas() {
+  return <FlowCanvasInner />;
 });

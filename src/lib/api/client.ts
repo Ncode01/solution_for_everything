@@ -4,6 +4,9 @@ import type {
   UpdateTaskBody,
   ApiTask,
   ViewportPayload,
+  DomainUser,
+  InviteValidation,
+  CreateInviteResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -83,4 +86,24 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+
+  createInvite: (orgId: string, email: string, role = "member") =>
+    apiFetch<CreateInviteResponse>(`/api/invites`, {
+      method: "POST",
+      body: JSON.stringify({ orgId, email, role }),
+    }),
+
+  validateInviteToken: (token: string) =>
+    apiFetch<InviteValidation>(`/api/invites/${token}`),
+
+  acceptInvite: (token: string, authUserId: string, name: string) =>
+    apiFetch<{ domainUser: DomainUser }>(`/api/invites/${token}/accept`, {
+      method: "POST",
+      body: JSON.stringify({ authUserId, name }),
+    }),
+
+  getMyDomainUser: (authUserId: string) =>
+    apiFetch<DomainUser>(
+      `/api/users/me?authUserId=${encodeURIComponent(authUserId)}`,
+    ),
 };

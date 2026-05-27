@@ -89,3 +89,27 @@ export interface ViewportPayload {
   viewportY: number;
   viewportZoom: number;
 }
+
+export interface DomainUser {
+  id: string;
+  orgId: string;
+  name: string;
+  initials: string;
+  email: string;
+  avatarUrl: string | null;
+  role: string;
+  authUserId: string | null;
+  createdAt: string;
+}
+
+export interface InviteValidation {
+  email: string;
+  role: string;
+  orgId: string;
+  expiresAt: string;
+}
+
+export interface CreateInviteResponse {
+  inviteUrl: string;
+  token: string;
+}

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useCanvasStore } from "@/stores/canvas.store";
+import type { PresenceUser } from "@/lib/firebase/usePresence";
 
 export type RightPanelMode =
   | "closed"
@@ -25,6 +26,9 @@ interface UIState {
   isCanvasLoading: boolean;
   canvasError: string | null;
   skipInitialFitView: boolean;
+  presenceUsers: PresenceUser[];
+  broadcastCursor: ((x: number, y: number) => void) | null;
+  broadcastViewport: ((x: number, y: number, zoom: number) => void) | null;
   setCanvasLoading: (isCanvasLoading: boolean) => void;
   setCanvasError: (canvasError: string | null) => void;
   setSkipInitialFitView: (skip: boolean) => void;
@@ -38,6 +42,11 @@ interface UIState {
   closeRightPanel: () => void;
   setActiveView: (view: UIState["activeView"]) => void;
   toggleFocusMode: () => void;
+  setPresenceUsers: (users: PresenceUser[]) => void;
+  setBroadcastCursor: (fn: ((x: number, y: number) => void) | null) => void;
+  setBroadcastViewport: (
+    fn: ((x: number, y: number, zoom: number) => void) | null,
+  ) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -51,6 +60,9 @@ export const useUIStore = create<UIState>((set) => ({
   isCanvasLoading: false,
   canvasError: null,
   skipInitialFitView: false,
+  presenceUsers: [],
+  broadcastCursor: null,
+  broadcastViewport: null,
   setCanvasLoading: (isCanvasLoading) => set({ isCanvasLoading }),
   setCanvasError: (canvasError) => set({ canvasError }),
   setSkipInitialFitView: (skipInitialFitView) => set({ skipInitialFitView }),
@@ -90,4 +102,7 @@ export const useUIStore = create<UIState>((set) => ({
       };
     }),
   toggleFocusMode: () => set((state) => ({ isFocusMode: !state.isFocusMode })),
+  setPresenceUsers: (presenceUsers) => set({ presenceUsers }),
+  setBroadcastCursor: (broadcastCursor) => set({ broadcastCursor }),
+  setBroadcastViewport: (broadcastViewport) => set({ broadcastViewport }),
 }));

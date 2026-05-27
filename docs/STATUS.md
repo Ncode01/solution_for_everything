@@ -2,41 +2,36 @@
 
 > Last updated: Tuesday, May 27, 2026
 
-## Current Phase: Phase 7 — COMPLETE
+## Current Phase: Phase 8 — COMPLETE
 
-**Status:** Gantt view, Dashboard view, and deep regression diagnostic shipped.
+**Status:** Collaborative presence, cursor broadcast, invite system, and domain user linking shipped.
 
-## Phase 7 Progress
+## Phase 8 Progress
 
-- [x] Gantt view — task bars, critical path gold, blocked dashed, due date diamonds
-- [x] Gantt ruler — Week/Month/Quarter zoom levels
-- [x] Gantt navigation — G→G wired to GanttView
-- [x] Dashboard view — project health cards, workload chart, critical path panel, blocked panel
-- [x] Dashboard data utils — pure functions from cached graph data
-- [x] Dashboard navigation — G→D wired to DashboardView
-- [x] Recharts stacked bar workload chart
-- [x] Deep regression diagnostic — 30+ manual checks verified
-- [x] Architecture integrity checks — nodeTypes/edgeTypes, no server imports, no Material Symbols
-- [x] Diagnostic upgraded to 38+ checks
+- [x] Firestore presence schema with throttled writes (30s heartbeat, 2s cursor, 5s viewport)
+- [x] `usePresence` + `PresenceOrchestrator` at AppShell level
+- [x] `RemoteCursors` on canvas (ReactFlow screen projection)
+- [x] Presence chips in TopBar
+- [x] Firestore rules tightened (catch-all deny)
+- [x] `invite_tokens` table + `authUserId` on domain users
+- [x] Invite API routes (create, validate, accept)
+- [x] `GET /api/users/me` domain user lookup
+- [x] `/invite/[token]` page (sign-up + accept flow)
+- [x] TopBar invite form with copy link
+- [x] `useCurrentUser` hook
+- [x] Diagnostic v4.0 (50 checks)
 
 ### Not in this session
 
-- [ ] Drag-to-reschedule in Gantt (Phase 8)
-- [ ] Collaborative presence cursors (Phase 8)
-- [ ] Invite + multi-member auth (Phase 9)
-- [ ] Production deploy (Phase 11)
+- [ ] Production Firestore security rules with auth.uid checks (Phase 10)
+- [ ] Email delivery for invites (copy-link only)
 
-## Phase 6B Progress (complete)
+## Phase 7 Progress (complete)
 
-- [x] `archivedAt` column on tasks + graph excludes archived
-- [x] POST/DELETE `/api/tasks/:id/dependencies` with cycle detection
-- [x] DELETE `/api/tasks/:id` soft-archive
-- [x] Dependency editor, archive, Firebase events, CPM recompute
-- [x] Diagnostic v2.0 extended (26 checks)
+- [x] Gantt view, Dashboard view, Recharts workload chart
+- [x] Diagnostic v3.0 (38 checks)
 
 ## Next
 
-- Phase 8 — Collaborative presence (Firebase heartbeat + cursor broadcast)
-- Phase 9 — Invite + multi-member auth
-- Phase 10 — Polish + production hardening
-- Phase 11 — Deploy (Vercel + Railway/Render, free tier)
+- Phase 9 — Polish + production hardening
+- Phase 10 — Deploy (Vercel + Railway/Render free tier)
