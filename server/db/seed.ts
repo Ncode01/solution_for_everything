@@ -1,3 +1,8 @@
+import { config } from "dotenv";
+import { resolve } from "node:path";
+
+config({ path: resolve(process.cwd(), ".env.server") });
+
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq, inArray } from "drizzle-orm";
