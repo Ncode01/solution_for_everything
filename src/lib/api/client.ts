@@ -46,6 +46,24 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
+  archiveTask: (taskId: string) =>
+    apiFetch<ApiTask>(`/api/tasks/${taskId}`, { method: "DELETE" }),
+
+  addDependency: (taskId: string, upstreamTaskId: string) =>
+    apiFetch<{ dependencies: string[]; dependents: string[] }>(
+      `/api/tasks/${taskId}/dependencies`,
+      {
+        method: "POST",
+        body: JSON.stringify({ upstreamTaskId }),
+      },
+    ),
+
+  removeDependency: (taskId: string, upstreamTaskId: string) =>
+    apiFetch<{ dependencies: string[]; dependents: string[] }>(
+      `/api/tasks/${taskId}/dependencies/${upstreamTaskId}`,
+      { method: "DELETE" },
+    ),
+
   getViewport: (orgId: string, authUserId: string) =>
     apiFetch<ViewportPayload>(
       `/api/canvas/viewport/${orgId}?authUserId=${encodeURIComponent(authUserId)}`,

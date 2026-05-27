@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db } from "./client";
-import { tasks, taskAssignments } from "./schema";
+import { tasks, taskAssignments, taskDependencies } from "./schema";
 
 const TASK_STATUSES = [
   "not_started",
@@ -123,8 +123,11 @@ export async function getTaskById(taskId: string) {
   return enrichTask(taskId);
 }
 
-async function enrichTask(taskId: string) {
-  const rows = await db.select().from(tasks).where(eq(tasks.id, taskId));
+export async function enrichTask(taskId: string) {
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), isNull(tasks.archivedAt)));
   const task = rows[0];
   if (!task) return null;
 
@@ -133,10 +136,20 @@ async function enrichTask(taskId: string) {
     .from(taskAssignments)
     .where(eq(taskAssignments.taskId, taskId));
 
+  const downstreamDeps = await db
+    .select()
+    .from(taskDependencies)
+    .where(eq(taskDependencies.downstreamTaskId, taskId));
+
+  const upstreamDeps = await db
+    .select()
+    .from(taskDependencies)
+    .where(eq(taskDependencies.upstreamTaskId, taskId));
+
   return {
     ...task,
     assigneeIds: assignees.map((a) => a.userId),
-    dependencies: [] as string[],
-    dependents: [] as string[],
+    dependencies: downstreamDeps.map((d) => d.upstreamTaskId),
+    dependents: upstreamDeps.map((d) => d.downstreamTaskId),
   };
 }

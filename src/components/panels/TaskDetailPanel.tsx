@@ -16,10 +16,8 @@ import { useUIStore } from "@/stores/ui.store";
 import { computeCPM, computeCascadeImpact } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 import { apiClient } from "@/lib/api/client";
-import {
-  useCreateTaskMutation,
-  useUpdateTaskMutation,
-} from "@/lib/api/useTaskMutations";
+import { useMutationOrchestrator } from "@/lib/api/useMutationOrchestrator";
+import { DependencyEditSection } from "./DependencyEditSection";
 import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
 import type { TaskFormValues } from "./TaskForm";
 import {
@@ -116,9 +114,10 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
     staleTime: 30_000,
   });
 
-  const createMutation = useCreateTaskMutation();
-  const updateMutation = useUpdateTaskMutation();
+  const { createTask, updateTask, archiveTask, addDependency, removeDependency } =
+    useMutationOrchestrator();
   const [formError, setFormError] = useState<string | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
 
   const allTasks = useMemo(() => {
     return nodes
@@ -227,7 +226,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const handleSaveCreate = async () => {
     setFormError(null);
     try {
-      const created = await createMutation.mutateAsync(
+      const created = await createTask.mutateAsync(
         formValuesToCreateBody(formValues),
       );
       selectNode(`task-${created.id}`, "task");
@@ -241,7 +240,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
     if (!task) return;
     setFormError(null);
     try {
-      await updateMutation.mutateAsync({
+      await updateTask.mutateAsync({
         taskId: task.id,
         body: formValuesToUpdateBody(formValues),
       });
@@ -268,7 +267,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
         </div>
         <FormActions
           error={formError}
-          pending={createMutation.isPending}
+          pending={createTask.isPending}
           onCancel={handleClose}
           onSave={() => void handleSaveCreate()}
           saveLabel="Create task"
@@ -290,10 +289,16 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
             users={graph.users}
             isCreate={false}
           />
+          <DependencyEditSection
+            task={task}
+            allTasks={allTasks}
+            addDependency={addDependency}
+            removeDependency={removeDependency}
+          />
         </div>
         <FormActions
           error={formError}
-          pending={updateMutation.isPending}
+          pending={updateTask.isPending}
           onCancel={openTaskView}
           onSave={() => void handleSaveEdit()}
           saveLabel="Save changes"
@@ -486,6 +491,35 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
           </div>
         </div>
       )}
+
+      <div className="mt-auto border-t border-white/[0.06] p-4">
+        <button
+          type="button"
+          disabled={archiveTask.isPending}
+          onClick={async () => {
+            if (!archiveConfirm) {
+              setArchiveConfirm(true);
+              return;
+            }
+            try {
+              await archiveTask.mutateAsync(task.id);
+              selectNode(null, null);
+              useCanvasStore.getState().dismissCascade();
+              closeRightPanel();
+              setArchiveConfirm(false);
+            } catch {
+              setArchiveConfirm(false);
+            }
+          }}
+          className={
+            archiveConfirm
+              ? "text-xs font-medium text-[#DD6974] underline"
+              : "text-xs text-[#DD6974]/70 underline hover:text-[#DD6974]"
+          }
+        >
+          {archiveConfirm ? "Click again to confirm" : "Archive task"}
+        </button>
+      </div>
     </div>
   );
 });

@@ -1,7 +1,13 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
+import { MarkerType, type Edge } from "@xyflow/react";
 import { apiClient } from "./client";
+import { useCanvasStore } from "@/stores/canvas.store";
 import type {
   ApiTask,
   CreateTaskBody,
@@ -10,6 +16,26 @@ import type {
 } from "./types";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+
+function dependencyEdge(upstreamTaskId: string, taskId: string): Edge {
+  return {
+    id: `dep-${upstreamTaskId}-${taskId}`,
+    source: `task-${upstreamTaskId}`,
+    target: `task-${taskId}`,
+    type: "dependency",
+    style: {
+      stroke: "rgba(137,146,148,0.35)",
+      strokeWidth: 1.5,
+    },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 12,
+      height: 12,
+      color: "rgba(137,146,148,0.35)",
+    },
+    animated: false,
+  };
+}
 
 function toApiTask(
   row: ApiTask & { assigneeIds?: string[] },
@@ -28,17 +54,27 @@ function toApiTask(
     canvasX: row.canvasX ?? existing?.canvasX ?? 400,
     canvasY: row.canvasY ?? existing?.canvasY ?? 300,
     assigneeIds: row.assigneeIds ?? existing?.assigneeIds ?? [],
-    dependencies: existing?.dependencies ?? [],
-    dependents: existing?.dependents ?? [],
+    dependencies: row.dependencies ?? existing?.dependencies ?? [],
+    dependents: row.dependents ?? existing?.dependents ?? [],
   };
 }
 
-export function useCreateTaskMutation() {
+type CreateCtx = { previous?: OrgGraphResponse; tempId?: string };
+type GraphCtx = { previous?: OrgGraphResponse };
+type CanvasCtx = GraphCtx & {
+  previousNodes?: ReturnType<typeof useCanvasStore.getState>["nodes"];
+  previousEdges?: ReturnType<typeof useCanvasStore.getState>["edges"];
+};
+
+export function useCreateTaskMutation(
+  options?: UseMutationOptions<ApiTask, Error, CreateTaskBody, CreateCtx>,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (body: CreateTaskBody) => apiClient.createTask(body),
-    onMutate: async (body) => {
+    mutationFn: (body) => apiClient.createTask(body),
+    ...options,
+    onMutate: async (body, context) => {
       await queryClient.cancelQueries({ queryKey: ["org-graph", ORG_ID] });
       const previous = queryClient.getQueryData<OrgGraphResponse>([
         "org-graph",
@@ -70,31 +106,36 @@ export function useCreateTaskMutation() {
         });
       }
 
-      return { previous, tempId };
+      const ctx = { previous, tempId };
+      return (await options?.onMutate?.(body, context)) ?? ctx;
     },
-    onError: (_err, _body, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["org-graph", ORG_ID], context.previous);
+    onError: (err, vars, onMutateResult, ctx) => {
+      if (onMutateResult?.previous) {
+        queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
       }
+      options?.onError?.(err, vars, onMutateResult, ctx);
     },
-    onSettled: () => {
+    onSettled: (data, err, vars, onMutateResult, ctx) => {
       void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      options?.onSettled?.(data, err, vars, onMutateResult, ctx);
     },
   });
 }
 
-export function useUpdateTaskMutation() {
+export function useUpdateTaskMutation(
+  options?: UseMutationOptions<
+    ApiTask,
+    Error,
+    { taskId: string; body: UpdateTaskBody },
+    GraphCtx
+  >,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      taskId,
-      body,
-    }: {
-      taskId: string;
-      body: UpdateTaskBody;
-    }) => apiClient.updateTask(taskId, body),
-    onMutate: async ({ taskId, body }) => {
+    mutationFn: ({ taskId, body }) => apiClient.updateTask(taskId, body),
+    ...options,
+    onMutate: async (vars, context) => {
       await queryClient.cancelQueries({ queryKey: ["org-graph", ORG_ID] });
       const previous = queryClient.getQueryData<OrgGraphResponse>([
         "org-graph",
@@ -105,55 +146,229 @@ export function useUpdateTaskMutation() {
         queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
           ...previous,
           tasks: previous.tasks.map((t) => {
-            if (t.id !== taskId) return t;
+            if (t.id !== vars.taskId) return t;
             return {
               ...t,
-              title: body.title ?? t.title,
+              title: vars.body.title ?? t.title,
               description:
-                body.description !== undefined
-                  ? body.description
+                vars.body.description !== undefined
+                  ? vars.body.description
                   : t.description,
-              status: body.status ?? t.status,
-              priority: body.priority ?? t.priority,
+              status: vars.body.status ?? t.status,
+              priority: vars.body.priority ?? t.priority,
               effortEstimate:
-                body.effortEstimate !== undefined
-                  ? body.effortEstimate
+                vars.body.effortEstimate !== undefined
+                  ? vars.body.effortEstimate
                   : t.effortEstimate,
               dueDate:
-                body.dueDate !== undefined ? body.dueDate : t.dueDate,
-              phaseId: body.phaseId ?? t.phaseId,
-              assigneeIds: body.assigneeIds ?? t.assigneeIds,
+                vars.body.dueDate !== undefined ? vars.body.dueDate : t.dueDate,
+              phaseId: vars.body.phaseId ?? t.phaseId,
+              assigneeIds: vars.body.assigneeIds ?? t.assigneeIds,
             };
           }),
         });
       }
 
-      return { previous };
+      const ctx = { previous };
+      return (await options?.onMutate?.(vars, context)) ?? ctx;
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["org-graph", ORG_ID], context.previous);
+    onError: (err, vars, onMutateResult, ctx) => {
+      if (onMutateResult?.previous) {
+        queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
       }
+      options?.onError?.(err, vars, onMutateResult, ctx);
     },
-    onSuccess: (data, { taskId }) => {
+    onSuccess: (data, vars, onMutateResult, ctx) => {
       const previous = queryClient.getQueryData<OrgGraphResponse>([
         "org-graph",
         ORG_ID,
       ]);
-      const existing = previous?.tasks.find((t) => t.id === taskId);
+      const existing = previous?.tasks.find((t) => t.id === vars.taskId);
       const merged = toApiTask(data, existing);
 
       if (previous) {
         queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
           ...previous,
           tasks: previous.tasks.map((t) =>
-            t.id === taskId ? merged : t,
+            t.id === vars.taskId ? merged : t,
           ),
         });
       }
+      options?.onSuccess?.(data, vars, onMutateResult, ctx);
     },
-    onSettled: () => {
+    onSettled: (data, err, vars, onMutateResult, ctx) => {
       void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      options?.onSettled?.(data, err, vars, onMutateResult, ctx);
+    },
+  });
+}
+
+export function useArchiveTaskMutation(
+  options?: UseMutationOptions<ApiTask, Error, string, CanvasCtx>,
+) {
+  const queryClient = useQueryClient();
+  const setNodes = useCanvasStore((s) => s.setNodes);
+  const setEdges = useCanvasStore((s) => s.setEdges);
+
+  return useMutation({
+    mutationFn: (taskId) => apiClient.archiveTask(taskId),
+    ...options,
+    onMutate: async (taskId, context) => {
+      await queryClient.cancelQueries({ queryKey: ["org-graph", ORG_ID] });
+      const previous = queryClient.getQueryData<OrgGraphResponse>([
+        "org-graph",
+        ORG_ID,
+      ]);
+      const previousNodes = useCanvasStore.getState().nodes;
+      const previousEdges = useCanvasStore.getState().edges;
+
+      if (previous) {
+        queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
+          ...previous,
+          tasks: previous.tasks.filter((t) => t.id !== taskId),
+        });
+      }
+
+      setNodes((nodes) => nodes.filter((n) => n.id !== `task-${taskId}`));
+      setEdges((edges) =>
+        edges.filter(
+          (e) => e.source !== `task-${taskId}` && e.target !== `task-${taskId}`,
+        ),
+      );
+
+      const ctx = { previous, previousNodes, previousEdges };
+      return (await options?.onMutate?.(taskId, context)) ?? ctx;
+    },
+    onError: (err, taskId, onMutateResult, ctx) => {
+      if (onMutateResult?.previous) {
+        queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
+      }
+      if (onMutateResult?.previousNodes) setNodes(onMutateResult.previousNodes);
+      if (onMutateResult?.previousEdges) setEdges(onMutateResult.previousEdges);
+      options?.onError?.(err, taskId, onMutateResult, ctx);
+    },
+    onSettled: (data, err, vars, onMutateResult, ctx) => {
+      void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      options?.onSettled?.(data, err, vars, onMutateResult, ctx);
+    },
+  });
+}
+
+export function useAddDependencyMutation(
+  options?: UseMutationOptions<
+    { dependencies: string[]; dependents: string[] },
+    Error,
+    { taskId: string; upstreamTaskId: string },
+    CanvasCtx
+  >,
+) {
+  const queryClient = useQueryClient();
+  const setEdges = useCanvasStore((s) => s.setEdges);
+
+  return useMutation({
+    mutationFn: ({ taskId, upstreamTaskId }) =>
+      apiClient.addDependency(taskId, upstreamTaskId),
+    ...options,
+    onMutate: async (vars, context) => {
+      await queryClient.cancelQueries({ queryKey: ["org-graph", ORG_ID] });
+      const previous = queryClient.getQueryData<OrgGraphResponse>([
+        "org-graph",
+        ORG_ID,
+      ]);
+      const previousEdges = useCanvasStore.getState().edges;
+
+      if (previous) {
+        queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
+          ...previous,
+          tasks: previous.tasks.map((t) => {
+            if (t.id !== vars.taskId) return t;
+            if (t.dependencies.includes(vars.upstreamTaskId)) return t;
+            return {
+              ...t,
+              dependencies: [...t.dependencies, vars.upstreamTaskId],
+            };
+          }),
+        });
+      }
+
+      setEdges((edges) => {
+        const edge = dependencyEdge(vars.upstreamTaskId, vars.taskId);
+        if (edges.some((e) => e.id === edge.id)) return edges;
+        return [...edges, edge];
+      });
+
+      const ctx = { previous, previousEdges };
+      return (await options?.onMutate?.(vars, context)) ?? ctx;
+    },
+    onError: (err, vars, onMutateResult, ctx) => {
+      if (onMutateResult?.previous) {
+        queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
+      }
+      if (onMutateResult?.previousEdges) setEdges(onMutateResult.previousEdges);
+      options?.onError?.(err, vars, onMutateResult, ctx);
+    },
+    onSettled: (data, err, vars, onMutateResult, ctx) => {
+      void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      options?.onSettled?.(data, err, vars, onMutateResult, ctx);
+    },
+  });
+}
+
+export function useRemoveDependencyMutation(
+  options?: UseMutationOptions<
+    { dependencies: string[]; dependents: string[] },
+    Error,
+    { taskId: string; upstreamTaskId: string },
+    CanvasCtx
+  >,
+) {
+  const queryClient = useQueryClient();
+  const setEdges = useCanvasStore((s) => s.setEdges);
+
+  return useMutation({
+    mutationFn: ({ taskId, upstreamTaskId }) =>
+      apiClient.removeDependency(taskId, upstreamTaskId),
+    ...options,
+    onMutate: async (vars, context) => {
+      await queryClient.cancelQueries({ queryKey: ["org-graph", ORG_ID] });
+      const previous = queryClient.getQueryData<OrgGraphResponse>([
+        "org-graph",
+        ORG_ID,
+      ]);
+      const previousEdges = useCanvasStore.getState().edges;
+
+      if (previous) {
+        queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
+          ...previous,
+          tasks: previous.tasks.map((t) => {
+            if (t.id !== vars.taskId) return t;
+            return {
+              ...t,
+              dependencies: t.dependencies.filter(
+                (id) => id !== vars.upstreamTaskId,
+              ),
+            };
+          }),
+        });
+      }
+
+      setEdges((edges) =>
+        edges.filter((e) => e.id !== `dep-${vars.upstreamTaskId}-${vars.taskId}`),
+      );
+
+      const ctx = { previous, previousEdges };
+      return (await options?.onMutate?.(vars, context)) ?? ctx;
+    },
+    onError: (err, vars, onMutateResult, ctx) => {
+      if (onMutateResult?.previous) {
+        queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
+      }
+      if (onMutateResult?.previousEdges) setEdges(onMutateResult.previousEdges);
+      options?.onError?.(err, vars, onMutateResult, ctx);
+    },
+    onSettled: (data, err, vars, onMutateResult, ctx) => {
+      void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      options?.onSettled?.(data, err, vars, onMutateResult, ctx);
     },
   });
 }

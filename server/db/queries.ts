@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, isNull } from "drizzle-orm";
 import { db } from "./client";
 import {
   organizations,
@@ -35,7 +35,15 @@ export async function getOrgGraph(orgId: string) {
 
   const taskRows =
     projectIds.length > 0
-      ? await db.select().from(tasks).where(inArray(tasks.projectId, projectIds))
+      ? await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              inArray(tasks.projectId, projectIds),
+              isNull(tasks.archivedAt),
+            ),
+          )
       : [];
 
   const taskIds = taskRows.map((t) => t.id);

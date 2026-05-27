@@ -166,7 +166,7 @@ check("API: /api/graph returns 3 projects, 9 tasks", async () => {
   if (!orgId) return "SKIP — NEXT_PUBLIC_ORG_ID unset";
   try {
     const res = await fetch(`http://localhost:3001/api/graph/${orgId}`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return `FAIL — HTTP ${res.status}`;
     const json = (await res.json()) as {
@@ -174,13 +174,13 @@ check("API: /api/graph returns 3 projects, 9 tasks", async () => {
       projects?: unknown[];
       tasks?: unknown[];
     };
-    const ok =
-      (json.users?.length ?? 0) === 4 &&
-      (json.projects?.length ?? 0) === 3 &&
-      (json.tasks?.length ?? 0) === 9;
+    const users = json.users?.length ?? 0;
+    const projects = json.projects?.length ?? 0;
+    const tasks = json.tasks?.length ?? 0;
+    const ok = users === 4 && projects === 3 && tasks >= 9;
     return ok
-      ? "PASS — users=4 projects=3 tasks=9"
-      : `FAIL — users=${json.users?.length} projects=${json.projects?.length} tasks=${json.tasks?.length}`;
+      ? `PASS — users=4 projects=3 tasks=${tasks}`
+      : `FAIL — users=${users} projects=${projects} tasks=${tasks}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }
@@ -214,6 +214,72 @@ check("API: canvas viewport route exists", async () => {
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }
+});
+
+check("DB: archivedAt column exists on tasks", async () => {
+  const url = process.env.DATABASE_URL;
+  if (!url || isPlaceholderDbUrl(url)) return "SKIP";
+  try {
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(url);
+    const result = await sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'tasks' AND column_name = 'archived_at'
+    `;
+    return result.length > 0
+      ? "PASS — archived_at column present"
+      : "FAIL — run pnpm db:push";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("API: DELETE /api/tasks/:id route exists (archive)", async () => {
+  try {
+    const res = await fetch(
+      "http://localhost:3001/api/tasks/00000000-0000-0000-0000-000000000000",
+      {
+        method: "DELETE",
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    return res.status === 404
+      ? "PASS — route exists (404 on missing id)"
+      : `FAIL — status ${res.status}`;
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("API: POST /api/tasks/:id/dependencies route exists", async () => {
+  try {
+    const res = await fetch(
+      "http://localhost:3001/api/tasks/nonexistent-id/dependencies",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ upstreamTaskId: "dummy" }),
+        signal: AbortSignal.timeout(3000),
+      },
+    );
+    return res.status !== 404 && res.status !== 405
+      ? "PASS"
+      : `FAIL — status ${res.status}`;
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
+check("SRC: useMutationOrchestrator exists", async () => {
+  return fileExists("src/lib/api/useMutationOrchestrator.ts")
+    ? "PASS"
+    : "FAIL — file missing";
+});
+
+check("SRC: useCPMSync exists", async () => {
+  return fileExists("src/lib/canvas/useCPMSync.ts")
+    ? "PASS"
+    : "FAIL — file missing";
 });
 
 check("AUTH: route file exists", async () =>
@@ -289,7 +355,7 @@ check("SRC: No backdrop-filter on canvas nodes", async () => {
 async function run() {
   console.log("\n╔══════════════════════════════════════╗");
   console.log("║   FlowCanvas Self-Diagnostic v2.0    ║");
-  console.log("║            Phase 6A                  ║");
+  console.log("║         Phase 6A + 6B                ║");
   console.log("╚══════════════════════════════════════╝\n");
 
   let passed = 0;

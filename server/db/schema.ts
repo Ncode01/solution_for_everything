@@ -117,6 +117,7 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
 });
 
 export const taskAssignments = pgTable(
