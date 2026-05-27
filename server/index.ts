@@ -34,6 +34,7 @@ async function buildServer() {
   });
 
   app.get("/health", async () => ({
+    status: "ok",
     ok: true,
     service: "flowcanvas-api",
     timestamp: new Date().toISOString(),

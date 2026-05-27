@@ -18,7 +18,9 @@
     "auth:seed": "tsx --env-file=.env.server scripts/auth-seed.ts",
     "auth:link-owner": "tsx --env-file=.env.server --env-file=.env.local scripts/link-owner.ts",
     "build:server": "tsc -p server/tsconfig.json",
-    "diagnose": "tsx --env-file=.env.server scripts/diagnose.ts"
+    "diagnose": "tsx --env-file=.env.server scripts/diagnose.ts",
+    "diagnose:prod": "tsx scripts/diagnose-prod.ts",
+    "start:server": "node server/dist/index.js"
   },
   "engines": {
     "node": ">=20"

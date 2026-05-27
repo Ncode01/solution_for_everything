@@ -18,6 +18,7 @@
 # production
 /build
 /server/dist
+src/lib/auth/schema.js
 
 # misc
 .DS_Store

@@ -717,6 +717,29 @@ check("SRC: scripts/link-owner.ts exists", async () =>
   fileExists("scripts/link-owner.ts") ? "PASS" : "FAIL",
 );
 
+check("SRC: diagnose-prod.ts exists", async () =>
+  fileExists("scripts/diagnose-prod.ts") ? "PASS" : "FAIL",
+);
+
+check("SRC: diagnose:prod script in package.json", async () => {
+  const pkg = JSON.parse(
+    readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+  ) as { scripts?: Record<string, string> };
+  return pkg.scripts?.["diagnose:prod"] ? "PASS" : "FAIL";
+});
+
+check("API: /health includes status ok field", async () => {
+  try {
+    const res = await fetch("http://localhost:3001/health", {
+      signal: AbortSignal.timeout(3000),
+    });
+    const json = (await res.json()) as { status?: string };
+    return json.status === "ok" ? "PASS" : "FAIL — missing status: ok";
+  } catch (e: unknown) {
+    return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
+  }
+});
+
 check("SRC: requireSession helper exists", async () =>
   fileExists("server/lib/auth.ts") ? "PASS" : "FAIL",
 );
@@ -749,8 +772,8 @@ check("FIRESTORE: rules file has no open wildcard allow all", async () => {
 
 async function run() {
   console.log("\n╔══════════════════════════════════════╗");
-  console.log("║   FlowCanvas Self-Diagnostic v5.0    ║");
-  console.log("║   Phase 9 — Hardening + Deploy Prep  ║");
+  console.log("║   FlowCanvas Self-Diagnostic v5.1    ║");
+  console.log("║   Phase 10 — Deploy Prep             ║");
   console.log("╚══════════════════════════════════════╝\n");
 
   let passed = 0;

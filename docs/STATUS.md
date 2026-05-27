@@ -2,34 +2,40 @@
 
 > Last updated: Tuesday, May 27, 2026
 
-## Current Phase: Phase 9 — COMPLETE
+## Current Phase: Phase 10 — DEPLOY IN PROGRESS
 
-**Status:** Production hardening, route authorization, UI polish, and deploy configuration shipped.
+**Status:** Firebase production project live (`flowcanvas-live`). Railway + Vercel require CLI/dashboard login to finish.
 
-## Phase 9 Progress
+## Phase 10 Progress
 
-- [x] `requireSession` helper on all mutating API routes
-- [x] `credentials: 'include'` + 401 redirect in `apiFetch`
-- [x] Owner auto-link script (`pnpm auth:link-owner`)
-- [x] Keyboard help overlay (`?`)
-- [x] Error boundaries on canvas, gantt, dashboard, right panel
-- [x] Toast system wired to mutations
-- [x] Canvas + Gantt empty states
-- [x] Gantt loading skeleton
-- [x] CORS hardened (no wildcard)
-- [x] Seed production guard
-- [x] `vercel.json`, `railway.json`, `docs/DEPLOY.md`
-- [x] Diagnostic v5.0 (62 checks)
+- [x] Firebase project `flowcanvas-live` created
+- [x] Firestore rules deployed to production
+- [x] `.firebaserc` with `production` alias
+- [x] `/health` returns `{ status: "ok" }` for Railway checks
+- [x] `pnpm diagnose:prod` script added
+- [x] `ALLOW_PROD_SEED=true` for one-time production seed
+- [ ] Neon production branch seeded (run manually with prod `DATABASE_URL`)
+- [ ] Railway backend deployed
+- [ ] Vercel frontend deployed
+- [ ] `auth:seed` + `auth:link-owner` on production
+- [ ] Tag `v1.0.0`
 
-### Deploy follow-up (manual)
+### Finish deploy (you)
 
-- [ ] `firebase use --add` + `firebase deploy --only firestore:rules` (if not yet run)
-- [ ] Phase 10 — live deploy to Vercel + Railway/Render
+1. `npx vercel login` → import repo → set env vars from `docs/DEPLOY.md`
+2. Railway dashboard → deploy from GitHub → set env vars → update `APP_URL` / `BETTER_AUTH_URL` to Vercel URL
+3. `PROD_API_URL=... NEXT_PUBLIC_ORG_ID=... pnpm diagnose:prod`
+4. Smoke test → `git tag -a v1.0.0`
 
-## Phase 8 Progress (complete)
+## Phase 9 Progress (complete)
 
-- [x] Presence, cursors, invites, domain user linking
+- [x] Route auth, keyboard help, error boundaries, toasts, deploy config
 
-## Next
+## Production URLs (pending)
 
-- Phase 10 — Deploy (Vercel + Railway/Render, live) — tag `v1.0.0`
+| Service | URL |
+|---------|-----|
+| Frontend | _Set after Vercel deploy_ |
+| Backend | _Set after Railway deploy_ |
+| Firebase | flowcanvas-live.firebaseapp.com |
+| Database | Neon production branch |

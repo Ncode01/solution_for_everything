@@ -3,8 +3,13 @@ import { resolve } from "node:path";
 
 config({ path: resolve(process.cwd(), ".env.server") });
 
-if (process.env.NODE_ENV === "production") {
-  console.error("SEED BLOCKED: Do not run seed in production. Use migrations.");
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.ALLOW_PROD_SEED !== "true"
+) {
+  console.error(
+    "SEED BLOCKED: Do not run seed in production without ALLOW_PROD_SEED=true.",
+  );
   process.exit(1);
 }
 

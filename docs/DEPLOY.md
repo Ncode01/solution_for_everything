@@ -16,21 +16,28 @@ Free-tier deployment: **Vercel** (Next.js frontend) + **Railway** or **Render** 
 
 ```bash
 pnpm db:push
-pnpm db:seed          # development only — blocked in production
+pnpm db:seed          # dev only unless ALLOW_PROD_SEED=true
+ALLOW_PROD_SEED=true DATABASE_URL="postgresql://...(prod)" pnpm db:seed
 pnpm auth:seed
 pnpm auth:link-owner  # links owner@flowcanvas.dev auth → domain user
 ```
 
 ## 2. Firebase
 
-1. Create a Firebase project.
-2. Enable Firestore (native mode).
-3. Copy web app config into `.env.local` (`NEXT_PUBLIC_FIREBASE_*`).
+**Production project (Phase 10):** `flowcanvas-live` — rules deployed via `.firebaserc`.
+
+1. Create a Firebase project (or use `flowcanvas-live`).
+2. Enable Firestore (native mode) in the [Firebase console](https://console.firebase.google.com/project/flowcanvas-live/firestore).
+3. Copy web app config into `.env.local` and Vercel:
+
+```bash
+firebase use production
+firebase apps:sdkconfig WEB <your-app-id>
+```
+
 4. Deploy rules:
 
 ```bash
-firebase login
-firebase use --add
 firebase deploy --only firestore:rules
 ```
 
@@ -109,6 +116,14 @@ The API only allows:
 - `http://localhost:*` (development)
 
 Cookies use `credentials: 'include'` on all API calls from the browser.
+
+## Production diagnostic (no local .env.server)
+
+```bash
+PROD_API_URL=https://your-api.up.railway.app \
+NEXT_PUBLIC_ORG_ID=<production-org-uuid> \
+pnpm diagnose:prod
+```
 
 ## Troubleshooting
 
