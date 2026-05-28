@@ -90,7 +90,13 @@ function FlowCanvasInner() {
     [updateTaskPosition],
   );
 
+  // Wire onToggleExpand once on mount and whenever nodes list changes by count
+  // (new project added), NOT on every handleToggleExpand identity change
+  const projectNodeCountRef = useRef(-1);
   useEffect(() => {
+    const projectCount = nodes.filter((n) => n.type === "projectCluster").length;
+    if (projectCount === projectNodeCountRef.current) return;
+    projectNodeCountRef.current = projectCount;
     setNodes((current) =>
       current.map((node) => {
         if (node.type === "projectCluster") {
@@ -105,7 +111,7 @@ function FlowCanvasInner() {
         return node;
       }),
     );
-  }, [handleToggleExpand, setNodes]);
+  }, [nodes, handleToggleExpand, setNodes]);
 
   useEffect(() => {
     if (!cascadeChainTaskIds && !cascadeImpact) {

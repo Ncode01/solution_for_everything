@@ -30,57 +30,40 @@ export function useSemanticZoom() {
 
   useEffect(() => {
     const newLevel = getZoomLevel(zoom);
-    if (newLevel === prevLevel.current) return;
+    const sameLevel = newLevel === prevLevel.current;
+    const sameLayer = activeLayer === prevActiveLayer.current;
+    if (sameLevel && sameLayer) return;
     prevLevel.current = newLevel;
+    prevActiveLayer.current = activeLayer;
     setZoomLevel(newLevel);
 
     const { show, hide } = VISIBILITY_RULES[newLevel];
     const isZ3 = newLevel === "Z3";
+    const layer = activeLayer; // capture — do not close over reactive ref inside setNodes
 
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id.startsWith("person-")) {
-          return {
-            ...node,
-            hidden: activeLayer !== "workload",
-          };
+          return { ...node, hidden: layer !== "workload" };
         }
-
-        if (activeLayer === "workload" && node.id.startsWith("task-")) {
+        if (layer === "workload" && node.id.startsWith("task-")) {
           return node;
         }
-
         let hidden = node.hidden ?? false;
         if (show.some((prefix) => node.id.startsWith(prefix))) {
           hidden = false;
         } else if (hide.some((prefix) => node.id.startsWith(prefix))) {
           hidden = true;
         }
-
         if (node.id.startsWith("task-") && node.data) {
           return {
             ...node,
             hidden,
-            data: {
-              ...node.data,
-              isExpanded: isZ3,
-            } as TaskCardNodeData,
+            data: { ...node.data, isExpanded: isZ3 } as TaskCardNodeData,
           };
         }
-
         return { ...node, hidden };
       }),
     );
-  }, [zoom, setZoomLevel, setNodes, activeLayer]);
-
-  useEffect(() => {
-    if (activeLayer === prevActiveLayer.current) return;
-    prevActiveLayer.current = activeLayer;
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (!node.id.startsWith("person-")) return node;
-        return { ...node, hidden: activeLayer !== "workload" };
-      }),
-    );
-  }, [activeLayer, setNodes]);
+  }, [zoom, activeLayer, setZoomLevel, setNodes]);
 }
