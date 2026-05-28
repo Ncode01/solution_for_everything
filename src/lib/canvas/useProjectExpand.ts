@@ -24,10 +24,10 @@ export function useProjectExpand() {
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
   const toggleProjectExpanded = useCanvasStore((s) => s.toggleProjectExpanded);
-  const expandedProjects = useCanvasStore((s) => s.expandedProjects);
 
   const handleToggleExpand = useCallback(
     (projectId: string) => {
+      const expandedProjects = useCanvasStore.getState().expandedProjects;
       const graph = queryClient.getQueryData<OrgGraphResponse>([
         "org-graph",
         ORG_ID,
@@ -124,7 +124,7 @@ export function useProjectExpand() {
         });
       }
     },
-    [queryClient, setNodes, setEdges, toggleProjectExpanded, expandedProjects],
+    [queryClient, setNodes, setEdges, toggleProjectExpanded],
   );
 
   return { handleToggleExpand };
