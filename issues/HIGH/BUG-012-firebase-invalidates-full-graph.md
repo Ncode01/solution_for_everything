@@ -2,7 +2,7 @@
 
 **Severity:** HIGH  
 **Category:** Canvas / Presence  
-**Status:** CONFIRMED  
+**Status:** FIXED (Phase 11B — surgical updates + session filter)  
 **PRD Reference:** Section 5.9 — real-time updates
 
 ## Symptom

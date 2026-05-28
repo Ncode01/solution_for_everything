@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -9,6 +9,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   useReactFlow,
+  type Node,
   type NodeChange,
   type EdgeChange,
 } from "@xyflow/react";
@@ -24,6 +25,7 @@ import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
 import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
+import { useUpdateTaskMutation } from "@/lib/api/useTaskMutations";
 import type { ProjectClusterNodeData } from "@/types";
 
 const nodeTypes = {
@@ -63,6 +65,30 @@ function FlowCanvasInner() {
   const broadcastViewport = useUIStore((s) => s.broadcastViewport);
   const { screenToFlowPosition } = useReactFlow();
   const { handleToggleExpand } = useProjectExpand();
+
+  const updateTaskPosition = useUpdateTaskMutation();
+
+  const dragSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (!node.id.startsWith("task-")) return;
+      const taskId = node.id.replace("task-", "");
+      const canvasX = Math.round(node.position.x);
+      const canvasY = Math.round(node.position.y);
+
+      if (dragSaveTimerRef.current) {
+        clearTimeout(dragSaveTimerRef.current);
+      }
+      dragSaveTimerRef.current = setTimeout(() => {
+        void updateTaskPosition.mutate({
+          taskId,
+          body: { canvasX, canvasY },
+        });
+      }, 300);
+    },
+    [updateTaskPosition],
+  );
 
   useEffect(() => {
     setNodes((current) =>
@@ -197,6 +223,7 @@ function FlowCanvasInner() {
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDragStop={onNodeDragStop}
       onPaneClick={onPaneClick}
       onPaneMouseMove={onPaneMouseMove}
       onMoveEnd={onMoveEnd}

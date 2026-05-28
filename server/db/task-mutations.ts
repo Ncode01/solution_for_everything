@@ -38,6 +38,8 @@ export interface UpdateTaskInput {
   dueDate?: string | null;
   phaseId?: string;
   assigneeIds?: string[];
+  canvasX?: number;
+  canvasY?: number;
 }
 
 function assertStatus(value: string): TaskStatus {
@@ -101,6 +103,8 @@ export async function updateTaskRecord(taskId: string, input: UpdateTaskInput) {
     patch.effortEstimate = input.effortEstimate;
   if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
   if (input.phaseId !== undefined) patch.phaseId = input.phaseId;
+  if (input.canvasX !== undefined) patch.canvasX = input.canvasX;
+  if (input.canvasY !== undefined) patch.canvasY = input.canvasY;
 
   await db.update(tasks).set(patch).where(eq(tasks.id, taskId));
 

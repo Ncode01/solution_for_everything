@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import {
   addDoc,
   collection,
@@ -9,12 +9,13 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  type Timestamp,
 } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
 import { getFirestoreDb, isFirebaseConfigured } from "./config";
 import { useCanvasStore } from "@/stores/canvas.store";
 import type { TaskCardNodeData } from "@/types";
-import type { ApiTask } from "@/lib/api/types";
+import type { ApiTask, OrgGraphResponse } from "@/lib/api/types";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -22,17 +23,29 @@ interface UseCanvasEventsOptions {
   listen?: boolean;
 }
 
+function eventTimestampMs(
+  event: Record<string, unknown>,
+): number {
+  const ts = event.timestamp as Timestamp | undefined;
+  if (ts && typeof ts.toMillis === "function") {
+    return ts.toMillis();
+  }
+  return Date.now();
+}
+
 export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
   const { listen = true } = options;
-  const setNodes = useCanvasStore((s) => s.setNodes);
-  const setEdges = useCanvasStore((s) => s.setEdges);
   const queryClient = useQueryClient();
+  const sessionStartRef = useRef(Date.now());
 
   useEffect(() => {
     if (!listen || !ORG_ID || !isFirebaseConfigured()) return;
 
     const db = getFirestoreDb();
     if (!db) return;
+
+    const setNodes = useCanvasStore.getState().setNodes;
+    const setEdges = useCanvasStore.getState().setEdges;
 
     const eventsRef = collection(db, "orgs", ORG_ID, "events");
     const recentQuery = query(
@@ -47,10 +60,20 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
         const event = change.doc.data() as {
           type?: string;
           taskId?: string;
-          payload?: Record<string, unknown> & { status?: string; task?: ApiTask };
+          payload?: Record<string, unknown> & {
+            status?: string;
+            task?: ApiTask;
+          };
+          timestamp?: Timestamp;
         };
 
         if (!event.type || !event.taskId) return;
+
+        const eventMs = eventTimestampMs(
+          event as Record<string, unknown>,
+        );
+        const isNewSinceSession =
+          eventMs >= sessionStartRef.current - 2_000;
 
         switch (event.type) {
           case "task_status_changed": {
@@ -75,16 +98,24 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
             break;
           }
           case "task_created":
+            if (isNewSinceSession) {
+              void queryClient.invalidateQueries({
+                queryKey: ["org-graph", ORG_ID],
+              });
+            }
+            break;
           case "dependency_added":
           case "dependency_removed":
-            void queryClient.invalidateQueries({
-              queryKey: ["org-graph", ORG_ID],
-            });
+            if (isNewSinceSession) {
+              void queryClient.invalidateQueries({
+                queryKey: ["org-graph", ORG_ID],
+              });
+            }
             break;
           case "task_updated": {
             const apiTask = event.payload?.task as ApiTask | undefined;
             if (apiTask) {
-              queryClient.setQueryData<import("@/lib/api/types").OrgGraphResponse>(
+              queryClient.setQueryData<OrgGraphResponse>(
                 ["org-graph", ORG_ID],
                 (prev) => {
                   if (!prev) return prev;
@@ -109,10 +140,6 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
                   };
                 }),
               );
-            } else {
-              void queryClient.invalidateQueries({
-                queryKey: ["org-graph", ORG_ID],
-              });
             }
             break;
           }
@@ -127,9 +154,16 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
                   e.target !== `task-${event.taskId}`,
               ),
             );
-            void queryClient.invalidateQueries({
-              queryKey: ["org-graph", ORG_ID],
-            });
+            queryClient.setQueryData<OrgGraphResponse>(
+              ["org-graph", ORG_ID],
+              (prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  tasks: prev.tasks.filter((t) => t.id !== event.taskId),
+                };
+              },
+            );
             break;
           }
           default:
@@ -139,7 +173,7 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
     });
 
     return () => unsubscribe();
-  }, [listen, setNodes, setEdges, queryClient]);
+  }, [listen, queryClient]);
 
   const publishEvent = useCallback(
     async (

@@ -2,7 +2,7 @@
 
 **Severity:** HIGH  
 **Category:** Canvas / API  
-**Status:** CONFIRMED  
+**Status:** FIXED (Phase 11B — onNodeDragStop + PATCH canvasX/Y)  
 **PRD Reference:** Section 5.2 — spatial canvas state
 
 ## Symptom

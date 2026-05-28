@@ -1,8 +1,11 @@
 import { useCallback } from "react";
 import type { Node } from "@xyflow/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasStore } from "@/stores/canvas.store";
-import { MOCK_PROJECTS } from "@/lib/seed/mockData";
-import type { PhaseClusterNodeData, ProjectAccentColor } from "@/types";
+import type { OrgGraphResponse } from "@/lib/api/types";
+import type { PhaseClusterNodeData, ProjectAccentColor, Phase } from "@/types";
+
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
 function getPhasePositions(
   projectNode: Node,
@@ -17,6 +20,7 @@ function getPhasePositions(
 }
 
 export function useProjectExpand() {
+  const queryClient = useQueryClient();
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
   const toggleProjectExpanded = useCanvasStore((s) => s.toggleProjectExpanded);
@@ -24,9 +28,40 @@ export function useProjectExpand() {
 
   const handleToggleExpand = useCallback(
     (projectId: string) => {
-      const project = MOCK_PROJECTS.find((p) => p.id === projectId);
-      if (!project) return;
+      const graph = queryClient.getQueryData<OrgGraphResponse>([
+        "org-graph",
+        ORG_ID,
+      ]);
+      if (!graph) return;
 
+      const apiProject = graph.projects.find((p) => p.id === projectId);
+      if (!apiProject) return;
+
+      const apiPhases = graph.phases.filter((ph) => ph.projectId === projectId);
+      if (apiPhases.length === 0) return;
+
+      const phases: Phase[] = apiPhases
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((p) => {
+          const projectTasks = graph.tasks.filter((t) => t.phaseId === p.id);
+          const doneCount = projectTasks.filter(
+            (t) => t.status === "done",
+          ).length;
+          return {
+            id: p.id,
+            projectId: p.projectId,
+            name: p.name,
+            orderIndex: p.orderIndex,
+            completionPercent:
+              projectTasks.length > 0
+                ? (doneCount / projectTasks.length) * 100
+                : 0,
+            taskCount: projectTasks.length,
+            doneCount,
+          };
+        });
+
+      const projectColor = (apiProject.color as ProjectAccentColor) ?? "sky";
       const isCurrentlyExpanded = expandedProjects.has(projectId);
       toggleProjectExpanded(projectId);
 
@@ -36,10 +71,7 @@ export function useProjectExpand() {
             .filter((n) => !n.id.startsWith(`phase-${projectId}-`))
             .map((n) => {
               if (n.id === `project-${projectId}`) {
-                return {
-                  ...n,
-                  data: { ...n.data, isExpanded: false },
-                };
+                return { ...n, data: { ...n.data, isExpanded: false } };
               }
               return n;
             }),
@@ -49,36 +81,35 @@ export function useProjectExpand() {
         );
       } else {
         setNodes((allNodes) => {
-          const projectNode = allNodes.find((n) => n.id === `project-${projectId}`);
+          const projectNode = allNodes.find(
+            (n) => n.id === `project-${projectId}`,
+          );
           if (!projectNode) return allNodes;
 
-          const positions = getPhasePositions(projectNode, project.phases.length);
+          const positions = getPhasePositions(projectNode, phases.length);
 
-          const phaseNodes: Node<PhaseClusterNodeData>[] = project.phases.map(
+          const phaseNodes: Node<PhaseClusterNodeData>[] = phases.map(
             (phase, i) => ({
               id: `phase-${projectId}-${phase.id}`,
               type: "phaseCluster",
               position: positions[i],
-              data: {
-                phase,
-                projectColor: project.color as ProjectAccentColor,
-              },
+              data: { phase, projectColor },
               hidden: false,
             }),
           );
 
-          const updatedNodes = allNodes.map((n) => {
-            if (n.id === `project-${projectId}`) {
-              return { ...n, data: { ...n.data, isExpanded: true } };
-            }
-            return n;
-          });
-
-          return [...updatedNodes, ...phaseNodes];
+          return [
+            ...allNodes.map((n) =>
+              n.id === `project-${projectId}`
+                ? { ...n, data: { ...n.data, isExpanded: true } }
+                : n,
+            ),
+            ...phaseNodes,
+          ];
         });
 
         setEdges((edges) => {
-          const phaseEdges = project.phases.map((phase) => ({
+          const phaseEdges = phases.map((phase) => ({
             id: `project-phase-${projectId}-${phase.id}`,
             source: `project-${projectId}`,
             target: `phase-${projectId}-${phase.id}`,
@@ -93,7 +124,7 @@ export function useProjectExpand() {
         });
       }
     },
-    [setNodes, setEdges, toggleProjectExpanded, expandedProjects],
+    [queryClient, setNodes, setEdges, toggleProjectExpanded, expandedProjects],
   );
 
   return { handleToggleExpand };

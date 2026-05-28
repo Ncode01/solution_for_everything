@@ -16,12 +16,12 @@ Production issues found during Phase 11A audit (v1.0.0, commit `8d68792`).
 
 | ID | Title | Severity | Folder |
 |----|-------|----------|--------|
-| BUG-001 | Canvas flicker / graph reset loop | CRITICAL | [CRITICAL/BUG-001-canvas-reload-loop.md](CRITICAL/BUG-001-canvas-reload-loop.md) |
-| BUG-002 | Project expand uses mock data, not API | CRITICAL | [CRITICAL/BUG-002-project-expand-mock-data.md](CRITICAL/BUG-002-project-expand-mock-data.md) |
-| BUG-010 | Node drag positions not saved to API | HIGH | [HIGH/BUG-010-node-position-not-persisted.md](HIGH/BUG-010-node-position-not-persisted.md) |
-| BUG-011 | Duplicate `org-graph` TanStack Query subscribers | HIGH | [HIGH/BUG-011-duplicate-org-graph-queries.md](HIGH/BUG-011-duplicate-org-graph-queries.md) |
-| BUG-012 | Firebase events trigger full graph rebuild | HIGH | [HIGH/BUG-012-firebase-invalidates-full-graph.md](HIGH/BUG-012-firebase-invalidates-full-graph.md) |
-| BUG-013 | `buildGraphFromApi` replaces entire node array | HIGH | [HIGH/BUG-013-build-graph-full-replace.md](HIGH/BUG-013-build-graph-full-replace.md) |
+| BUG-001 | Canvas flicker / graph reset loop | CRITICAL | **FIXED** 11B |
+| BUG-002 | Project expand uses mock data, not API | CRITICAL | **FIXED** 11B |
+| BUG-010 | Node drag positions not saved to API | HIGH | **FIXED** 11B |
+| BUG-011 | Duplicate `org-graph` TanStack Query subscribers | HIGH | **FIXED** 11B |
+| BUG-012 | Firebase events trigger full graph rebuild | HIGH | **FIXED** 11B |
+| BUG-013 | `buildGraphFromApi` replaces entire node array | HIGH | **FIXED** 11B |
 | BUG-020 | Dashboard missing PRD KPI / velocity / milestones | MEDIUM | [MEDIUM/BUG-020-dashboard-prd-gaps.md](MEDIUM/BUG-020-dashboard-prd-gaps.md) |
 | BUG-021 | Task panel has no Comments / Subtasks tabs | MEDIUM | [MEDIUM/BUG-021-task-panel-tabs-missing.md](MEDIUM/BUG-021-task-panel-tabs-missing.md) |
 | BUG-030 | Semantic zoom rewrites all nodes on level change | LOW | [LOW/BUG-030-semantic-zoom-node-rewrite.md](LOW/BUG-030-semantic-zoom-node-rewrite.md) |

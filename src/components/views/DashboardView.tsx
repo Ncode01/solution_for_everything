@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutDashboard, RefreshCw } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api/client";
-
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import {
   getBlockedTasksSummary,
   getCriticalPathSummary,
@@ -40,12 +37,7 @@ function HealthCardSkeleton() {
 }
 
 export function DashboardView() {
-  const query = useQuery({
-    queryKey: ["org-graph", ORG_ID],
-    queryFn: () => apiClient.getOrgGraph(ORG_ID),
-    enabled: ORG_ID.length > 0,
-    staleTime: 30_000,
-  });
+  const query = useOrgGraphData();
   const selectNode = useCanvasStore((s) => s.selectNode);
   const openTaskView = useUIStore((s) => s.openTaskView);
   const [, setTick] = useState(0);
