@@ -72,6 +72,8 @@ Required env vars:
 
 ## 5. Railway / Render (API)
 
+**CLI (Phase 10C):** Workspace tokens work with Railway GraphQL (`Authorization: Bearer`) but not `railway` CLI `whoami`. Create project/service via API, then connect GitHub in the dashboard before first deploy.
+
 1. Create a service from this repo.
 2. Set start command: `node server/dist/index.js` (after `pnpm build:server`).
 3. Environment (`.env.server`):

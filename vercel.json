@@ -1,16 +1,5 @@
 {
   "framework": "nextjs",
   "buildCommand": "pnpm build",
-  "outputDirectory": ".next",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@flowcanvas-api-url",
-    "NEXT_PUBLIC_ORG_ID": "@flowcanvas-org-id",
-    "NEXT_PUBLIC_APP_URL": "@flowcanvas-app-url",
-    "NEXT_PUBLIC_FIREBASE_API_KEY": "@flowcanvas-firebase-api-key",
-    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "@flowcanvas-firebase-auth-domain",
-    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "@flowcanvas-firebase-project-id",
-    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "@flowcanvas-firebase-storage-bucket",
-    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "@flowcanvas-firebase-messaging-sender-id",
-    "NEXT_PUBLIC_FIREBASE_APP_ID": "@flowcanvas-firebase-app-id"
-  }
+  "outputDirectory": ".next"
 }
