@@ -26,6 +26,7 @@ export function useSemanticZoom() {
   const setNodes = useCanvasStore((s) => s.setNodes);
   const activeLayer = useCanvasStore((s) => s.activeLayer);
   const prevLevel = useRef<ZoomLevel | null>(null);
+  const prevActiveLayer = useRef<string | null>(null);
 
   useEffect(() => {
     const newLevel = getZoomLevel(zoom);
@@ -73,6 +74,8 @@ export function useSemanticZoom() {
   }, [zoom, setZoomLevel, setNodes, activeLayer]);
 
   useEffect(() => {
+    if (activeLayer === prevActiveLayer.current) return;
+    prevActiveLayer.current = activeLayer;
     setNodes((nodes) =>
       nodes.map((node) => {
         if (!node.id.startsWith("person-")) return node;
