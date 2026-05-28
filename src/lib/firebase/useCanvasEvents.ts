@@ -54,7 +54,9 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
       limit(20),
     );
 
-    const unsubscribe = onSnapshot(recentQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(
+      recentQuery,
+      (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type !== "added") return;
         const event = change.doc.data() as {
@@ -170,7 +172,11 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
             break;
         }
       });
-    });
+      },
+      (error) => {
+        console.warn("[CanvasEvents] Firestore unavailable — realtime events disabled:", error.code);
+      },
+    );
 
     return () => unsubscribe();
   }, [listen, queryClient]);

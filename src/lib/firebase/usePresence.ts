@@ -37,6 +37,7 @@ export function usePresence(
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCursorWriteRef = useRef<number>(0);
   const lastViewportWriteRef = useRef<number>(0);
+  const firestoreAvailableRef = useRef<boolean | null>(null); // null=unknown, false=unavailable
 
   const writePresence = useCallback(
     async (
@@ -49,6 +50,7 @@ export function usePresence(
       }> = {},
     ) => {
       if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
+      if (firestoreAvailableRef.current === false) return; // already known unavailable
       const db = getFirestoreDb();
       if (!db) return;
 
@@ -73,16 +75,24 @@ export function usePresence(
     [currentUser, activeView],
   );
 
+  // Heartbeat — write presence on mount and every 30s
   useEffect(() => {
     if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
 
-    void writePresence();
+    void writePresence().catch(() => {
+      firestoreAvailableRef.current = false;
+    });
+
     heartbeatRef.current = setInterval(() => {
-      void writePresence();
+      void writePresence().catch(() => {
+        firestoreAvailableRef.current = false;
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      });
     }, 30_000);
 
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (firestoreAvailableRef.current === false) return; // don't try to delete if unavailable
       const db = getFirestoreDb();
       if (!db) return;
       const ref = doc(db, "orgs", ORG_ID, "presence", currentUser.id);
@@ -90,56 +100,71 @@ export function usePresence(
     };
   }, [currentUser, writePresence]);
 
+  // Listen to other users' presence
   useEffect(() => {
     if (!ORG_ID || !isFirebaseConfigured()) return;
     const db = getFirestoreDb();
     if (!db) return;
 
     const ref = collection(db, "orgs", ORG_ID, "presence");
-    return onSnapshot(ref, (snapshot) => {
-      const now = Date.now();
-      const users: PresenceUser[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const lastSeen =
-          data.lastSeen instanceof Timestamp
-            ? data.lastSeen.toDate()
-            : new Date(0);
-        if (data.userId === currentUser?.id) return;
-        users.push({
-          userId: String(data.userId),
-          name: String(data.name ?? ""),
-          initials: String(data.initials ?? "??"),
-          activeView: String(data.activeView ?? "canvas"),
-          viewportX: Number(data.viewportX ?? 0),
-          viewportY: Number(data.viewportY ?? 0),
-          viewportZoom: Number(data.viewportZoom ?? 1),
-          cursorX: Number(data.cursorX ?? 0),
-          cursorY: Number(data.cursorY ?? 0),
-          lastSeen,
-          isOnline: now - lastSeen.getTime() < 60_000,
+    const unsubscribe = onSnapshot(
+      ref,
+      (snapshot) => {
+        firestoreAvailableRef.current = true; // confirmed working
+        const now = Date.now();
+        const users: PresenceUser[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const lastSeen =
+            data.lastSeen instanceof Timestamp
+              ? data.lastSeen.toDate()
+              : new Date(0);
+          if (data.userId === currentUser?.id) return;
+          users.push({
+            userId: String(data.userId),
+            name: String(data.name ?? ""),
+            initials: String(data.initials ?? "??"),
+            activeView: String(data.activeView ?? "canvas"),
+            viewportX: Number(data.viewportX ?? 0),
+            viewportY: Number(data.viewportY ?? 0),
+            viewportZoom: Number(data.viewportZoom ?? 1),
+            cursorX: Number(data.cursorX ?? 0),
+            cursorY: Number(data.cursorY ?? 0),
+            lastSeen,
+            isOnline: now - lastSeen.getTime() < 60_000,
+          });
         });
-      });
-      setPresenceUsers(users.filter((u) => u.isOnline));
-    });
+        setPresenceUsers(users.filter((u) => u.isOnline));
+      },
+      (error) => {
+        // Firestore unavailable (not created, wrong project, missing env vars)
+        // Fail silently — presence is a non-critical feature
+        firestoreAvailableRef.current = false;
+        console.warn("[Presence] Firestore unavailable — presence disabled:", error.code);
+      },
+    );
+
+    return () => unsubscribe();
   }, [currentUser]);
 
   const broadcastCursor = useCallback(
     (canvasX: number, canvasY: number) => {
+      if (firestoreAvailableRef.current === false) return;
       const now = Date.now();
       if (now - lastCursorWriteRef.current < 2_000) return;
       lastCursorWriteRef.current = now;
-      void writePresence({ cursorX: canvasX, cursorY: canvasY });
+      void writePresence({ cursorX: canvasX, cursorY: canvasY }).catch(() => {});
     },
     [writePresence],
   );
 
   const broadcastViewport = useCallback(
     (x: number, y: number, zoom: number) => {
+      if (firestoreAvailableRef.current === false) return;
       const now = Date.now();
       if (now - lastViewportWriteRef.current < 5_000) return;
       lastViewportWriteRef.current = now;
-      void writePresence({ viewportX: x, viewportY: y, viewportZoom: zoom });
+      void writePresence({ viewportX: x, viewportY: y, viewportZoom: zoom }).catch(() => {});
     },
     [writePresence],
   );
