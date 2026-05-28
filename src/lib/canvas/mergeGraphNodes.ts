@@ -30,8 +30,6 @@ export function mergeGraphNodes(prev: Node[], next: Node[]): Node[] {
       data: {
         ...nextData,
         isExpanded: prevData.isExpanded ?? nextData.isExpanded,
-        onToggleExpand:
-          prevData.onToggleExpand ?? nextData.onToggleExpand,
       },
     });
   }
