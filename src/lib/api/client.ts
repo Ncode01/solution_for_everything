@@ -19,10 +19,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-    throw new Error("Session expired");
+    throw new Error("UNAUTHORIZED");
   }
 
   if (!res.ok) {

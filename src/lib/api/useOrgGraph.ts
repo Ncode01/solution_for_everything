@@ -47,6 +47,15 @@ export function useOrgGraph() {
 
   useEffect(() => {
     if (query.error) {
+      const isAuthError =
+        query.error instanceof Error &&
+        query.error.message === "UNAUTHORIZED";
+      if (isAuthError) {
+        // Session invalid — let Next.js middleware handle the redirect
+        // Do NOT call window.location here — middleware will redirect on next navigation
+        setCanvasError("Session expired. Please refresh the page.");
+        return;
+      }
       setCanvasError(
         query.error instanceof Error
           ? query.error.message
