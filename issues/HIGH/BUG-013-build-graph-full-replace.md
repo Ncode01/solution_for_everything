@@ -2,7 +2,7 @@
 
 **Severity:** HIGH  
 **Category:** Canvas  
-**Status:** CONFIRMED  
+**Status:** FIXED (Phase 11B — mergeGraphNodes in useOrgGraph)  
 **PRD Reference:** Section 5.2
 
 ## Symptom

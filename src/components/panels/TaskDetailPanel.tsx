@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   X,
   Calendar,
@@ -15,7 +14,7 @@ import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { computeCPM, computeCascadeImpact } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
-import { apiClient } from "@/lib/api/client";
+import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import { useMutationOrchestrator } from "@/lib/api/useMutationOrchestrator";
 import { DependencyEditSection } from "./DependencyEditSection";
 import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
@@ -107,12 +106,7 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const openTaskView = useUIStore((s) => s.openTaskView);
   const openTaskEdit = useUIStore((s) => s.openTaskEdit);
 
-  const { data: graph } = useQuery({
-    queryKey: ["org-graph", ORG_ID],
-    queryFn: () => apiClient.getOrgGraph(ORG_ID),
-    enabled: ORG_ID.length > 0,
-    staleTime: 30_000,
-  });
+  const { data: graph } = useOrgGraphData();
 
   const { createTask, updateTask, archiveTask, addDependency, removeDependency } =
     useMutationOrchestrator();

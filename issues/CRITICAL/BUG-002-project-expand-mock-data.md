@@ -2,7 +2,7 @@
 
 **Severity:** CRITICAL  
 **Category:** Canvas  
-**Status:** CONFIRMED  
+**Status:** FIXED (Phase 11B — API phases from TanStack cache)  
 **PRD Reference:** Section 5.2 — PhaseCluster at semantic zoom Z1
 
 ## Symptom

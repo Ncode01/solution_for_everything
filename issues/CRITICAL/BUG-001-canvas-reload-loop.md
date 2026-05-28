@@ -2,7 +2,7 @@
 
 **Severity:** CRITICAL  
 **Category:** Canvas / Performance  
-**Status:** CONFIRMED (code); SUSPECTED (owner symptom)  
+**Status:** FIXED (Phase 11B — hash guard + mergeGraphNodes)  
 **PRD Reference:** Section 5.2 — stable infinite canvas
 
 ## Symptom
@@ -67,3 +67,8 @@ Blocks canvas stability (C-02), drag persistence (C-20), expand, workload layer,
 ## Effort Estimate
 
 **M** (2–4h)
+
+## Verification
+
+- Code fix: `mergeGraphNodes.ts` + `graphContentHash` in `useOrgGraph.ts`
+- Re-test on production after deploy: Network tab should show one `/api/graph` fetch per hard refresh; canvas stable 60s+

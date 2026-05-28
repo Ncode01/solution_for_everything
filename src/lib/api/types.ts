@@ -82,6 +82,8 @@ export interface UpdateTaskBody {
   dueDate?: string | null;
   phaseId?: string;
   assigneeIds?: string[];
+  canvasX?: number;
+  canvasY?: number;
 }
 
 export interface ViewportPayload {

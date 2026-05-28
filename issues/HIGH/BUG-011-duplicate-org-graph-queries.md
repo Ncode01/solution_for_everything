@@ -2,7 +2,7 @@
 
 **Severity:** HIGH  
 **Category:** Performance / Canvas  
-**Status:** CONFIRMED  
+**Status:** FIXED (Phase 11B — useOrgGraphData cache subscriber)  
 **PRD Reference:** Section 6 — performance budget
 
 ## Symptom

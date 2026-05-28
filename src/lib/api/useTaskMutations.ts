@@ -164,6 +164,8 @@ export function useUpdateTaskMutation(
                 vars.body.dueDate !== undefined ? vars.body.dueDate : t.dueDate,
               phaseId: vars.body.phaseId ?? t.phaseId,
               assigneeIds: vars.body.assigneeIds ?? t.assigneeIds,
+              canvasX: vars.body.canvasX ?? t.canvasX,
+              canvasY: vars.body.canvasY ?? t.canvasY,
             };
           }),
         });
@@ -197,7 +199,13 @@ export function useUpdateTaskMutation(
       options?.onSuccess?.(data, vars, onMutateResult, ctx);
     },
     onSettled: (data, err, vars, onMutateResult, ctx) => {
-      void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      const keys = Object.keys(vars.body);
+      const positionOnly =
+        keys.length > 0 &&
+        keys.every((k) => k === "canvasX" || k === "canvasY");
+      if (!positionOnly) {
+        void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
+      }
       options?.onSettled?.(data, err, vars, onMutateResult, ctx);
     },
   });
