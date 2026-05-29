@@ -43,10 +43,12 @@ export function Topbar() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [invitePending, setInvitePending] = useState(false);
   const [copyDone, setCopyDone] = useState(false);
+  const [presenceOpen, setPresenceOpen] = useState(false);
 
   const quickAddRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLDivElement>(null);
+  const presenceRef = useRef<HTMLDivElement>(null);
 
   const orgName = graph.data?.org.name ?? null;
   const orgError = graph.isError
@@ -54,7 +56,9 @@ export function Topbar() {
       ? graph.error.message
       : "Org error"
     : null;
-  const onlineCount = presenceUsers.filter((u) => u.isOnline).length;
+  const onlineUsers = presenceUsers.filter((u) => u.isOnline);
+  const offlineUsers = presenceUsers.filter((u) => !u.isOnline);
+  const onlineCount = onlineUsers.length;
   const notificationCount = 0;
 
   const userInitials =
@@ -81,6 +85,12 @@ export function Topbar() {
       }
       if (inviteRef.current && !inviteRef.current.contains(e.target as Node)) {
         setInviteOpen(false);
+      }
+      if (
+        presenceRef.current &&
+        !presenceRef.current.contains(e.target as Node)
+      ) {
+        setPresenceOpen(false);
       }
     }
     document.addEventListener("mousedown", onDocClick);
@@ -190,10 +200,95 @@ export function Topbar() {
       </button>
 
       <div className="ml-auto flex items-center gap-2">
-        {onlineCount > 0 ? (
-          <span className={`${typography.scale.xs.class} ${colors.text.tertiary}`}>
-            {onlineCount} online
-          </span>
+        {presenceUsers.length > 0 ? (
+          <div className="relative" ref={presenceRef}>
+            <button
+              type="button"
+              onClick={() => setPresenceOpen((o) => !o)}
+              className={`flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 ${typography.scale.xs.class} ${colors.text.secondary} hover:bg-white/5`}
+              aria-expanded={presenceOpen}
+              aria-haspopup="dialog"
+              aria-label={`${onlineCount} teammates online`}
+            >
+              <span className="h-2 w-2 rounded-full bg-[#6DAA45]" aria-hidden />
+              {onlineCount} online
+            </button>
+            {presenceOpen ? (
+              <div
+                className={`absolute right-0 top-full z-50 mt-2 w-64 py-2 ${colors.bg.elevated} ${colors.border.default} border rounded-lg shadow-lg`}
+                role="dialog"
+                aria-label="Team presence"
+              >
+                {onlineUsers.length > 0 ? (
+                  <div className="px-2 pb-1">
+                    <p className={`${typography.scale.xs.class} px-2 py-1 uppercase tracking-wide ${colors.text.tertiary}`}>
+                      Online now
+                    </p>
+                    {onlineUsers.map((u) => (
+                      <div
+                        key={u.userId}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5"
+                      >
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                          style={{ backgroundColor: getUserColor(u.userId) }}
+                        >
+                          {u.initials}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate ${typography.scale.sm.class} ${colors.text.primary}`}>
+                            {u.name}
+                          </p>
+                          <p className={`${typography.scale.xs.class} ${colors.text.tertiary}`}>
+                            Online now · {u.activeView}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {offlineUsers.length > 0 ? (
+                  <div className="border-t border-white/5 px-2 pt-1">
+                    <p className={`${typography.scale.xs.class} px-2 py-1 uppercase tracking-wide ${colors.text.tertiary}`}>
+                      Recently active
+                    </p>
+                    {offlineUsers.map((u) => {
+                      const mins = Math.floor(
+                        (Date.now() - u.lastSeen.getTime()) / 60_000,
+                      );
+                      const label =
+                        mins < 1
+                          ? "Last seen just now"
+                          : mins === 1
+                            ? "Last seen 1 min ago"
+                            : `Last seen ${mins} min ago`;
+                      return (
+                        <div
+                          key={u.userId}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 opacity-70"
+                        >
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                            style={{ backgroundColor: getUserColor(u.userId) }}
+                          >
+                            {u.initials}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate ${typography.scale.sm.class} ${colors.text.primary}`}>
+                              {u.name}
+                            </p>
+                            <p className={`${typography.scale.xs.class} ${colors.text.tertiary}`}>
+                              {label}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <button

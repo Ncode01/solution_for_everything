@@ -19,8 +19,7 @@ import {
 import { getFirestoreDb, isFirebaseConfigured } from "./config";
 import { useUIStore } from "@/stores/ui.store";
 import { logOnce } from "@/lib/diagnostics";
-
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+import { getEffectiveOrgId } from "@/lib/api/orgId";
 
 export interface PresenceUser {
   userId: string;
@@ -73,12 +72,13 @@ export function usePresence(
         cursorY: number;
       }> = {},
     ) => {
-      if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
+      const orgId = getEffectiveOrgId();
+      if (!currentUser || !orgId || !isFirebaseConfigured()) return;
       if (firestoreAvailableRef.current === false) return;
       const db = getFirestoreDb();
       if (!db) return;
 
-      const ref = doc(db, "orgs", ORG_ID, "presence", currentUser.id);
+      const ref = doc(db, "orgs", orgId, "presence", currentUser.id);
       await setDoc(
         ref,
         {
@@ -100,7 +100,8 @@ export function usePresence(
   );
 
   useEffect(() => {
-    if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
+    const orgId = getEffectiveOrgId();
+    if (!currentUser || !orgId || !isFirebaseConfigured()) return;
 
     void writePresence().catch(() => {
       disablePresenceForSession(
@@ -125,17 +126,18 @@ export function usePresence(
       if (firestoreAvailableRef.current === false) return;
       const db = getFirestoreDb();
       if (!db) return;
-      const ref = doc(db, "orgs", ORG_ID, "presence", currentUser.id);
+      const ref = doc(db, "orgs", orgId, "presence", currentUser.id);
       deleteDoc(ref).catch(() => {});
     };
   }, [currentUser, writePresence]);
 
   useEffect(() => {
-    if (!ORG_ID || !isFirebaseConfigured()) return;
+    const orgId = getEffectiveOrgId();
+    if (!orgId || !isFirebaseConfigured()) return;
     const db = getFirestoreDb();
     if (!db) return;
 
-    const ref = collection(db, "orgs", ORG_ID, "presence");
+    const ref = collection(db, "orgs", orgId, "presence");
     const unsubscribe = onSnapshot(
       ref,
       (snapshot) => {
@@ -163,7 +165,10 @@ export function usePresence(
             isOnline: now - lastSeen.getTime() < 60_000,
           });
         });
-        setPresenceUsers(users.filter((u) => u.isOnline));
+        const recentCutoff = 30 * 60_000;
+        setPresenceUsers(
+          users.filter((u) => now - u.lastSeen.getTime() < recentCutoff),
+        );
       },
       (error) => {
         disablePresenceForSession(
