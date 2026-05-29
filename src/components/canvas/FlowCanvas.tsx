@@ -93,8 +93,13 @@ function FlowCanvasInner() {
   // Wire onToggleExpand once on mount and whenever nodes list changes by count
   // (new project added), NOT on every handleToggleExpand identity change
   const projectNodeCountRef = useRef(-1);
+  const handleToggleExpandRef = useRef(handleToggleExpand);
+  handleToggleExpandRef.current = handleToggleExpand;
+
   useEffect(() => {
-    const projectCount = nodes.filter((n) => n.type === "projectCluster").length;
+    // Read from store directly — do NOT subscribe to nodes via deps
+    const currentNodes = useCanvasStore.getState().nodes;
+    const projectCount = currentNodes.filter((n) => n.type === "projectCluster").length;
     if (projectCount === projectNodeCountRef.current) return;
     projectNodeCountRef.current = projectCount;
     setNodes((current) =>
@@ -104,17 +109,30 @@ function FlowCanvasInner() {
             ...node,
             data: {
               ...(node.data as ProjectClusterNodeData),
-              onToggleExpand: handleToggleExpand,
+              onToggleExpand: handleToggleExpandRef.current,
             },
           };
         }
         return node;
       }),
     );
-  }, [nodes, handleToggleExpand, setNodes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setNodes]); // intentionally omit nodes and handleToggleExpand — read via refs/getState
+
+  const prevCascadeRef = useRef<{ ids: typeof cascadeChainTaskIds; impact: typeof cascadeImpact }>({
+    ids: null,
+    impact: null,
+  });
 
   useEffect(() => {
+    const prevIds = prevCascadeRef.current.ids;
+    const prevImpact = prevCascadeRef.current.impact;
+    prevCascadeRef.current = { ids: cascadeChainTaskIds, impact: cascadeImpact };
+
     if (!cascadeChainTaskIds && !cascadeImpact) {
+      // Only clear styles if we're transitioning FROM an active cascade
+      // Skip on initial mount (prev was also null)
+      if (prevIds === null && prevImpact === null) return;
       setNodes((current) =>
         current.map((node) => {
           if (!node.id.startsWith("task-")) return node;
@@ -179,8 +197,15 @@ function FlowCanvasInner() {
     );
   }, [cascadeChainTaskIds, activeLayer, setEdges]);
 
+  const prevCascadeEdgeRef = useRef<typeof cascadeChainTaskIds>(null);
   useEffect(() => {
-    if (cascadeChainTaskIds) return;
+    if (cascadeChainTaskIds !== null) {
+      prevCascadeEdgeRef.current = cascadeChainTaskIds;
+      return;
+    }
+    // Only restore if transitioning FROM an active chain (not on initial mount)
+    if (prevCascadeEdgeRef.current === null) return;
+    prevCascadeEdgeRef.current = null;
     if (activeLayer === "workload") return;
     setEdges((current) => restoreDependencyEdgeStyles(current));
   }, [cascadeChainTaskIds, activeLayer, setEdges]);
