@@ -8,8 +8,13 @@ import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { applyCanvasViewport, fitCanvasView } from "@/lib/canvas/reactFlowApi";
 import { logOnce } from "@/lib/diagnostics";
+import {
+  loadCanvasViewport,
+  persistCanvasViewport,
+} from "@/lib/canvas/persistence";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+const BOARD_ID = ORG_ID || "default";
 
 function logViewportFailure(
   operation: "load" | "save",
@@ -66,8 +71,18 @@ export function useViewportPersistence(graphReady: boolean) {
 
     void (async () => {
       try {
+        const localSaved = loadCanvasViewport(BOARD_ID);
+        if (localSaved) {
+          await applyCanvasViewport(localSaved);
+          setSkipInitialFitView(true);
+          logOnce(
+            "viewport-restored-local",
+            "[ViewportPersistence] local viewport restored",
+          );
+        }
+
         const saved = viewportQuery.data ?? null;
-        if (saved) {
+        if (saved && !localSaved) {
           await applyCanvasViewport({
             x: saved.viewportX,
             y: saved.viewportY,
@@ -98,6 +113,10 @@ export function useViewportPersistence(graphReady: boolean) {
     viewportQuery.data,
     viewportQuery.isLoading,
   ]);
+
+  useEffect(() => {
+    persistCanvasViewport(BOARD_ID, viewport);
+  }, [viewport]);
 
   useEffect(() => {
     if (!restoredRef.current || !session?.user?.id || !ORG_ID) return;

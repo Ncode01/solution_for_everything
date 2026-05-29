@@ -415,8 +415,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       widgetNodes.push({
         id: `budget-summary-${proj.id}`,
@@ -430,8 +428,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       const dailyValues = Array.from({ length: 14 }, (_, i) =>
         Math.round((spent / 14) * (0.9 + ((i * 7 + proj.id.charCodeAt(0)) % 20) / 100)),
@@ -447,8 +443,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       colDHeight = 160 + 18 + 140 + 18 + 80 + 18;
     }
@@ -471,11 +465,24 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         projectColor: proj.color,
       },
       hidden: false,
-      draggable: false,
-      selectable: false,
     });
 
     let workloadY = startY + 90 + 18;
+    const projTasks = data.tasks.filter((t) => t.projectId === proj.id);
+
+    const buildWeeklyHours = (memberId: string): number[] => {
+      const memberTasks = projTasks.filter((task) =>
+        task.assigneeIds.includes(memberId),
+      );
+      const weekly = [0, 0, 0, 0, 0];
+      memberTasks.forEach((task, index) => {
+        const slot = index % 5;
+        const effort = Math.max(1, Math.round((task.effortEstimate ?? 4) / 2));
+        weekly[slot] += Math.min(8, effort);
+      });
+      return weekly;
+    };
+
     for (const member of projectMembers.slice(0, 3)) {
       widgetNodes.push({
         id: `workload-${proj.id}-${member.id}`,
@@ -484,13 +491,9 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         data: {
           user: userMap[member.id],
           projectColor: proj.color,
-          weeklyHours: Array.from({ length: 5 }, (_, i) =>
-            Math.round(2 + ((member.id.charCodeAt(0) + i * 3) % 8)),
-          ),
+          weeklyHours: buildWeeklyHours(member.id),
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       workloadY += 160 + 18;
     }
@@ -508,8 +511,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         projectColor: proj.color,
       },
       hidden: false,
-      draggable: false,
-      selectable: false,
     });
 
     const colEHeight = workloadY + 160 - startY;
@@ -530,8 +531,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       ringY += 120 + 18;
     }
@@ -566,13 +565,10 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       ringY += 180 + 18;
     }
 
-    const projTasks = data.tasks.filter((t) => t.projectId === proj.id);
     widgetNodes.push({
       id: `status-matrix-${proj.id}`,
       type: "statusMatrix",
@@ -589,8 +585,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         projectColor: proj.color,
       },
       hidden: false,
-      draggable: false,
-      selectable: false,
     });
 
     const colFHeight = ringY + 110 - startY;
@@ -610,8 +604,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           projectColor: proj.color,
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       colG_Y += 100 + 18;
     }
@@ -624,28 +616,28 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           position: { x: colG_X, y: colG_Y },
           data: { link, taskTitle: t.title, projectColor: proj.color },
           hidden: false,
-          draggable: false,
-          selectable: false,
         });
         colG_Y += 80 + 18;
       }
     }
 
-    if (proj.name.includes("SparkIT")) {
+    const stickySourceTask = projTasks.find((task) => task.note?.trim());
+    if (stickySourceTask?.note) {
       widgetNodes.push({
         id: `sticky-${proj.id}`,
         type: "stickyNote",
         position: { x: colG_X, y: colG_Y },
         data: {
-          content:
-            "Showcase layout: every node type has a justified slot in the rich column grid.",
-          authorName: "FlowCanvas",
-          timestamp: "May 2026",
-          variant: "teal",
+          title: stickySourceTask.title,
+          content: stickySourceTask.note,
+          authorName:
+            stickySourceTask.noteAuthorId != null
+              ? (userMap[stickySourceTask.noteAuthorId]?.name ?? "Collaborator")
+              : "Collaborator",
+          timestamp: "Task note",
+          variant: "yellow",
         },
         hidden: false,
-        draggable: false,
-        selectable: false,
       });
       colG_Y += 120 + 18;
     }
@@ -660,8 +652,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         projectColor: proj.color,
       },
       hidden: false,
-      draggable: false,
-      selectable: false,
     });
 
     const colGHeight = colG_Y + 100 - startY;
@@ -694,8 +684,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         type: "projectEnvelope",
         position: { x: envelopeX, y: envelopeY },
         zIndex: -1,
-        selectable: false,
-        draggable: true,
         focusable: false,
         data: {
           projectId: proj.id,
@@ -783,8 +771,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           phaseName: phase.name,
           projectColor: proj.color,
         },
-        draggable: false,
-        selectable: false,
         hidden: false,
       });
     });

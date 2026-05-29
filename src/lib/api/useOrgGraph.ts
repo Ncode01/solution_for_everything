@@ -9,6 +9,7 @@ import { useUIStore } from "@/stores/ui.store";
 import { buildGraphFromApi } from "@/lib/canvas/buildGraphFromApi";
 import { mergeGraphNodes } from "@/lib/canvas/mergeGraphNodes";
 import { logOnce, logDevOnce } from "@/lib/diagnostics";
+import { applyStoredNodePositions } from "@/lib/canvas/persistence";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -105,7 +106,8 @@ export function useOrgGraph() {
     logDevOnce("org-graph-rebuild", "[OrgGraph] graph content changed, rebuilding canvas");
 
     const { nodes, edges } = buildGraphFromApi(query.data);
-    setNodes((prev) => mergeGraphNodes(prev, nodes));
+    const restoredNodes = applyStoredNodePositions(ORG_ID || "default", nodes);
+    setNodes((prev) => mergeGraphNodes(prev, restoredNodes));
     setEdges(edges);
   }, [query.data, setNodes, setEdges]);
 

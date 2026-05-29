@@ -23,7 +23,7 @@ export const WorkloadCardNode = React.memo(function WorkloadCardNode({
 }: NodeProps) {
   const d = data as WorkloadCardNodeData;
   const accent = accentHex(d.projectColor);
-  const hours = d.weeklyHours.length === 5 ? d.weeklyHours : [4, 6, 8, 5, 3];
+  const hours = d.weeklyHours.length === 5 ? d.weeklyHours : [0, 0, 0, 0, 0];
   const totalHours = hours.reduce((a, b) => a + b, 0);
   const loadPercent = Math.min(100, Math.round((totalHours / 40) * 100));
   const chip = LOAD_CHIP[d.user.loadLevel] ?? LOAD_CHIP.available;

@@ -20,40 +20,8 @@ import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
 import { restoreDependencyEdgeStyles } from "@/lib/canvas/dependencyEdgeStyles";
 import type { OrgGraphResponse } from "@/lib/api/types";
-import { TaskCardNode } from "./nodes/TaskCardNode";
-import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
-import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
-import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
-import { MilestoneNode } from "./nodes/MilestoneNode";
-import { PhaseHeaderNode } from "./nodes/PhaseHeaderNode";
 import { CrossProjectEdge } from "./nodes/CrossProjectEdge";
-import { MicroTaskNode } from "./nodes/MicroTaskNode";
-import { EpicTaskNode } from "./nodes/EpicTaskNode";
-import { BlockedTaskNode } from "./nodes/BlockedTaskNode";
-import { CriticalPathTaskNode } from "./nodes/CriticalPathTaskNode";
-import { ReviewTaskNode } from "./nodes/ReviewTaskNode";
-import { RecurringTaskNode } from "./nodes/RecurringTaskNode";
-import { ChecklistTaskNode } from "./nodes/ChecklistTaskNode";
-import { CostTaskNode } from "./nodes/CostTaskNode";
-import { GanttMiniBarNode } from "./nodes/GanttMiniBarNode";
-import { RiskFlagNode } from "./nodes/RiskFlagNode";
-import { ApprovalGateNode } from "./nodes/ApprovalGateNode";
-import { DecisionDiamondNode } from "./nodes/DecisionDiamondNode";
-import { CollabNoteNode } from "./nodes/CollabNoteNode";
-import { BudgetGaugeNode } from "./nodes/BudgetGaugeNode";
-import { BudgetSummaryCardNode } from "./nodes/BudgetSummaryCardNode";
-import { BurnRateSparklineNode } from "./nodes/BurnRateSparklineNode";
-import { WorkloadCardNode } from "./nodes/WorkloadCardNode";
-import { TeamClusterNode } from "./nodes/TeamClusterNode";
-import { AssignmentMatrixNode } from "./nodes/AssignmentMatrixNode";
-import { PhaseProgressRingNode } from "./nodes/PhaseProgressRingNode";
-import { HealthScoreCardNode } from "./nodes/HealthScoreCardNode";
-import { StatusMatrixNode } from "./nodes/StatusMatrixNode";
-import { PRStatusNode } from "./nodes/PRStatusNode";
-import { ExternalLinkCardNode } from "./nodes/ExternalLinkCardNode";
-import { StickyNoteNode } from "./nodes/StickyNoteNode";
-import { WarpGateNode } from "./nodes/WarpGateNode";
 import { SwimlaneBands } from "./SwimlaneBands";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
 import {
@@ -74,48 +42,15 @@ import {
 } from "@/lib/canvas/layout";
 import { useUIStore } from "@/stores/ui.store";
 import type { ProjectClusterNodeData, ProjectEnvelopeNodeData } from "@/types";
-import { ProjectEnvelopeNode } from "./nodes/ProjectEnvelopeNode";
+import { nodeTypes } from "@/components/nodes";
+import { persistCanvasNodePositions } from "@/lib/canvas/persistence";
 
 const ORG_GRAPH_QUERY_KEY = [
   "org-graph",
   process.env.NEXT_PUBLIC_ORG_ID ?? "",
 ] as const;
 
-const nodeTypes = {
-  taskCard: TaskCardNode,
-  projectCluster: ProjectClusterNode,
-  projectEnvelope: ProjectEnvelopeNode,
-  phaseCluster: PhaseClusterNode,
-  personAvatar: PersonAvatarNode,
-  milestoneNode: MilestoneNode,
-  phaseHeader: PhaseHeaderNode,
-  microTask: MicroTaskNode,
-  epicTask: EpicTaskNode,
-  blockedTask: BlockedTaskNode,
-  criticalPathTask: CriticalPathTaskNode,
-  reviewTask: ReviewTaskNode,
-  recurringTask: RecurringTaskNode,
-  checklistTask: ChecklistTaskNode,
-  costTask: CostTaskNode,
-  ganttMiniBar: GanttMiniBarNode,
-  riskFlag: RiskFlagNode,
-  approvalGate: ApprovalGateNode,
-  decisionDiamond: DecisionDiamondNode,
-  collabNote: CollabNoteNode,
-  budgetGauge: BudgetGaugeNode,
-  budgetSummaryCard: BudgetSummaryCardNode,
-  burnRateSparkline: BurnRateSparklineNode,
-  workloadCard: WorkloadCardNode,
-  teamCluster: TeamClusterNode,
-  assignmentMatrix: AssignmentMatrixNode,
-  phaseProgressRing: PhaseProgressRingNode,
-  healthScoreCard: HealthScoreCardNode,
-  statusMatrix: StatusMatrixNode,
-  prStatus: PRStatusNode,
-  externalLinkCard: ExternalLinkCardNode,
-  stickyNote: StickyNoteNode,
-  warpGate: WarpGateNode,
-};
+const BOARD_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "default";
 
 const edgeTypes = {
   dependency: DependencyEdge,
@@ -590,7 +525,16 @@ function FlowCanvasInner() {
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
-      setNodes((nds) => applyNodeChanges(changes, nds)),
+      setNodes((nds) => {
+        const nextNodes = applyNodeChanges(changes, nds);
+        const hasDragEnd = changes.some(
+          (change) => change.type === "position" && change.dragging === false,
+        );
+        if (hasDragEnd) {
+          persistCanvasNodePositions(BOARD_ID, nextNodes);
+        }
+        return nextNodes;
+      }),
     [setNodes],
   );
 
