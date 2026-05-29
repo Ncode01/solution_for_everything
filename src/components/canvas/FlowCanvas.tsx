@@ -77,6 +77,7 @@ function FlowCanvasInner() {
   const cascadeChainTaskIds = useCanvasStore((s) => s.cascadeChainTaskIds);
   const cascadeImpact = useCanvasStore((s) => s.cascadeImpact);
   const activeLayer = useCanvasStore((s) => s.activeLayer);
+  const showMinimap = useCanvasStore((s) => s.showMinimap);
 
   const skipInitialFitView = useUIStore((s) => s.skipInitialFitView);
   const isCanvasLoading = useUIStore((s) => s.isCanvasLoading);
@@ -437,12 +438,14 @@ function FlowCanvasInner() {
         color="rgba(205,204,202,0.04)"
         style={{ backgroundColor: "#0E0D0C" }}
       />
-      <MiniMap
-        className="!rounded-lg !border !border-white/5 !bg-surface-container"
-        maskColor="rgba(14,13,12,0.6)"
-        nodeColor="rgba(137,146,148,0.3)"
-        position="bottom-right"
-      />
+      {showMinimap ? (
+        <MiniMap
+          className="!rounded-lg !border !border-white/5 !bg-surface-container"
+          maskColor="rgba(14,13,12,0.6)"
+          nodeColor="rgba(137,146,148,0.3)"
+          position="bottom-right"
+        />
+      ) : null}
     </ReactFlow>
   );
 }

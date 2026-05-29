@@ -17,6 +17,7 @@ interface CanvasState {
   selectedNodeType: "task" | "project" | "phase" | "person" | null;
   focusNodeOnSelect: boolean;
   activeLayer: ActiveLayer;
+  showMinimap: boolean;
   expandedProjects: Set<string>;
   cascadeChainTaskIds: string[] | null;
   cascadeImpact: CascadeImpact | null;
@@ -30,6 +31,7 @@ interface CanvasState {
     options?: SelectNodeOptions,
   ) => void;
   setActiveLayer: (layer: ActiveLayer) => void;
+  toggleMinimap: () => void;
   toggleProjectExpanded: (projectId: string) => void;
   setCascadeChain: (taskIds: string[] | null) => void;
   setCascadeImpact: (impact: CascadeImpact | null) => void;
@@ -45,6 +47,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   selectedNodeType: null,
   focusNodeOnSelect: true,
   activeLayer: "default",
+  showMinimap: true,
   expandedProjects: new Set(),
   cascadeChainTaskIds: null,
   cascadeImpact: null,
@@ -82,6 +85,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }, 80);
   },
   setActiveLayer: (activeLayer) => set({ activeLayer }),
+  toggleMinimap: () => set((s) => ({ showMinimap: !s.showMinimap })),
   toggleProjectExpanded: (projectId) =>
     set((state) => {
       const next = new Set(state.expandedProjects);
