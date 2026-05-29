@@ -25,6 +25,17 @@ import { requireSession } from "../lib/auth";
 import { computeDaysUntil } from "../lib/health-score";
 
 export const orgRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get("/first", async (_request, reply) => {
+    const row = await db
+      .select({ id: organizations.id, name: organizations.name })
+      .from(organizations)
+      .limit(1);
+    if (!row.length) {
+      return reply.code(404).send({ error: "No org found" });
+    }
+    return row[0];
+  });
+
   fastify.get<{ Params: { orgId: string } }>(
     "/:orgId/canvas-data",
     async (request, reply) => {

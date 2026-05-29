@@ -8,8 +8,26 @@ import { canvasRoutes } from "./routes/canvas";
 import { inviteRoutes } from "./routes/invites";
 import { userRoutes } from "./routes/users";
 import { orgRoutes } from "./routes/orgs";
+import { db } from "./db/client";
+import { organizations } from "./db/schema";
 
 config({ path: resolve(process.cwd(), ".env.server") });
+
+async function bootCheckOrgs() {
+  const orgRows = await db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations);
+  if (orgRows.length === 0) {
+    console.warn(
+      "[Boot] ⚠️  No orgs found in DB. Run: pnpm db:seed\n" +
+        "       Then copy the printed ORG_ID into .env.local as NEXT_PUBLIC_ORG_ID",
+    );
+  } else {
+    for (const o of orgRows) {
+      console.log(`[Boot] ✅ Org found: ${o.name} (${o.id})`);
+    }
+  }
+}
 
 const PORT = Number(process.env.PORT ?? 3001);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -52,6 +70,7 @@ async function buildServer() {
 }
 
 async function main() {
+  await bootCheckOrgs();
   const app = await buildServer();
   try {
     await app.listen({ port: PORT, host: HOST });

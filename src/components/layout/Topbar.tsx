@@ -6,6 +6,7 @@ import {
   Copy,
   LogOut,
   Plus,
+  RefreshCw,
   Search,
   UserPlus,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { authClient } from "@/lib/auth-client";
 import { apiClient } from "@/lib/api/client";
 import { getUserColor } from "@/lib/presence/userColor";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
+import { getEffectiveOrgId } from "@/lib/api/orgId";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -93,13 +95,14 @@ export function Topbar() {
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ORG_ID || !inviteEmail.trim()) return;
+    const orgId = getEffectiveOrgId();
+    if (!orgId || !inviteEmail.trim()) return;
     setInviteError(null);
     setInvitePending(true);
     setInviteUrl(null);
     try {
       const res = await apiClient.createInvite(
-        ORG_ID,
+        orgId,
         inviteEmail.trim(),
         inviteRole,
       );
@@ -127,7 +130,7 @@ export function Topbar() {
           Command Center
         </span>
         <span
-          className={`${typography.scale.xs.class} ${colors.bg.elevated} ${colors.border.default} flex items-center truncate rounded-full border px-2.5 py-0.5 max-w-[180px] min-h-[22px]`}
+          className={`${typography.scale.xs.class} ${colors.bg.elevated} ${colors.border.default} flex items-center gap-1 truncate rounded-full border px-2.5 py-0.5 max-w-[220px] min-h-[22px]`}
           title={
             graph.data
               ? `${orgName} · ${graph.data.org.id}`
@@ -140,14 +143,32 @@ export function Topbar() {
               aria-hidden
             />
           ) : orgError !== null ? (
-            <span
-              className={`truncate ${colors.text.tertiary}`}
-              title={`Error: ${orgError} (ORG_ID: ${process.env.NEXT_PUBLIC_ORG_ID ?? "unset"})`}
-            >
-              {orgError === "NEXT_PUBLIC_ORG_ID is not set"
-                ? "ORG_ID unset"
-                : "Org not found"}
-            </span>
+            <>
+              <span
+                className={`truncate ${colors.text.tertiary}`}
+                title={`Error: ${orgError} (ORG_ID: ${process.env.NEXT_PUBLIC_ORG_ID ?? "unset"})`}
+              >
+                {graph.isFetching
+                  ? "Retrying…"
+                  : orgError === "NEXT_PUBLIC_ORG_ID is not set"
+                    ? "ORG_ID unset"
+                    : "Org not found"}
+              </span>
+              {orgError !== "NEXT_PUBLIC_ORG_ID is not set" ? (
+                <button
+                  type="button"
+                  onClick={() => graph.refetch()}
+                  className="shrink-0 text-[#E8AF34] hover:text-[#F5C04A]"
+                  aria-label="Retry loading org"
+                  title="Retry"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={graph.isFetching ? "animate-spin" : undefined}
+                  />
+                </button>
+              ) : null}
+            </>
           ) : orgName ? (
             <span className={`truncate ${colors.text.secondary}`}>{orgName}</span>
           ) : (
@@ -335,7 +356,7 @@ export function Topbar() {
                   ) : null}
                   <button
                     type="submit"
-                    disabled={invitePending || !ORG_ID}
+                    disabled={invitePending || !getEffectiveOrgId()}
                     className={`${buttonVariants.primary} disabled:opacity-50`}
                   >
                     {invitePending ? "Creating…" : "Send Invite"}

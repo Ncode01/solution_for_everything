@@ -143,6 +143,13 @@ export function Sidebar() {
                 ORG_ID: {process.env.NEXT_PUBLIC_ORG_ID || "(empty)"}
               </p>
             ) : null}
+            <button
+              type="button"
+              onClick={() => graph.refetch()}
+              className={`mt-2 w-full rounded-lg py-1 text-center ${typography.scale.xs.class} ${colors.bg.elevated} ${colors.text.secondary} hover:bg-white/5 border ${colors.border.subtle}`}
+            >
+              Retry
+            </button>
           </div>
         )
       ) : (

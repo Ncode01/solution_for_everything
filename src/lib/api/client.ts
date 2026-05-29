@@ -19,6 +19,7 @@ import type {
   UpdateUserBody,
   CreateOrgRoleBody,
   ApiUser,
+  OrgSummary,
 } from "./types";
 import type { OrgRole } from "@/types/project-extensions";
 
@@ -63,6 +64,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const apiClient = {
+  getFirstOrg: () => apiFetch<OrgSummary>("/api/orgs/first"),
+
   getOrgGraph: (orgId: string) =>
     apiFetch<OrgGraphResponse>(`/api/graph/${orgId}`),
 

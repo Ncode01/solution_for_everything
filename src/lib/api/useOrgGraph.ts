@@ -1,16 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { apiClient } from "./client";
 import type { OrgGraphResponse } from "./types";
+import {
+  ENV_ORG_ID,
+  getEffectiveOrgId,
+  setSessionDiscoveredOrgId,
+} from "./orgId";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { buildGraphFromApi } from "@/lib/canvas/buildGraphFromApi";
 import { mergeGraphNodes } from "@/lib/canvas/mergeGraphNodes";
 import { logOnce, logDevOnce } from "@/lib/diagnostics";
-
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
 /** Stable hash of graph content that affects canvas layout */
 function graphContentHash(data: OrgGraphResponse): string {
@@ -39,24 +42,51 @@ function graphContentHash(data: OrgGraphResponse): string {
 }
 
 export function useOrgGraph() {
+  const queryClient = useQueryClient();
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
   const setCanvasLoading = useUIStore((s) => s.setCanvasLoading);
   const setCanvasError = useUIStore((s) => s.setCanvasError);
   const graphHashRef = useRef("");
+  const [resolvedOrgId, setResolvedOrgId] = useState("");
+  const effectiveOrgId = ENV_ORG_ID || resolvedOrgId;
 
   const query = useQuery({
-    queryKey: ["org-graph", ORG_ID],
-    queryFn: () => apiClient.getOrgGraph(ORG_ID),
+    queryKey: ["org-graph", effectiveOrgId],
+    queryFn: () => apiClient.getOrgGraph(effectiveOrgId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    enabled: ORG_ID.length > 0,
+    enabled: effectiveOrgId.length > 0,
+    retry: 1,
+  });
+
+  const fallbackQuery = useQuery({
+    queryKey: ["orgs-first"],
+    queryFn: () => apiClient.getFirstOrg(),
+    enabled:
+      !ENV_ORG_ID ||
+      (query.isError &&
+        query.error instanceof Error &&
+        query.error.message === "Org not found"),
+    staleTime: Infinity,
     retry: 1,
   });
 
   useEffect(() => {
-    setCanvasLoading(query.isLoading);
-  }, [query.isLoading, setCanvasLoading]);
+    if (!fallbackQuery.data) return;
+    logOnce(
+      "org-id-auto-healed",
+      `[Config] Auto-discovered org: ${fallbackQuery.data.name} (${fallbackQuery.data.id})\n` +
+        `Add to .env.local: NEXT_PUBLIC_ORG_ID=${fallbackQuery.data.id}`,
+    );
+    setSessionDiscoveredOrgId(fallbackQuery.data.id);
+    setResolvedOrgId(fallbackQuery.data.id);
+    void queryClient.invalidateQueries({ queryKey: ["org-graph"] });
+  }, [fallbackQuery.data, queryClient]);
+
+  useEffect(() => {
+    setCanvasLoading(query.isLoading || fallbackQuery.isFetching);
+  }, [query.isLoading, fallbackQuery.isFetching, setCanvasLoading]);
 
   useEffect(() => {
     if (query.error) {
@@ -80,17 +110,18 @@ export function useOrgGraph() {
         `[OrgGraph] graph query failed: ${message} (check API URL, CORS, or network)`,
       );
       setCanvasError(message);
-    } else {
+    } else if (!query.isLoading && !fallbackQuery.isFetching) {
       setCanvasError(null);
     }
-  }, [query.error, setCanvasError]);
+  }, [query.error, query.isLoading, fallbackQuery.isFetching, setCanvasError]);
 
   useEffect(() => {
-    if (!ORG_ID) {
+    if (!ENV_ORG_ID && !getEffectiveOrgId()) {
       logOnce(
         "missing-org-id",
         "[Config] NEXT_PUBLIC_ORG_ID is not set in .env.local.\n" +
-          "Run: pnpm db:seed  — then copy the printed ORG_ID into .env.local",
+          "Run: pnpm db:seed  — then copy the printed ORG_ID into .env.local\n" +
+          "Or leave unset: the app will auto-discover the org when the API is running.",
       );
     }
   }, []);
@@ -100,9 +131,9 @@ export function useOrgGraph() {
       if (query.error.message === "Org not found") {
         logOnce(
           "org-not-found",
-          `[Config] API returned "Org not found" for ORG_ID="${ORG_ID}".\n` +
+          `[Config] API returned "Org not found" for ORG_ID="${ENV_ORG_ID || getEffectiveOrgId()}".\n` +
             "This usually means the DB was re-seeded and .env.local has a stale UUID.\n" +
-            "Run: pnpm db:seed  — then update NEXT_PUBLIC_ORG_ID in .env.local",
+            "Auto-healing via /api/orgs/first…",
         );
       }
     }
@@ -130,7 +161,7 @@ export function useOrgGraph() {
     const { nodes, edges } = buildGraphFromApi(query.data);
     setNodes((prev) => mergeGraphNodes(prev, nodes));
     setEdges(edges);
-  }, [query.data, setNodes, setEdges]);
+  }, [query.data, query.isSuccess, setNodes, setEdges]);
 
   return query;
 }

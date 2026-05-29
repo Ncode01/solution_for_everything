@@ -300,7 +300,19 @@ export function CommandPalette() {
                     </Command.Group>
                   );
                 })}
-                {filteredProjects.length > 0 ? (
+                {graph.isError ? (
+                  <Command.Group heading="PROJECTS" className={groupHeadingClass}>
+                    <Command.Item
+                      value="projects-org-error"
+                      disabled
+                      className={`${itemClass} opacity-60 cursor-not-allowed`}
+                    >
+                      <span className={`text-[13px] ${colors.text.tertiary}`}>
+                        ⚠ Org not loaded — check console
+                      </span>
+                    </Command.Item>
+                  </Command.Group>
+                ) : filteredProjects.length > 0 ? (
                   <Command.Group heading="PROJECTS" className={groupHeadingClass}>
                     {filteredProjects.map((project) => (
                       <Command.Item
