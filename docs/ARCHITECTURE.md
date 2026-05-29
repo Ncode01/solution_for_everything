@@ -123,31 +123,9 @@ GET /api/graph/:orgId
 
 Logs: `[Audit] Org graph loaded`, `[OrgGraph] graph content changed, rebuilding canvas` (dev).
 
-### Canvas layout (`buildGraphFromApi`)
+### Canvas layout
 
-Deterministic positions are computed in `src/lib/canvas/buildGraphFromApi.ts` (API `canvasX`/`canvasY` wins when set).
-
-| Constant | Value | Role |
-|----------|-------|------|
-| `PROJECT_COLS` | 3 | Project cluster grid columns |
-| `PROJECT_COL_WIDTH` | 900 | Horizontal gap between clusters |
-| `PROJECT_ROW_HEIGHT` | 1100 | Vertical gap between cluster rows |
-| `PROJECT_ORIGIN_X` / `Y` | 100 / 100 | Top-left of project grid |
-| `TASK_COL_WIDTH` | 220 | Task column spacing within a phase |
-| `TASK_ROW_HEIGHT` | 130 | Task row spacing |
-| `TASKS_PER_COL` | 5 | Tasks per column before wrapping |
-| `PHASE_COL_GAP` | 280 | Extra horizontal gap between phase columns |
-| `PERSON_ROW_Y` | −100 | Default person row above project grid |
-
-**Projects:** Grid index layout unless API provides coordinates.
-
-**Milestones:** API coordinates if present; otherwise stacked at `clusterX + 520`, `clusterY + 60 + index × 90` (sorted by date per project).
-
-**Tasks:** If `canvasX === 0` **and** `canvasY === 0`, auto-layout in phase columns below the cluster (`TASK_AREA_ORIGIN` = cluster + 30, +220). Any non-zero X or Y is treated as manual placement and preserved.
-
-**deCollide:** Exported function; runs on `taskCard` nodes only with 60px Manhattan threshold — nudges the later node downward when two tasks overlap.
-
-**People:** Initial positions in a row above the grid (`PERSON_ROW_Y`). Hidden by default. On project expand (`useProjectExpand`), members arc above the cluster header; faint dashed edges to the project node.
+See **[Canvas Layout System](#canvas-layout-system)** below for constants, zoom layers, and swimlane algorithm.
 
 ### 4.2 Mutations (UI → server → cache)
 
@@ -305,6 +283,52 @@ Pure function — no database calls. Computed in `getOrgGraph` per project for A
 **Types:** `launches_at`, `talent_pipeline`, `venue_shared`, `funds_from`, `collaboration`.
 
 **API:** Included in `GET /api/graph/:orgId` and `GET /api/orgs/:orgId/canvas-data`. Dedicated list: `GET /api/orgs/:orgId/projects/cross-links`.
+
+---
+
+## Canvas Layout System
+
+### Files
+
+- `src/lib/canvas/layout.ts` — all constants and pure position functions (no React / no `@xyflow`)
+- `src/lib/canvas/buildGraphFromApi.ts` — calls layout functions to assign positions to every node type
+- `src/lib/canvas/mergeGraphNodes.ts` — preserves DB-saved positions via `_savedToDb`; zero-coordinate nodes receive fresh layout positions
+
+### Zoom layers
+
+| Level | Zoom range | Visible nodes | Layout pattern |
+|-------|------------|---------------|----------------|
+| Z0 | &lt; 0.3 | projectCluster, milestoneNode | hex-offset 3-col grid |
+| Z1 | 0.3–0.7 | projectCluster, phaseCluster | phase fan-out columns |
+| Z2 | 0.7–1.5 | taskCard, phaseHeader | phase swimlane columns |
+| Z3 | &gt; 1.5 | taskCard (expanded), phaseHeader | phase swimlane columns |
+
+### Task swimlane algorithm
+
+- Tasks within a project band are grouped by phase (sorted by `orderIndex`).
+- Each phase occupies a column: `x = projectOriginX + phaseIndex × (250 + 60)`.
+- Tasks flow down the column: `y = bandOriginY + rowIndex × 130`.
+- After `TASKS_PER_COL` (5) tasks, a new sub-column starts within the same phase.
+- Critical path tasks nudge up 18px; high-slack tasks (≥ 3 days) nudge down 18px.
+- Zero-coordinate tasks (never saved) always receive a fresh layout position.
+- Non-zero tasks always keep their DB-saved position.
+
+### Phase header nodes
+
+- id prefix: `phase-header-`
+- type: `phaseHeader`
+- Not draggable, not selectable
+- Shown only at Z2/Z3 via `useSemanticZoom`
+
+### Swimlane background bands
+
+- `SwimlaneBands.tsx` renders faint tinted rectangles in canvas space via `ViewportPortal`
+- One band per project, color-coded by project accent color
+- Visible only at Z2/Z3
+
+### deCollide
+
+Runs on `taskCard` nodes only with 60px Manhattan threshold — nudges overlapping cards apart vertically.
 
 ---
 
