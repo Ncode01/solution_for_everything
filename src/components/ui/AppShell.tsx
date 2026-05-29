@@ -1,12 +1,15 @@
 "use client";
 
 import { useUIStore } from "@/stores/ui.store";
-import { CanvasArea } from "@/components/canvas/CanvasArea";
+import { RootLayout } from "@/components/layout/RootLayout";
+import { CanvasView } from "@/components/views/CanvasView";
+import { TasksView } from "@/components/views/TasksView";
+import { PosterBoardView } from "@/components/views/PosterBoardView";
+import { BudgetView } from "@/components/views/BudgetView";
+import { TeamView } from "@/components/views/TeamView";
+import { SchoolsView } from "@/components/views/SchoolsView";
 import { GanttView } from "@/components/views/GanttView";
 import { DashboardView } from "@/components/views/DashboardView";
-import { LeftSidebar } from "./LeftSidebar";
-import { RightPanel } from "./RightPanel";
-import { TopBar } from "./TopBar";
 import { GlobalCommandOrchestrator } from "./GlobalCommandOrchestrator";
 import { CommandPalette } from "@/components/panels/CommandPalette";
 import { useCanvasEvents } from "@/lib/firebase/useCanvasEvents";
@@ -16,6 +19,7 @@ import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
 import { ToastContainer } from "./Toast";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ProductionBootstrap } from "./ProductionBootstrap";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 function CanvasEventListener() {
   useCanvasEvents();
@@ -27,11 +31,72 @@ function OrgGraphHydrator() {
   return null;
 }
 
-export function AppShell() {
+function MainView() {
   const activeView = useUIStore((s) => s.activeView);
 
+  switch (activeView) {
+    case "canvas":
+      return (
+        <ErrorBoundary fallbackLabel="Canvas failed to load">
+          <CanvasView />
+        </ErrorBoundary>
+      );
+    case "tasks":
+      return (
+        <ErrorBoundary fallbackLabel="Tasks view failed to load">
+          <TasksView />
+        </ErrorBoundary>
+      );
+    case "posters":
+      return (
+        <ErrorBoundary fallbackLabel="Poster board failed to load">
+          <PosterBoardView />
+        </ErrorBoundary>
+      );
+    case "budget":
+      return (
+        <ErrorBoundary fallbackLabel="Budget view failed to load">
+          <BudgetView />
+        </ErrorBoundary>
+      );
+    case "team":
+      return (
+        <ErrorBoundary fallbackLabel="Team view failed to load">
+          <TeamView />
+        </ErrorBoundary>
+      );
+    case "schools":
+      return (
+        <ErrorBoundary fallbackLabel="Schools view failed to load">
+          <SchoolsView />
+        </ErrorBoundary>
+      );
+    case "gantt":
+      return (
+        <ErrorBoundary fallbackLabel="Gantt view failed to load">
+          <GanttView />
+        </ErrorBoundary>
+      );
+    case "dashboard":
+      return (
+        <ErrorBoundary fallbackLabel="Dashboard failed to load">
+          <DashboardView />
+        </ErrorBoundary>
+      );
+    default:
+      return (
+        <ErrorBoundary fallbackLabel="Canvas failed to load">
+          <CanvasView />
+        </ErrorBoundary>
+      );
+  }
+}
+
+export function AppShell() {
+  useKeyboardShortcuts();
+
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0E0D0C]">
+    <>
       <ProductionBootstrap />
       <GlobalCommandOrchestrator />
       <OrgGraphHydrator />
@@ -40,26 +105,9 @@ export function AppShell() {
       <CommandPalette />
       <KeyboardHelpOverlay />
       <ToastContainer />
-      <TopBar />
-      <div className="flex flex-1 overflow-hidden">
-        <LeftSidebar />
-        {activeView === "canvas" ? (
-          <ErrorBoundary fallbackLabel="Canvas failed to load">
-            <CanvasArea />
-          </ErrorBoundary>
-        ) : activeView === "gantt" ? (
-          <ErrorBoundary fallbackLabel="Gantt view failed to load">
-            <GanttView />
-          </ErrorBoundary>
-        ) : activeView === "dashboard" ? (
-          <ErrorBoundary fallbackLabel="Dashboard failed to load">
-            <DashboardView />
-          </ErrorBoundary>
-        ) : null}
-        <ErrorBoundary fallbackLabel="Panel failed to load">
-          <RightPanel />
-        </ErrorBoundary>
-      </div>
-    </div>
+      <RootLayout>
+        <MainView />
+      </RootLayout>
+    </>
   );
 }

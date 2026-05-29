@@ -2,6 +2,16 @@ import { create } from "zustand";
 import { useCanvasStore } from "@/stores/canvas.store";
 import type { PresenceUser } from "@/lib/firebase/usePresence";
 
+export type AppView =
+  | "canvas"
+  | "tasks"
+  | "posters"
+  | "budget"
+  | "team"
+  | "schools"
+  | "dashboard"
+  | "gantt";
+
 export type RightPanelMode =
   | "closed"
   | "task-view"
@@ -27,7 +37,8 @@ interface UIState {
   rightPanelMode: RightPanelMode;
   taskCreateDefaults: TaskCreateDefaults | null;
   commandQuery: string;
-  activeView: "canvas" | "dashboard" | "gantt";
+  activeView: AppView;
+  sidebarCollapsed: boolean;
   isFocusMode: boolean;
   isCanvasLoading: boolean;
   canvasError: string | null;
@@ -48,7 +59,9 @@ interface UIState {
   openTaskEdit: () => void;
   openTaskCreate: (defaults?: TaskCreateDefaults) => void;
   closeRightPanel: () => void;
-  setActiveView: (view: UIState["activeView"]) => void;
+  setActiveView: (view: AppView) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebarCollapsed: () => void;
   toggleFocusMode: () => void;
   setPresenceUsers: (users: PresenceUser[]) => void;
   setBroadcastCursor: (fn: ((x: number, y: number) => void) | null) => void;
@@ -67,6 +80,7 @@ export const useUIStore = create<UIState>((set) => ({
   taskCreateDefaults: null,
   commandQuery: "",
   activeView: "canvas",
+  sidebarCollapsed: false,
   isFocusMode: false,
   isCanvasLoading: false,
   canvasError: null,
@@ -114,6 +128,9 @@ export const useUIStore = create<UIState>((set) => ({
         taskCreateDefaults: null,
       };
     }),
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+  toggleSidebarCollapsed: () =>
+    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   toggleFocusMode: () => set((state) => ({ isFocusMode: !state.isFocusMode })),
   setPresenceUsers: (presenceUsers) => set({ presenceUsers }),
   setBroadcastCursor: (broadcastCursor) => set({ broadcastCursor }),

@@ -1,11 +1,25 @@
 import type { Config } from "tailwindcss";
+import { rawColors } from "./src/design-system/tokens";
 
 /**
- * FlowCanvas design tokens — code source of truth.
- * Visual reference: /stitch-reference/ and docs/DESIGN_SYSTEM.md
- * When Stitch HTML conflicts with this file, this file wins.
+ * Command Center design tokens — Tailwind bridge.
+ * Semantic classes for new UI; legacy FlowCanvas tokens retained for gradual migration.
  */
 const namedColors = {
+  // Command Center (design-system/tokens.ts)
+  "cc-base": rawColors.bg.base,
+  "cc-surface": rawColors.bg.surface,
+  "cc-elevated": rawColors.bg.elevated,
+  "cc-hover": rawColors.bg.hover,
+  "cc-selected": rawColors.bg.selected,
+  "cc-text-primary": rawColors.text.primary,
+  "cc-text-secondary": rawColors.text.secondary,
+  "cc-text-tertiary": rawColors.text.tertiary,
+  "cc-accent": rawColors.accent.indigo,
+  "cc-phase-flash": rawColors.phase.flash,
+  "cc-phase-fusion": rawColors.phase.fusion,
+  "cc-phase-family": rawColors.phase.family,
+  // Legacy FlowCanvas (migration)
   "surface-container-lowest": "#0e0e0d",
   "surface-container-low": "#1b1c1a",
   "surface-container": "#1f201e",
@@ -17,13 +31,11 @@ const namedColors = {
   primary: "#8ad2de",
   outline: "#899294",
   "outline-variant": "#3f484a",
-  // Project accents (semantic — not decorative purple-* utilities)
   coral: "#E05C5C",
   amber: "#E8AF34",
   violet: "#A86FDF",
   sky: "#5591C7",
   mint: "#6DAA45",
-  // Status (use explicit classes in components per design-system.mdc)
   blocked: "#E8AF34",
   done: "#6DAA45",
   "in-review": "#A86FDF",
@@ -42,7 +54,7 @@ const config: Config = {
     extend: {
       colors: namedColors,
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
         "mono-label": ["var(--font-jetbrains-mono)", "ui-monospace", "monospace"],
       },
       fontSize: {
