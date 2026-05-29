@@ -150,3 +150,44 @@ export function personArcPosition(
 }
 
 export type LayoutConstants = typeof LAYOUT;
+
+export const ENVELOPE_HEADER_HEIGHT = 32;
+export const ENVELOPE_PADDING_X = 60;
+export const ENVELOPE_BODY_TOP_OFFSET = 20;
+
+/**
+ * Computes the pixel size of a project envelope box.
+ *
+ * The envelope must contain:
+ *   - The ProjectClusterNode (at projectPos, 210px wide, 110px tall)
+ *   - All phase header nodes (at BAND_OFFSET_Y - 50px above task rows)
+ *   - All task swimlane columns (taskCount tasks across phaseCount phases)
+ *
+ * Returns the width and height of the envelope, with padding.
+ */
+export function envelopeSize(
+  phaseCount: number,
+  maxTasksInAnyPhase: number,
+): { width: number; height: number } {
+  const PADDING_X = ENVELOPE_PADDING_X;
+  const PADDING_Y = 80;
+  const HEADER_H = ENVELOPE_HEADER_HEIGHT;
+
+  const taskAreaWidth =
+    phaseCount * (LAYOUT.TASK.PHASE_COL_WIDTH + LAYOUT.TASK.PHASE_GAP);
+
+  const subCols = Math.ceil(maxTasksInAnyPhase / LAYOUT.TASK.TASKS_PER_COL);
+  const phaseWidth = subCols * LAYOUT.TASK.PHASE_COL_WIDTH;
+  const totalTaskWidth = phaseCount * (phaseWidth + LAYOUT.TASK.PHASE_GAP);
+
+  const width =
+    Math.max(taskAreaWidth, totalTaskWidth, 300) + PADDING_X * 2;
+
+  const taskRows = Math.min(maxTasksInAnyPhase, LAYOUT.TASK.TASKS_PER_COL);
+  const taskAreaHeight =
+    LAYOUT.TASK.BAND_OFFSET_Y + taskRows * LAYOUT.TASK.TASK_ROW_HEIGHT;
+
+  const height = HEADER_H + taskAreaHeight + PADDING_Y * 2;
+
+  return { width, height };
+}

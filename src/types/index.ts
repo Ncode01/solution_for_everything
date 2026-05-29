@@ -135,6 +135,17 @@ export interface ProjectClusterNodeData extends Partial<ProjectClusterEnhancemen
   [key: string]: unknown;
 }
 
+export interface ProjectEnvelopeNodeData {
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  status: string;
+  completionPercent: number;
+  envelopeWidth: number;
+  envelopeHeight: number;
+  [key: string]: unknown;
+}
+
 export interface PhaseClusterNodeData {
   phase: Phase;
   projectColor: ProjectAccentColor;
