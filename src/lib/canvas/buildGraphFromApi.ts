@@ -1,19 +1,25 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
-import type { OrgGraphResponse } from "@/lib/api/types";
+import type { ApiTask, OrgGraphResponse } from "@/lib/api/types";
 import { computeCPM } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 import { loadLevelFromTaskCount } from "@/lib/userLoadLevel";
 import {
+  columnHeight,
   ENVELOPE_BODY_TOP_OFFSET,
   ENVELOPE_HEADER_HEIGHT,
   ENVELOPE_PADDING_X,
-  envelopeSize,
-  LAYOUT,
   milestonePosition,
   personRowPosition,
   projectGridPosition,
-  taskSwimlanePosition,
+  richColumnX,
+  richEnvelopeSize,
+  RICH_LAYOUT,
+  stackedColumnPositions,
 } from "./layout";
+import {
+  NODE_TYPE_HEIGHT,
+  resolveTaskNodeType,
+} from "./resolveTaskNodeType";
 import type {
   Milestone,
   MilestoneNodeData,
@@ -97,27 +103,49 @@ function isSavedToDb(x?: number | null, y?: number | null): boolean {
   return (x != null && x !== 0) || (y != null && y !== 0);
 }
 
-/** Nudge overlapping taskCard nodes apart (Manhattan proximity). */
-export function deCollide(nodes: Node[], minDist: number): Node[] {
-  const adjusted = nodes.map((node) => ({
-    ...node,
-    position: { ...node.position },
-  }));
-
-  for (let i = 0; i < adjusted.length; i++) {
-    for (let j = i + 1; j < adjusted.length; j++) {
-      if (adjusted[i].type !== "taskCard" || adjusted[j].type !== "taskCard") {
-        continue;
-      }
-      const dx = Math.abs(adjusted[i].position.x - adjusted[j].position.x);
-      const dy = Math.abs(adjusted[i].position.y - adjusted[j].position.y);
-      if (dx < minDist && dy < minDist) {
-        adjusted[j].position.y += minDist;
-      }
-    }
-  }
-
-  return adjusted;
+function buildRichNodeData(
+  apiTask: ApiTask,
+  task: Task,
+  assignees: User[],
+  projectColor: ProjectAccentColor,
+  isCrit: boolean,
+  slack: number,
+  savedToDb: boolean,
+  userMap: Record<string, User>,
+): TaskCardNodeData & Record<string, unknown> {
+  return {
+    task,
+    assignees,
+    projectColor,
+    isCriticalPath: isCrit,
+    slackTime: slack,
+    isExpanded: false,
+    _savedToDb: savedToDb,
+    checklist: apiTask.checklist ?? null,
+    requiresApproval: apiTask.requiresApproval ?? false,
+    approverId: apiTask.approverId ?? null,
+    approverUser: apiTask.approverId ? userMap[apiTask.approverId] : null,
+    recurrence: apiTask.recurrence ?? null,
+    recurrenceNext: apiTask.recurrenceNext ?? null,
+    recurrenceLast: apiTask.recurrenceLast ?? null,
+    blockedReason: apiTask.blockedReason ?? null,
+    blockedByTaskId: apiTask.blockedByTaskId ?? null,
+    externalLinks: apiTask.externalLinks ?? null,
+    githubPrUrl: apiTask.githubPrUrl ?? null,
+    githubPrStatus: apiTask.githubPrStatus ?? null,
+    githubPrTitle: apiTask.githubPrTitle ?? null,
+    riskLevel: apiTask.riskLevel ?? null,
+    riskDescription: apiTask.riskDescription ?? null,
+    note: apiTask.note ?? null,
+    noteAuthorUser: apiTask.noteAuthorId
+      ? userMap[apiTask.noteAuthorId]
+      : null,
+    isDecisionPoint: apiTask.isDecisionPoint ?? false,
+    ganttStartDate: apiTask.ganttStartDate ?? null,
+    ganttEndDate: apiTask.ganttEndDate ?? null,
+    ganttProgress: apiTask.ganttProgress ?? 0,
+    costEstimate: apiTask.costEstimate ?? null,
+  };
 }
 
 export function buildGraphFromApi(data: OrgGraphResponse): {
@@ -227,19 +255,434 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     projectNodes.map((n) => [n.data.project.id, n.position]),
   );
 
+  const projectRichHeights = new Map<string, number>();
+
+  const tasksByPhase = new Map<string, ApiTask[]>();
+  for (const proj of data.projects) {
+    const projPhases = data.phases
+      .filter((ph) => ph.projectId === proj.id)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+    for (const phase of projPhases) {
+      const phaseTasks = data.tasks
+        .filter((t) => t.phaseId === phase.id)
+        .sort((a, b) => {
+          const aCrit = cpmResult.nodes[a.id]?.isCriticalPath ? 0 : 1;
+          const bCrit = cpmResult.nodes[b.id]?.isCriticalPath ? 0 : 1;
+          if (aCrit !== bCrit) return aCrit - bCrit;
+          return a.title.localeCompare(b.title);
+        });
+      tasksByPhase.set(phase.id, phaseTasks);
+    }
+  }
+
+  const allTaskNodes: Node[] = [];
+  const widgetNodes: Node[] = [];
+
+  for (const proj of data.projects) {
+    const projectPos = projectPositionMap.get(proj.id) ?? { x: 120, y: 200 };
+    const projPhases = data.phases
+      .filter((ph) => ph.projectId === proj.id)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+    const columnHeights: number[] = [];
+
+    projPhases.forEach((phase, phaseIdx) => {
+      const colX = richColumnX(projectPos.x, phaseIdx);
+      const phaseTasks = tasksByPhase.get(phase.id) ?? [];
+      const heights = phaseTasks.map((t) => {
+        const isCrit = cpmResult.nodes[t.id]?.isCriticalPath ?? false;
+        const nodeType = resolveTaskNodeType(t, isCrit);
+        let h = NODE_TYPE_HEIGHT[nodeType];
+        if (t.requiresApproval && nodeType !== "approvalGate") {
+          h += NODE_TYPE_HEIGHT.approvalGate + RICH_LAYOUT.VERTICAL_GAP;
+        }
+        return h;
+      });
+
+      const startYOffset =
+        RICH_LAYOUT.START_Y_OFFSET +
+        RICH_LAYOUT.PHASE_LABEL_H +
+        RICH_LAYOUT.PHASE_LABEL_GAP;
+
+      const yPositions = stackedColumnPositions(
+        projectPos.y,
+        heights,
+        startYOffset,
+        RICH_LAYOUT.VERTICAL_GAP,
+      );
+
+      columnHeights.push(columnHeight(heights, RICH_LAYOUT.VERTICAL_GAP));
+
+      phaseTasks.forEach((apiTask, taskIdx) => {
+        const isCrit = cpmResult.nodes[apiTask.id]?.isCriticalPath ?? false;
+        const nodeType = resolveTaskNodeType(apiTask, isCrit);
+        const slack = cpmResult.nodes[apiTask.id]
+          ? Math.round(cpmResult.nodes[apiTask.id].float / 8)
+          : 0;
+
+        const pos =
+          apiTask.canvasX !== 0 || apiTask.canvasY !== 0
+            ? { x: apiTask.canvasX, y: apiTask.canvasY }
+            : { x: colX, y: yPositions[taskIdx] };
+
+        const project = projectMap[apiTask.projectId];
+        const assignees = apiTask.assigneeIds
+          .map((id) => userMap[id])
+          .filter(Boolean);
+        const cpmNode = cpmResult.nodes[apiTask.id];
+
+        const task: Task = {
+          id: apiTask.id,
+          phaseId: apiTask.phaseId,
+          projectId: apiTask.projectId,
+          title: apiTask.title,
+          description: apiTask.description ?? undefined,
+          status: apiTask.status as TaskStatus,
+          priority: apiTask.priority as TaskPriority,
+          assigneeIds: apiTask.assigneeIds,
+          effortEstimate: apiTask.effortEstimate ?? undefined,
+          dueDate: apiTask.dueDate ? new Date(apiTask.dueDate) : undefined,
+          canvasX: pos.x,
+          canvasY: pos.y,
+          isCriticalPath: isCrit,
+          slackTime: slack,
+          earlyStart: cpmNode?.earlyStart,
+          earlyFinish: cpmNode?.earlyFinish,
+          lateStart: cpmNode?.lateStart,
+          lateFinish: cpmNode?.lateFinish,
+          dependencies: apiTask.dependencies,
+          dependents: apiTask.dependents,
+        };
+
+        const nodeData = buildRichNodeData(
+          apiTask,
+          task,
+          assignees,
+          project?.color ?? "sky",
+          isCrit,
+          slack,
+          apiTask.canvasX !== 0 || apiTask.canvasY !== 0,
+          userMap,
+        );
+
+        allTaskNodes.push({
+          id: `task-${apiTask.id}`,
+          type: nodeType,
+          position: pos,
+          data: nodeData,
+          hidden: false,
+        });
+
+        if (
+          apiTask.requiresApproval &&
+          nodeType !== "approvalGate" &&
+          nodeType !== "reviewTask"
+        ) {
+          const approvalY =
+            pos.y + NODE_TYPE_HEIGHT[nodeType] + RICH_LAYOUT.VERTICAL_GAP;
+          allTaskNodes.push({
+            id: `approval-${apiTask.id}`,
+            type: "approvalGate",
+            position: { x: colX, y: approvalY },
+            data: nodeData,
+            hidden: false,
+          });
+        }
+      });
+    });
+
+    const budget = data.budgetByProject?.[proj.id]?.summary ?? null;
+    const health = data.projectHealth?.[proj.id] ?? null;
+    const colD_X = richColumnX(projectPos.x, 3);
+    const startY = projectPos.y + RICH_LAYOUT.START_Y_OFFSET;
+
+    let colDHeight = 0;
+    if (budget) {
+      const allocated = budget.totalIncome;
+      const spent = budget.totalExpenditure;
+      const remaining = budget.surplus;
+      const weeklyBurnRate = Math.round(spent / 18);
+      const trendPercent = 14;
+
+      widgetNodes.push({
+        id: `budget-gauge-${proj.id}`,
+        type: "budgetGauge",
+        position: { x: colD_X, y: startY },
+        data: {
+          allocated,
+          spent,
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      widgetNodes.push({
+        id: `budget-summary-${proj.id}`,
+        type: "budgetSummaryCard",
+        position: { x: colD_X, y: startY + 160 + 18 },
+        data: {
+          allocated,
+          spent,
+          remaining,
+          weeklyBurnRate,
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      const dailyValues = Array.from({ length: 14 }, (_, i) =>
+        Math.round((spent / 14) * (0.9 + ((i * 7 + proj.id.charCodeAt(0)) % 20) / 100)),
+      );
+      widgetNodes.push({
+        id: `burnrate-${proj.id}`,
+        type: "burnRateSparkline",
+        position: { x: colD_X, y: startY + 160 + 18 + 140 + 18 },
+        data: {
+          weeklyBurnRate,
+          trendPercent,
+          dailyValues,
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      colDHeight = 160 + 18 + 140 + 18 + 80 + 18;
+    }
+
+    const colE_X = richColumnX(projectPos.x, 4);
+    const projectMembers = data.users.filter((u) =>
+      data.tasks.some(
+        (t) => t.projectId === proj.id && t.assigneeIds.includes(u.id),
+      ),
+    );
+
+    widgetNodes.push({
+      id: `team-cluster-${proj.id}`,
+      type: "teamCluster",
+      position: { x: colE_X, y: startY },
+      data: {
+        users: projectMembers.map((u) => userMap[u.id]),
+        totalTaskCount: data.tasks.filter((t) => t.projectId === proj.id)
+          .length,
+        projectColor: proj.color,
+      },
+      hidden: false,
+      draggable: false,
+      selectable: false,
+    });
+
+    let workloadY = startY + 90 + 18;
+    for (const member of projectMembers.slice(0, 3)) {
+      widgetNodes.push({
+        id: `workload-${proj.id}-${member.id}`,
+        type: "workloadCard",
+        position: { x: colE_X, y: workloadY },
+        data: {
+          user: userMap[member.id],
+          projectColor: proj.color,
+          weeklyHours: Array.from({ length: 5 }, (_, i) =>
+            Math.round(2 + ((member.id.charCodeAt(0) + i * 3) % 8)),
+          ),
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      workloadY += 160 + 18;
+    }
+
+    widgetNodes.push({
+      id: `assignment-matrix-${proj.id}`,
+      type: "assignmentMatrix",
+      position: { x: colE_X, y: workloadY },
+      data: {
+        users: projectMembers.map((u) => userMap[u.id]),
+        phases: [...(phasesByProject[proj.id] ?? [])].sort(
+          (a, b) => a.orderIndex - b.orderIndex,
+        ),
+        tasks: data.tasks.filter((t) => t.projectId === proj.id),
+        projectColor: proj.color,
+      },
+      hidden: false,
+      draggable: false,
+      selectable: false,
+    });
+
+    const colEHeight = workloadY + 160 - startY;
+
+    const colF_X = richColumnX(projectPos.x, 5);
+    let ringY = startY;
+    const projectPhases = phasesByProject[proj.id] ?? [];
+    for (const phase of projectPhases.slice(0, 3)) {
+      widgetNodes.push({
+        id: `phase-ring-${phase.id}`,
+        type: "phaseProgressRing",
+        position: { x: colF_X, y: ringY },
+        data: {
+          phaseName: phase.name,
+          doneCount: phase.doneCount,
+          taskCount: phase.taskCount,
+          completionPercent: phase.completionPercent,
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      ringY += 120 + 18;
+    }
+
+    if (health) {
+      widgetNodes.push({
+        id: `health-${proj.id}`,
+        type: "healthScoreCard",
+        position: { x: colF_X, y: ringY },
+        data: {
+          score: health.score,
+          grade: health.grade,
+          dimensions: {
+            scope: Math.round(
+              Math.min(100, 100 - health.overdueTaskCount * 5),
+            ),
+            time: Math.round(
+              Math.min(
+                100,
+                health.daysToNextMilestone != null
+                  ? Math.max(0, 100 - health.blockedCriticalTasks * 20)
+                  : 80,
+              ),
+            ),
+            cost: Math.round(
+              Math.min(100, 100 - (health.budgetBurnPercent ?? 0)),
+            ),
+            quality: Math.round(
+              Math.min(100, 100 - health.blockedCriticalTasks * 15),
+            ),
+          },
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      ringY += 180 + 18;
+    }
+
+    const projTasks = data.tasks.filter((t) => t.projectId === proj.id);
+    widgetNodes.push({
+      id: `status-matrix-${proj.id}`,
+      type: "statusMatrix",
+      position: { x: colF_X, y: ringY },
+      data: {
+        statusCounts: {
+          done: projTasks.filter((t) => t.status === "done").length,
+          in_progress: projTasks.filter((t) => t.status === "in_progress")
+            .length,
+          review: projTasks.filter((t) => t.status === "in_review").length,
+          todo: projTasks.filter((t) => t.status === "not_started").length,
+          blocked: projTasks.filter((t) => t.status === "blocked").length,
+        },
+        projectColor: proj.color,
+      },
+      hidden: false,
+      draggable: false,
+      selectable: false,
+    });
+
+    const colFHeight = ringY + 110 - startY;
+    const colG_X = richColumnX(projectPos.x, 6);
+    let colG_Y = startY;
+
+    for (const t of projTasks.filter((t) => t.githubPrUrl)) {
+      widgetNodes.push({
+        id: `pr-${t.id}`,
+        type: "prStatus",
+        position: { x: colG_X, y: colG_Y },
+        data: {
+          prTitle: t.githubPrTitle ?? t.title,
+          prUrl: t.githubPrUrl,
+          prStatus: t.githubPrStatus ?? "open",
+          taskTitle: t.title,
+          projectColor: proj.color,
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      colG_Y += 100 + 18;
+    }
+
+    for (const t of projTasks.filter((t) => t.externalLinks?.length)) {
+      for (const link of t.externalLinks ?? []) {
+        widgetNodes.push({
+          id: `extlink-${link.id}`,
+          type: "externalLinkCard",
+          position: { x: colG_X, y: colG_Y },
+          data: { link, taskTitle: t.title, projectColor: proj.color },
+          hidden: false,
+          draggable: false,
+          selectable: false,
+        });
+        colG_Y += 80 + 18;
+      }
+    }
+
+    if (proj.name.includes("SparkIT")) {
+      widgetNodes.push({
+        id: `sticky-${proj.id}`,
+        type: "stickyNote",
+        position: { x: colG_X, y: colG_Y },
+        data: {
+          content:
+            "Showcase layout: every node type has a justified slot in the rich column grid.",
+          authorName: "FlowCanvas",
+          timestamp: "May 2026",
+          variant: "teal",
+        },
+        hidden: false,
+        draggable: false,
+        selectable: false,
+      });
+      colG_Y += 120 + 18;
+    }
+
+    widgetNodes.push({
+      id: `warp-${proj.id}`,
+      type: "warpGate",
+      position: { x: colG_X, y: colG_Y },
+      data: {
+        warpTargetNodeId: `project-${proj.id}`,
+        label: `↑ ${proj.name}`,
+        projectColor: proj.color,
+      },
+      hidden: false,
+      draggable: false,
+      selectable: false,
+    });
+
+    const colGHeight = colG_Y + 100 - startY;
+    const maxColHeight = Math.max(
+      ...columnHeights,
+      colDHeight,
+      colEHeight,
+      colFHeight,
+      colGHeight,
+      RICH_LAYOUT.START_Y_OFFSET,
+    );
+    projectRichHeights.set(proj.id, maxColHeight);
+  }
+
   const envelopeNodes: Node<ProjectEnvelopeNodeData>[] = data.projects.map(
     (proj) => {
       const projectPos = projectPositionMap.get(proj.id) ?? { x: 0, y: 0 };
-
-      const projPhases = data.phases.filter((ph) => ph.projectId === proj.id);
-      const maxTasksInAnyPhase = projPhases.reduce((max, ph) => {
-        const count = data.tasks.filter((t) => t.phaseId === ph.id).length;
-        return Math.max(max, count);
-      }, 0);
-
-      const { width: envelopeWidth, height: envelopeHeight } = envelopeSize(
-        projPhases.length,
-        maxTasksInAnyPhase,
+      const maxColHeight = projectRichHeights.get(proj.id) ?? 400;
+      const { width: envelopeWidth, height: envelopeHeight } = richEnvelopeSize(
+        7,
+        maxColHeight,
       );
 
       const envelopeX = projectPos.x - ENVELOPE_PADDING_X;
@@ -314,102 +757,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     };
   });
 
-  const phaseColumnIndex = new Map<string, number>();
-  for (const proj of data.projects) {
-    const projPhases = data.phases
-      .filter((ph) => ph.projectId === proj.id)
-      .sort((a, b) => a.orderIndex - b.orderIndex);
-    projPhases.forEach((ph, idx) => {
-      phaseColumnIndex.set(ph.id, idx);
-    });
-  }
-
-  const taskIndexInPhase = new Map<string, number>();
-  const taskCountPerPhase = new Map<string, number>();
-
-  const tasksSortedByPhase = [...data.tasks].sort((a, b) => {
-    const colA = phaseColumnIndex.get(a.phaseId) ?? 0;
-    const colB = phaseColumnIndex.get(b.phaseId) ?? 0;
-    if (colA !== colB) return colA - colB;
-    const aCrit = cpmResult.nodes[a.id]?.isCriticalPath ? 0 : 1;
-    const bCrit = cpmResult.nodes[b.id]?.isCriticalPath ? 0 : 1;
-    if (aCrit !== bCrit) return aCrit - bCrit;
-    return a.title.localeCompare(b.title);
-  });
-
-  for (const t of tasksSortedByPhase) {
-    const current = taskCountPerPhase.get(t.phaseId) ?? 0;
-    taskIndexInPhase.set(t.id, current);
-    taskCountPerPhase.set(t.phaseId, current + 1);
-  }
-
-  let taskNodes: Node<TaskCardNodeData>[] = data.tasks.map((apiTask) => {
-    const project = projectMap[apiTask.projectId];
-    const assignees = apiTask.assigneeIds
-      .map((id) => userMap[id])
-      .filter(Boolean);
-    const cpmNode = cpmResult.nodes[apiTask.id];
-    const projectPos = projectPositionMap.get(apiTask.projectId) ?? {
-      x: 120,
-      y: 200,
-    };
-    const phaseCol = phaseColumnIndex.get(apiTask.phaseId) ?? 0;
-    const taskRow = taskIndexInPhase.get(apiTask.id) ?? 0;
-    const isCrit = cpmNode?.isCriticalPath ?? false;
-    const slack = cpmNode ? Math.round(cpmNode.float / 8) : 0;
-
-    const taskPos = taskSwimlanePosition(
-      projectPos,
-      phaseCol,
-      taskRow,
-      isCrit,
-      slack,
-      apiTask.canvasX,
-      apiTask.canvasY,
-    );
-
-    const task: Task = {
-      id: apiTask.id,
-      phaseId: apiTask.phaseId,
-      projectId: apiTask.projectId,
-      title: apiTask.title,
-      description: apiTask.description ?? undefined,
-      status: apiTask.status as TaskStatus,
-      priority: apiTask.priority as TaskPriority,
-      assigneeIds: apiTask.assigneeIds,
-      effortEstimate: apiTask.effortEstimate ?? undefined,
-      dueDate: apiTask.dueDate ? new Date(apiTask.dueDate) : undefined,
-      canvasX: taskPos.x,
-      canvasY: taskPos.y,
-      isCriticalPath: isCrit,
-      slackTime: slack,
-      earlyStart: cpmNode?.earlyStart,
-      earlyFinish: cpmNode?.earlyFinish,
-      lateStart: cpmNode?.lateStart,
-      lateFinish: cpmNode?.lateFinish,
-      dependencies: apiTask.dependencies,
-      dependents: apiTask.dependents,
-    };
-
-    return {
-      id: `task-${apiTask.id}`,
-      type: "taskCard",
-      position: taskPos,
-      data: {
-        task,
-        assignees,
-        projectColor: project?.color ?? "sky",
-        isCriticalPath: task.isCriticalPath,
-        slackTime: task.slackTime,
-        isExpanded: false,
-        _savedToDb: apiTask.canvasX !== 0 || apiTask.canvasY !== 0,
-      },
-      hidden: false,
-    };
-  });
-
-  taskNodes = deCollide(taskNodes, 60) as Node<TaskCardNodeData>[];
-
   const phaseHeaderNodes: Node<PhaseHeaderNodeData>[] = [];
   for (const proj of data.projects) {
     const projectPos = projectPositionMap.get(proj.id);
@@ -420,10 +767,13 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       .sort((a, b) => a.orderIndex - b.orderIndex);
 
     projPhases.forEach((phase, phaseIdx) => {
-      const x =
-        projectPos.x +
-        phaseIdx * (LAYOUT.TASK.PHASE_COL_WIDTH + LAYOUT.TASK.PHASE_GAP);
-      const y = projectPos.y + LAYOUT.TASK.BAND_OFFSET_Y - 50;
+      if (phaseIdx > 2) return;
+      const x = richColumnX(projectPos.x, phaseIdx);
+      const y =
+        projectPos.y +
+        RICH_LAYOUT.START_Y_OFFSET -
+        RICH_LAYOUT.PHASE_LABEL_H -
+        RICH_LAYOUT.PHASE_LABEL_GAP;
 
       phaseHeaderNodes.push({
         id: `phase-header-${phase.id}`,
@@ -525,7 +875,8 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       ...envelopeNodes,
       ...projectNodes,
       ...milestoneNodes,
-      ...taskNodes,
+      ...allTaskNodes,
+      ...widgetNodes,
       ...phaseHeaderNodes,
       ...personNodes,
     ],
