@@ -1,5 +1,10 @@
 import type { ReactFlowInstance } from "@xyflow/react";
 import { useCanvasStore } from "@/stores/canvas.store";
+import {
+  NODE_TYPE_HEIGHT,
+  NODE_TYPE_WIDTH,
+  type DynamicTaskNodeType,
+} from "@/lib/canvas/resolveTaskNodeType";
 import type { ProjectEnvelopeNodeData } from "@/types";
 
 let instance: ReactFlowInstance | null = null;
@@ -80,12 +85,46 @@ export async function focusCanvasNode(
 
   const typeDefaults: Record<string, { w: number; h: number }> = {
     projectCluster: { w: 210, h: 110 },
-    taskCard: { w: 210, h: 80 },
+    taskCard: { w: 220, h: 95 },
     personAvatar: { w: 60, h: 80 },
     milestoneNode: { w: 180, h: 60 },
     phaseCluster: { w: 200, h: 70 },
     phaseHeader: { w: 200, h: 36 },
+    microTask: { w: 160, h: 44 },
+    epicTask: { w: 240, h: 145 },
+    blockedTask: { w: 220, h: 105 },
+    criticalPathTask: { w: 220, h: 115 },
+    reviewTask: { w: 240, h: 150 },
+    recurringTask: { w: 220, h: 95 },
+    checklistTask: { w: 240, h: 155 },
+    costTask: { w: 220, h: 95 },
+    ganttMiniBar: { w: 280, h: 110 },
+    riskFlag: { w: 200, h: 110 },
+    approvalGate: { w: 180, h: 120 },
+    decisionDiamond: { w: 140, h: 120 },
+    collabNote: { w: 200, h: 110 },
+    budgetGauge: { w: 200, h: 160 },
+    budgetSummaryCard: { w: 280, h: 140 },
+    burnRateSparkline: { w: 200, h: 80 },
+    workloadCard: { w: 220, h: 160 },
+    teamCluster: { w: 200, h: 90 },
+    assignmentMatrix: { w: 260, h: 160 },
+    phaseProgressRing: { w: 160, h: 120 },
+    healthScoreCard: { w: 200, h: 180 },
+    statusMatrix: { w: 260, h: 110 },
+    prStatus: { w: 220, h: 100 },
+    externalLinkCard: { w: 220, h: 80 },
+    stickyNote: { w: 180, h: 120 },
+    warpGate: { w: 100, h: 100 },
   };
+
+  const dynamicType = node.type as DynamicTaskNodeType | undefined;
+  if (dynamicType && NODE_TYPE_WIDTH[dynamicType]) {
+    typeDefaults[node.type ?? ""] = {
+      w: NODE_TYPE_WIDTH[dynamicType],
+      h: NODE_TYPE_HEIGHT[dynamicType],
+    };
+  }
   const defaults = typeDefaults[node.type ?? ""] ?? { w: 210, h: 80 };
 
   const w =

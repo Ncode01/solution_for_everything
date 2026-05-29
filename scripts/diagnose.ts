@@ -109,7 +109,7 @@ check("DB: Organizations count > 0", async () => {
   }
 });
 
-check("DB: Tasks count >= 17 (RCCS SparkIT seed)", async () => {
+check("DB: Tasks count >= 21 (RCCS SparkIT showcase seed)", async () => {
   const url = process.env.DATABASE_URL;
   if (!url || isPlaceholderDbUrl(url)) return "SKIP";
   try {
@@ -120,9 +120,9 @@ check("DB: Tasks count >= 17 (RCCS SparkIT seed)", async () => {
     const sql = neon(url);
     const db = drizzle(sql, { schema });
     const [result] = await db.select({ c: count() }).from(schema.tasks);
-    return result.c >= 17
+    return result.c >= 21
       ? `PASS — ${result.c} task(s)`
-      : `FAIL — expected >= 17, got ${result.c}`;
+      : `FAIL — expected >= 21, got ${result.c}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }
