@@ -9,6 +9,11 @@ export function mergeGraphNodes(prev: Node[], next: Node[]): Node[] {
   const merged: Node[] = [];
 
   for (const nextNode of next) {
+    if (nextNode.id.startsWith("envelope-")) {
+      merged.push(nextNode);
+      continue;
+    }
+
     const prevNode = prevMap.get(nextNode.id);
     if (!prevNode) {
       merged.push(nextNode);
