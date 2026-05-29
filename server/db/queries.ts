@@ -8,6 +8,9 @@ import {
   tasks,
   taskAssignments,
   taskDependencies,
+  posters,
+  networkSchools,
+  externalCollaborators,
 } from "./schema";
 import {
   computeProjectHealthMap,
@@ -97,6 +100,15 @@ export async function getOrgGraph(orgId: string) {
     dependents: dependentsMap[t.id] ?? [],
   }));
 
+  const [posterRows, schoolRows, collabRows] = await Promise.all([
+    db.select().from(posters).where(eq(posters.orgId, orgId)),
+    db.select().from(networkSchools).where(eq(networkSchools.orgId, orgId)),
+    db
+      .select()
+      .from(externalCollaborators)
+      .where(eq(externalCollaborators.orgId, orgId)),
+  ]);
+
   const extensions = await getOrgExtensionData(orgId, projectIds);
   const projectHealth = computeProjectHealthMap(
     projectIds,
@@ -126,5 +138,20 @@ export async function getOrgGraph(orgId: string) {
     partnerOrgsByProject: extensions.partnerOrgsByProject,
     orgRoles: extensions.orgRoles,
     projectHealth,
+    posters: posterRows.map((p) => ({
+      ...p,
+      tags: p.tags ?? [],
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    })),
+    schools: schoolRows.map((s) => ({
+      ...s,
+      projectIds: s.projectIds ?? [],
+      createdAt: s.createdAt.toISOString(),
+    })),
+    externalCollaborators: collabRows.map((c) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+    })),
   };
 }

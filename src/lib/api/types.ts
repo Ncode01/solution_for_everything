@@ -7,6 +7,45 @@ import type {
   ProjectType,
 } from "@/types/project-extensions";
 
+export type ApiPoster = {
+  id: string;
+  orgId: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  tags: string[];
+  canvasX: number | null;
+  canvasY: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiNetworkSchool = {
+  id: string;
+  orgId: string;
+  name: string;
+  district: string | null;
+  province: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  status: string;
+  projectIds: string[];
+  createdAt: string;
+};
+
+export type ApiExternalCollaborator = {
+  id: string;
+  orgId: string;
+  projectId: string | null;
+  name: string;
+  organization: string | null;
+  role: string | null;
+  email: string | null;
+  type: string;
+  createdAt: string;
+};
+
 export interface OrgGraphResponse {
   org: { id: string; name: string; slug: string };
   users: ApiUser[];
@@ -23,6 +62,9 @@ export interface OrgGraphResponse {
   partnerOrgsByProject?: Record<string, ApiPartnerOrg[]>;
   orgRoles?: OrgRole[];
   projectHealth?: Record<string, ProjectHealthScore>;
+  posters?: ApiPoster[];
+  schools?: ApiNetworkSchool[];
+  externalCollaborators?: ApiExternalCollaborator[];
 }
 
 export interface ApiBudgetEntry {
