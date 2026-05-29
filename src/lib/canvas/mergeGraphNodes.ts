@@ -14,6 +14,31 @@ export function mergeGraphNodes(prev: Node[], next: Node[]): Node[] {
       continue;
     }
 
+    const ALWAYS_RECOMPUTE_PREFIXES = [
+      "budget-gauge-",
+      "budget-summary-",
+      "burnrate-",
+      "team-cluster-",
+      "workload-",
+      "assignment-matrix-",
+      "phase-ring-",
+      "health-",
+      "status-matrix-",
+      "pr-",
+      "extlink-",
+      "warp-",
+      "sticky-",
+      "phase-header-",
+      "approval-",
+    ];
+
+    if (
+      ALWAYS_RECOMPUTE_PREFIXES.some((p) => nextNode.id.startsWith(p))
+    ) {
+      merged.push(nextNode);
+      continue;
+    }
+
     const prevNode = prevMap.get(nextNode.id);
     if (!prevNode) {
       merged.push(nextNode);
