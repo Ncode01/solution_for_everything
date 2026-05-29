@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, Lock, Zap } from "lucide-react";
 import type { TaskCardNodeData } from "@/types";
 import { handleKeyboardActivate } from "@/lib/a11y/keyboardActivate";
 import { useUIStore } from "@/stores/ui.store";
@@ -52,6 +52,8 @@ export const TaskCardNode = React.memo(function TaskCardNode({
   }, [id, selectNode, openTaskView]);
 
   const isBlocked = nodeData.task.status === "blocked";
+  const isDone = nodeData.task.status === "done";
+  const isCritical = nodeData.isCriticalPath === true;
   const isExpanded = nodeData.isExpanded === true;
   const accentColor = COLOR_MAP[nodeData.projectColor] ?? "#5591C7";
 
@@ -70,12 +72,49 @@ export const TaskCardNode = React.memo(function TaskCardNode({
       aria-label={`Task: ${nodeData.task.title}, ${nodeData.task.status.replace("_", " ")}`}
       className={[
         isExpanded ? "w-[280px]" : "w-[220px]",
-        "cursor-pointer rounded-lg bg-surface-container transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+        "relative cursor-pointer rounded-lg bg-surface-container transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
         isBlocked
           ? "border border-[#DD6974]/60"
           : "border border-white/[0.08] hover:border-white/20",
+        isDone ? "opacity-55" : "",
+        isCritical ? "shadow-[inset_3px_0_0_#E8AF34]" : "",
       ].join(" ")}
     >
+      {isBlocked && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-lg bg-[#DD6974]/[0.03]"
+          aria-hidden
+        />
+      )}
+
+      {(isCritical || isBlocked) && (
+        <div className="absolute right-2 top-2 z-10">
+          {isCritical && (
+            <span
+              className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E8AF34]/20 text-[#E8AF34]"
+              aria-label="Critical path"
+            >
+              <Zap size={10} />
+            </span>
+          )}
+          {isBlocked && !isCritical && (
+            <span
+              className="flex h-4 w-4 items-center justify-center rounded-full bg-[#DD6974]/20 text-[#DD6974]"
+              aria-label="Blocked"
+            >
+              <Lock size={10} />
+            </span>
+          )}
+          {isBlocked && isCritical && (
+            <span
+              className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#DD6974]/20 text-[#DD6974]"
+              aria-label="Blocked"
+            >
+              <Lock size={10} />
+            </span>
+          )}
+        </div>
+      )}
       <div className="h-1 rounded-t-lg" style={{ backgroundColor: accentColor }} />
 
       <div className="p-3">
@@ -89,7 +128,12 @@ export const TaskCardNode = React.memo(function TaskCardNode({
               backgroundColor: STATUS_DOT_COLOR[nodeData.task.status],
             }}
           />
-          <span className="text-body-sm flex-1 truncate font-medium text-on-surface">
+          <span
+            className={[
+              "text-body-sm flex-1 truncate font-medium text-on-surface",
+              isDone ? "line-through decoration-on-surface-variant/60" : "",
+            ].join(" ")}
+          >
             {nodeData.task.title}
           </span>
           {nodeData.task.priority !== "low" && (
