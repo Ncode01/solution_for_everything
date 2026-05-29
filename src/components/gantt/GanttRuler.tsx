@@ -1,6 +1,7 @@
 "use client";
 
 import type { GanttZoomLevel } from "@/lib/gantt/ganttUtils";
+import { getTodayDayIndex } from "@/lib/gantt/ganttDateUtils";
 
 interface GanttRulerProps {
   totalDays: number;
@@ -34,13 +35,7 @@ export function GanttRuler({
 }: GanttRulerProps) {
   const tickEvery = tickInterval(zoomLevel);
   const labelEvery = labelInterval(zoomLevel);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const origin = new Date(originDate);
-  origin.setHours(0, 0, 0, 0);
-  const todayDay = Math.round(
-    (today.getTime() - origin.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const todayDay = getTodayDayIndex(originDate);
 
   const ticks: number[] = [];
   for (let d = 0; d <= totalDays; d += tickEvery) {
@@ -64,10 +59,15 @@ export function GanttRuler({
 
       {todayDay >= 0 && todayDay <= totalDays ? (
         <div
-          className="pointer-events-none absolute top-0 bottom-0 z-10 w-px bg-primary/40"
+          className="pointer-events-none absolute top-0 bottom-0 z-10"
           style={{ left: todayDay * columnWidth }}
           aria-hidden
-        />
+        >
+          <span className="font-mono-label absolute top-1 left-1 text-[10px] text-[#DD6974]">
+            Today
+          </span>
+          <div className="h-full w-px bg-[#DD6974]/70" />
+        </div>
       ) : null}
 
       {ticks

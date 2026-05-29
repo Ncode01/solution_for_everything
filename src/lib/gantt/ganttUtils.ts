@@ -1,5 +1,5 @@
 import type { OrgGraphResponse } from "@/lib/api/types";
-import { computeCPM } from "@/lib/cpm";
+import { computeCPM, computeCriticalPath } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 
 export type GanttZoomLevel = "week" | "month" | "quarter";
@@ -21,6 +21,15 @@ export interface GanttBar {
   endDay: number;
   dueDateDay: number | null;
   assigneeInitials: string[];
+  dependencies: string[];
+}
+
+export interface GanttBarLayout {
+  taskId: string;
+  startDay: number;
+  durationDays: number;
+  rowCenterY: number;
+  dependencies: string[];
 }
 
 export interface GanttPhaseGroup {
@@ -61,6 +70,7 @@ export function buildGanttData(
     status: t.status,
   }));
   const cpmResult = computeCPM(cpmTasks);
+  const criticalPathSet = new Set(computeCriticalPath(cpmTasks));
 
   const userInitials = new Map(
     graph.users.map((u) => [u.id, u.initials] as const),
@@ -113,7 +123,8 @@ export function buildGanttData(
       phaseOrderIndex: phase.orderIndex,
       status: task.status,
       priority: task.priority,
-      isCriticalPath: cpmNode?.isCriticalPath ?? false,
+      isCriticalPath:
+        criticalPathSet.has(task.id) || (cpmNode?.isCriticalPath ?? false),
       durationDays,
       startDay,
       endDay,
@@ -121,6 +132,7 @@ export function buildGanttData(
       assigneeInitials: task.assigneeIds
         .map((id) => userInitials.get(id))
         .filter((v): v is string => Boolean(v)),
+      dependencies: [...task.dependencies],
     };
 
     const key = phase.id;
@@ -152,4 +164,42 @@ export function buildGanttData(
   const totalDays = Math.ceil(maxEndDay * 1.1);
 
   return { groups, totalDays, originDate };
+}
+
+const PHASE_HEADER_HEIGHT = 32;
+
+/** Pixel Y centers for dependency arrows (timeline column coords). */
+export function buildGanttBarLayouts(
+  groups: GanttPhaseGroup[],
+  rowHeight: number,
+): GanttBarLayout[] {
+  const layouts: GanttBarLayout[] = [];
+  let rowTop = 0;
+
+  for (const group of groups) {
+    rowTop += PHASE_HEADER_HEIGHT;
+    for (const bar of group.bars) {
+      layouts.push({
+        taskId: bar.taskId,
+        startDay: bar.startDay,
+        durationDays: bar.durationDays,
+        rowCenterY: rowTop + rowHeight / 2,
+        dependencies: bar.dependencies,
+      });
+      rowTop += rowHeight;
+    }
+  }
+
+  return layouts;
+}
+
+export function ganttContentHeight(
+  groups: GanttPhaseGroup[],
+  rowHeight: number,
+): number {
+  let h = 0;
+  for (const group of groups) {
+    h += PHASE_HEADER_HEIGHT + group.bars.length * rowHeight;
+  }
+  return h;
 }

@@ -2,7 +2,7 @@
 
 import type { GanttPhaseGroup } from "@/lib/gantt/ganttUtils";
 import type { GanttZoomLevel } from "@/lib/gantt/ganttUtils";
-import { GanttBar } from "./GanttBar";
+import { GanttBar, type GanttSchedulePatch } from "./GanttBar";
 
 interface GanttRowGroupProps {
   group: GanttPhaseGroup;
@@ -12,6 +12,7 @@ interface GanttRowGroupProps {
   originDate: Date;
   zoomLevel: GanttZoomLevel;
   onBarClick: (taskId: string) => void;
+  onScheduleChange: (taskId: string, patch: GanttSchedulePatch) => void;
 }
 
 function tickInterval(zoom: GanttZoomLevel): number {
@@ -28,6 +29,7 @@ export function GanttRowGroup({
   originDate,
   zoomLevel,
   onBarClick,
+  onScheduleChange,
 }: GanttRowGroupProps) {
   const tickEvery = tickInterval(zoomLevel);
   const gridTicks: number[] = [];
@@ -62,35 +64,36 @@ export function GanttRowGroup({
       </div>
 
       {group.bars.map((bar, index) => (
-        <div
-          key={bar.taskId}
-          className={`flex ${index % 2 === 0 ? "bg-white/[0.01]" : ""}`}
-        >
-          <div className="sticky left-0 z-10 flex w-[240px] shrink-0 items-center border-r border-white/[0.08] bg-surface-container-low px-3">
-            <span className="text-body-sm truncate text-on-surface-variant">
-              {bar.title}
-            </span>
-          </div>
           <div
-            className="relative shrink-0"
-            style={{ width: timelineWidth }}
+            key={bar.taskId}
+            className={`flex ${index % 2 === 0 ? "bg-white/[0.01]" : ""}`}
           >
-            {gridTicks.map((day) => (
-              <div
-                key={`grid-${bar.taskId}-${day}`}
-                className="pointer-events-none absolute top-0 bottom-0 border-l border-white/[0.04]"
-                style={{ left: day * columnWidth }}
+            <div className="sticky left-0 z-10 flex w-[240px] shrink-0 items-center border-r border-white/[0.08] bg-surface-container-low px-3">
+              <span className="text-body-sm truncate text-on-surface-variant">
+                {bar.title}
+              </span>
+            </div>
+            <div
+              className="relative shrink-0"
+              style={{ width: timelineWidth }}
+            >
+              {gridTicks.map((day) => (
+                <div
+                  key={`grid-${bar.taskId}-${day}`}
+                  className="pointer-events-none absolute top-0 bottom-0 border-l border-white/[0.04]"
+                  style={{ left: day * columnWidth }}
+                />
+              ))}
+              <GanttBar
+                bar={bar}
+                columnWidth={columnWidth}
+                rowHeight={rowHeight}
+                originDate={originDate}
+                onClick={onBarClick}
+                onScheduleChange={onScheduleChange}
               />
-            ))}
-            <GanttBar
-              bar={bar}
-              columnWidth={columnWidth}
-              rowHeight={rowHeight}
-              originDate={originDate}
-              onClick={onBarClick}
-            />
+            </div>
           </div>
-        </div>
       ))}
     </div>
   );

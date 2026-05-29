@@ -3,16 +3,23 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { BarChart2 } from "lucide-react";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
+import { useUpdateTaskMutation } from "@/lib/api/useTaskMutations";
 import { formatQueryError } from "@/lib/formatQueryError";
 import { ViewErrorPanel } from "@/components/ui/ViewStatusPanel";
 import {
+  buildGanttBarLayouts,
   buildGanttData,
+  ganttContentHeight,
   type GanttZoomLevel,
 } from "@/lib/gantt/ganttUtils";
+import { dayIndexToIsoDate } from "@/lib/gantt/ganttDateUtils";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { GanttRuler } from "@/components/gantt/GanttRuler";
 import { GanttRowGroup } from "@/components/gantt/GanttRowGroup";
+import { GanttTodayLine } from "@/components/gantt/GanttTodayLine";
+import { GanttDependencyArrows } from "@/components/gantt/GanttDependencyArrows";
+import type { GanttSchedulePatch } from "@/components/gantt/GanttBar";
 
 const COLUMN_WIDTHS: Record<GanttZoomLevel, number> = {
   week: 40,
@@ -25,6 +32,7 @@ const LABEL_WIDTH = 240;
 
 export function GanttView() {
   const query = useOrgGraphData();
+  const updateTask = useUpdateTaskMutation();
   const [zoomLevel, setZoomLevel] = useState<GanttZoomLevel>("week");
   const scrollRef = useRef<HTMLDivElement>(null);
   const rulerScrollRef = useRef<HTMLDivElement>(null);
@@ -49,6 +57,11 @@ export function GanttView() {
   }, [query.data, zoomLevel]);
 
   const timelineWidth = totalDays * columnWidth;
+  const contentHeight = ganttContentHeight(groups, ROW_HEIGHT);
+  const barLayouts = useMemo(
+    () => buildGanttBarLayouts(groups, ROW_HEIGHT),
+    [groups],
+  );
 
   const handleBarClick = useCallback(
     (taskId: string) => {
@@ -56,6 +69,20 @@ export function GanttView() {
       openTaskView();
     },
     [selectNode, openTaskView],
+  );
+
+  const handleScheduleChange = useCallback(
+    (taskId: string, patch: GanttSchedulePatch) => {
+      const endDay = patch.startDay + patch.durationDays - 1;
+      updateTask.mutate({
+        taskId,
+        body: {
+          dueDate: dayIndexToIsoDate(originDate, endDay),
+          effortEstimate: patch.durationDays * 8,
+        },
+      });
+    },
+    [updateTask, originDate],
   );
 
   const syncScroll = useCallback((source: HTMLDivElement) => {
@@ -189,7 +216,29 @@ export function GanttView() {
           className="hide-scrollbar min-h-0 flex-1 overflow-auto"
           onScroll={(e) => syncScroll(e.currentTarget)}
         >
-          <div style={{ minWidth: LABEL_WIDTH + timelineWidth }}>
+          <div
+            className="relative"
+            style={{ minWidth: LABEL_WIDTH + timelineWidth }}
+          >
+            <div
+              className="pointer-events-none absolute top-0"
+              style={{ left: LABEL_WIDTH, width: timelineWidth, height: contentHeight }}
+            >
+              <GanttTodayLine
+                originDate={originDate}
+                columnWidth={columnWidth}
+                totalDays={totalDays}
+                height={contentHeight}
+              />
+              <GanttDependencyArrows
+                layouts={barLayouts}
+                columnWidth={columnWidth}
+                rowHeight={ROW_HEIGHT}
+                width={timelineWidth}
+                height={contentHeight}
+              />
+            </div>
+
             {groups.map((group) => (
               <GanttRowGroup
                 key={group.phaseId}
@@ -200,6 +249,7 @@ export function GanttView() {
                 originDate={originDate}
                 zoomLevel={zoomLevel}
                 onBarClick={handleBarClick}
+                onScheduleChange={handleScheduleChange}
               />
             ))}
           </div>
