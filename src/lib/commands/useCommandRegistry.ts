@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
+import { logDeadEndOnce } from "@/lib/diagnostics";
 import type { OrgGraphResponse } from "@/lib/api/types";
 import { useWorkloadLayer } from "@/lib/canvas/useWorkloadLayer";
 import { fitCanvasView, focusCanvasNode } from "@/lib/canvas/reactFlowApi";
@@ -153,7 +154,19 @@ export function useCommandRegistry(): CommandDefinition[] {
             projectId = selected.projectId;
             phaseId = selected.phaseId;
           }
-          if (!projectId || !phaseId) return;
+          if (!projectId || !phaseId) {
+            useUIStore
+              .getState()
+              .addToast(
+                "error",
+                "Create a project and phase before adding tasks.",
+              );
+            logDeadEndOnce(
+              "new-task-no-project",
+              "new-task command blocked: no project or phase in org graph",
+            );
+            return;
+          }
           openTaskCreate({ projectId, phaseId });
         },
       },
@@ -174,6 +187,7 @@ export function useCommandRegistry(): CommandDefinition[] {
         group: "debug",
         shortcut: ["Shift", "L"],
         contexts: ["global"],
+        isVisible: () => process.env.NODE_ENV !== "production",
         perform: () => {
           console.info("[FlowCanvas] Canvas state", {
             selectedNodeId,

@@ -101,6 +101,8 @@ export function LeftSidebar() {
                     <button
                       type="button"
                       onClick={() => handleProjectClick(project.id)}
+                      aria-label={`Focus project ${project.name} on canvas`}
+                      aria-current={isActive ? "true" : undefined}
                       className={
                         isActive
                           ? "text-body-sm mx-2 flex w-[calc(100%-16px)] items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-primary"
@@ -154,6 +156,7 @@ export function LeftSidebar() {
                       setActiveView("canvas");
                       void focusCanvasNode(`person-${person.id}`);
                     }}
+                    aria-label={`Focus ${person.name} on canvas`}
                     className="text-body-sm flex w-full items-center gap-3 px-3 py-2 text-on-surface hover:bg-white/5"
                   >
                     <span className="text-body-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-container-high font-medium text-on-surface">

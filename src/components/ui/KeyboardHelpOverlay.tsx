@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 
 interface ShortcutRow {
@@ -52,9 +53,11 @@ function KeyPill({ children }: { children: string }) {
 export function KeyboardHelpOverlay() {
   const showKeyboardHelp = useUIStore((s) => s.showKeyboardHelp);
   const toggleKeyboardHelp = useUIStore((s) => s.toggleKeyboardHelp);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!showKeyboardHelp) return;
+    closeButtonRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") toggleKeyboardHelp(false);
     };
@@ -76,9 +79,20 @@ export function KeyboardHelpOverlay() {
         className="w-[560px] max-w-full rounded-2xl border border-white/[0.08] bg-surface-container-high p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-headline-sm mb-4 font-medium text-on-surface">
-          Keyboard shortcuts
-        </h2>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="text-headline-sm font-medium text-on-surface">
+            Keyboard shortcuts
+          </h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={() => toggleKeyboardHelp(false)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-white/10"
+            aria-label="Close keyboard shortcuts"
+          >
+            <X size={16} aria-hidden />
+          </button>
+        </div>
         <div className="flex flex-col gap-5">
           {SECTIONS.map((section) => (
             <div key={section.title}>

@@ -19,6 +19,36 @@ This pass **fixes all blocker and high items** listed below. Remaining gaps are 
 
 ---
 
+## Pre-release pass (May 29, 2026) — observability & deployment safety
+
+| Area | Status |
+|------|--------|
+| Bootstrap `[Audit]` logs | Added |
+| First graph failure / success logs | Added |
+| Viewport restore outcome log | Added |
+| `docs/PRE_RELEASE.md` | Added |
+| Env examples grouped by platform | Updated |
+| Service degradation matrix in DEPLOY | Added |
+| `pnpm diagnose` pre-release checks | Added |
+
+No new product features. Behavior of non-critical paths unchanged.
+
+---
+
+## Third pass (May 29, 2026) — dead-end UI, a11y, placeholder clarity
+
+| ID | Priority | Status | Summary |
+|----|----------|--------|---------|
+| AUD-020 | **High** | Fixed | Notifications bell was clickable with fake unread dot but no handler |
+| AUD-021 | Medium | Fixed | Task cards keyboard-inaccessible (div onClick only) |
+| AUD-022 | Medium | Fixed | `new-task` command silently failed with no org projects |
+| AUD-023 | Medium | Fixed | Debug command exposed in production command palette |
+| AUD-024 | Low | Fixed | TopBar menus missing Escape / aria-expanded |
+| AUD-025 | Low | Fixed | Canvas empty state had no clickable create path |
+| AUD-026 | Low | Fixed | Login/Gantt/keyboard overlay a11y polish |
+
+---
+
 ## Second pass (May 29, 2026) — medium/low hardening
 
 | ID | Priority | Status | Summary |
@@ -149,4 +179,5 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for full detail.
 | Firebase optional | 8/10 | Graceful disable |
 | Docs | 8/10 | DEPLOY + TROUBLESHOOTING + this audit |
 | Vision completeness | 5/10 | Yjs, advanced collab not shipped |
-| **Overall pilot readiness** | **7.5/10** | Suitable for single-org production pilot |
+| Observability | 8/10 | Prefixed one-time console diagnostics |
+| **Overall pilot readiness** | **8/10** | Suitable for single-org production pilot — see PRE_RELEASE.md |

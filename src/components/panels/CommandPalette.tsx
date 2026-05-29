@@ -19,13 +19,10 @@ import {
   resolveActiveContexts,
 } from "@/lib/commands/commandUtils";
 
-const GROUP_ORDER: CommandGroupKey[] = [
-  "navigation",
-  "view",
-  "canvas",
-  "tasks",
-  "debug",
-];
+const GROUP_ORDER: CommandGroupKey[] =
+  process.env.NODE_ENV === "production"
+    ? ["navigation", "view", "canvas", "tasks"]
+    : ["navigation", "view", "canvas", "tasks", "debug"];
 
 export function CommandPalette() {
   const isOpen = useUIStore((s) => s.isCommandPaletteOpen);
@@ -109,6 +106,7 @@ export function CommandPalette() {
       <div
         className="flex w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-container-highest shadow-[0_24px_64px_rgba(0,0,0,0.55)]"
         role="dialog"
+        aria-modal="true"
         aria-label="Command palette"
         onClick={(e) => e.stopPropagation()}
       >
