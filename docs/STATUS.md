@@ -44,9 +44,20 @@ Branch: `fix/phase-11b-stability`
 - Preview deployment CORS (single `APP_URL` on Railway — use matching env per preview)
 - Workload `loadLevel` heuristic (`taskCount * 12.5` in `buildGraphFromApi`)
 
+**Pass 2 hardening (same branch):**
+- Sidebar: API-backed projects and people (no hardcoded demo list)
+- Dashboard / Gantt: error + retry + clearer empty states
+- Error boundaries remount on retry
+- Canvas error overlay: retry + sign-in link
+- Load heuristic documented in `userLoadLevel.ts`
+
+**Intentionally not shipped:**
+- Canvas bookmarks (sidebar section removed)
+- Yjs CRDT (GAP-006)
+
 **Still risky / watch:**
 - Vercel preview URL vs `BETTER_AUTH_URL` / `APP_URL` mismatch → 401
-- Empty org / zero tasks — canvas empty state exists; dashboard shows "No project data"
+- Workload thresholds are heuristic, not HR capacity rules
 
 Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
 

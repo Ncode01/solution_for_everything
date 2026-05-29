@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { BarChart2 } from "lucide-react";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
+import { formatQueryError } from "@/lib/formatQueryError";
+import { ViewErrorPanel } from "@/components/ui/ViewStatusPanel";
 import {
   buildGanttData,
   type GanttZoomLevel,
@@ -79,6 +81,15 @@ export function GanttView() {
     if (rulerScrollRef.current) rulerScrollRef.current.scrollLeft = target;
   }, [originDate, columnWidth]);
 
+  if (query.isError) {
+    return (
+      <ViewErrorPanel
+        message={formatQueryError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
   if (query.isLoading) {
     return (
       <main className="flex min-w-0 flex-1 flex-col bg-surface-container-low">
@@ -95,12 +106,25 @@ export function GanttView() {
   }
 
   if (!query.data || groups.length === 0) {
+    const hasTasks = (query.data?.tasks.length ?? 0) > 0;
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-2 bg-surface-container-low">
-        <BarChart2 className="text-outline" size={32} />
-        <p className="text-body-md text-on-surface-variant">
-          No tasks to display
+      <main className="flex flex-1 flex-col items-center justify-center gap-2 bg-surface-container-low p-6 text-center">
+        <BarChart2 className="text-outline" size={32} aria-hidden />
+        <p className="text-body-md text-on-surface">
+          {hasTasks ? "No schedulable tasks" : "No tasks yet"}
         </p>
+        <p className="text-body-sm max-w-sm text-on-surface-variant">
+          {hasTasks
+            ? "Gantt shows tasks with schedule data from CPM. Add due dates or dependencies on the canvas."
+            : "Create tasks on the canvas to build a timeline."}
+        </p>
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().setActiveView("canvas")}
+          className="text-body-sm mt-2 rounded-lg border border-white/10 px-4 py-2 text-on-surface hover:bg-white/5"
+        >
+          Open canvas
+        </button>
       </main>
     );
   }

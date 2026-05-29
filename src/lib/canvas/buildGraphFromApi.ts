@@ -2,8 +2,8 @@ import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { OrgGraphResponse } from "@/lib/api/types";
 import { computeCPM } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
+import { loadLevelFromTaskCount } from "@/lib/userLoadLevel";
 import type {
-  LoadLevel,
   PersonAvatarNodeData,
   Phase,
   Project,
@@ -21,13 +21,8 @@ function toFrontendUser(
   apiUser: OrgGraphResponse["users"][number],
   taskCount: number,
 ): User {
+  const loadLevel = loadLevelFromTaskCount(taskCount);
   const loadPercent = taskCount * 12.5;
-  const loadLevel: LoadLevel =
-    loadPercent > 100
-      ? "overloaded"
-      : loadPercent > 70
-        ? "at_capacity"
-        : "available";
 
   return {
     id: apiUser.id,

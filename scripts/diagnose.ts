@@ -294,6 +294,17 @@ check("AUTH: login page exists", async () =>
   fileExists("src/app/login/page.tsx") ? "PASS" : "FAIL — missing login page",
 );
 
+check("SRC: LeftSidebar has no hardcoded demo projects", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "src/components/ui/LeftSidebar.tsx"),
+    "utf8",
+  );
+  if (/Annual Hackathon|Platform Migration|const PROJECTS\s*=\s*\[/.test(content)) {
+    return "FAIL — LeftSidebar still uses hardcoded demo project list";
+  }
+  return /useOrgGraphData/.test(content) ? "PASS" : "FAIL — sidebar not API-backed";
+});
+
 check("SRC: workload layer has no mock runtime data", async () => {
   const paths = [
     "src/lib/canvas/useWorkloadLayer.ts",

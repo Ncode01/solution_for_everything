@@ -14,8 +14,23 @@ This pass **fixes all blocker and high items** listed below. Remaining gaps are 
 |----------|-------|-----------------|
 | Blocker | 3 | 3 |
 | High | 6 | 5 |
-| Medium | 8 | 0 (documented) |
-| Low | 5 | 0 (documented) |
+| Medium | 8 | 6 (pass 2) |
+| Low | 5 | 1 (pass 2) |
+
+---
+
+## Second pass (May 29, 2026) — medium/low hardening
+
+| ID | Priority | Status | Summary |
+|----|----------|--------|---------|
+| AUD-016 | **High** | Fixed | LeftSidebar showed hardcoded demo projects/people/bookmarks |
+| AUD-010 | Medium | Fixed | Dashboard error state + retry |
+| AUD-011 | Medium | Fixed | Gantt error vs empty distinction + retry |
+| AUD-014 | Low | Fixed | ErrorBoundary remounts children on retry |
+| AUD-017 | Medium | Fixed | Canvas overlay retry + sign-in on session errors |
+| AUD-018 | Low | Fixed | Login sign-up no longer uses "Demo Owner" name |
+| AUD-019 | Low | Doc | Canvas bookmarks removed (dead UI); non-critical |
+| AUD-008 | High | Doc | Load heuristic centralized in `userLoadLevel.ts` |
 
 ---
 
@@ -32,11 +47,15 @@ This pass **fixes all blocker and high items** listed below. Remaining gaps are 
 | AUD-007 | **High** | Docs | PRD claims Yjs CRDT; app uses Firebase events only | `docs/`, `README.md` | Expectation mismatch | Read ARCHITECTURE vs code | Document in STATUS + GAP-006 |
 | AUD-008 | **High** | Code | Load level heuristic `taskCount * 12.5` | `buildGraphFromApi.ts` | Workload view may not match real capacity model | Assign many tasks to one user | Document; future: configurable thresholds |
 | AUD-009 | **Medium** | Code | `seedToNodes` / `mockData` still in repo for dev/diagnose | `src/lib/seed/` | Mock bundle size if imported | Import `seedToNodes` from prod path | Keep isolated; diagnose enforces no prod imports |
-| AUD-010 | **Medium** | UX | Dashboard has no error state for failed graph query | `DashboardView.tsx` | Blank dashboard on API error | Break API URL | Add error UI (deferred) |
-| AUD-011 | **Medium** | UX | Gantt empty when no dated tasks — partial | `GanttView.tsx` | Empty timeline | Org with no due dates | Document |
+| AUD-010 | **Medium** | UX | Dashboard has no error state for failed graph query | `DashboardView.tsx` | Blank dashboard on API error | Break API URL | **Fixed** — `ViewErrorPanel` + retry |
+| AUD-011 | **Medium** | UX | Gantt empty when no dated tasks — partial | `GanttView.tsx` | Empty timeline | Org with no due dates | **Fixed** — error vs empty copy + retry |
+| AUD-016 | **High** | UX | LeftSidebar hardcoded demo projects/people | `LeftSidebar.tsx` | Sidebar unrelated to real org | Open app in prod | **Fixed** — `useOrgGraphData` |
+| AUD-017 | Medium | UX | Canvas error overlay no retry | `CanvasLoadingOverlay.tsx` | Stuck on error | Break API | **Fixed** — retry + sign in |
+| AUD-018 | Low | UX | Sign-up default name "Demo Owner" | `login/page.tsx` | Demo copy in prod signup | Sign up | **Fixed** |
+| AUD-019 | Low | UX | Dead bookmark buttons in sidebar | `LeftSidebar.tsx` | Clicks do nothing | Click bookmark | **Removed** section until feature exists |
 | AUD-012 | **Medium** | Auth | Middleware cookie-only; API 401 shows inline error | `middleware.ts`, `useOrgGraph.ts` | "Session expired" on canvas | Expire session | Already non-destructive; sign in again |
 | AUD-013 | **Medium** | Code | `recomputeCPM` runs on every non-position mutation settle | `useMutationOrchestrator.ts` | Extra `setNodes`/`setEdges` churn | Edit task title | Acceptable; hash guard limits rebuild |
-| AUD-014 | **Low** | UX | Error boundary retry does not remount children | `ErrorBoundary.tsx` | Retry may not recover | Force render error | Reset key on retry (deferred) |
+| AUD-014 | **Low** | UX | Error boundary retry does not remount children | `ErrorBoundary.tsx` | Retry may not recover | Force render error | **Fixed** — `resetKey` remount |
 | AUD-015 | **Low** | Code | `DashboardView` 1s tick for "Updated X ago" | `DashboardView.tsx` | Extra re-renders | Open dashboard | Acceptable |
 
 ---
@@ -103,7 +122,7 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for full detail.
 |------|----------------|
 | Yjs CRDT canvas sync (GAP-006) | Vision / Phase 12+; Firebase events sufficient for pilot |
 | Preview CORS multi-origin | Requires server env list or Vercel integration config |
-| Dashboard API error UI | Medium UX; canvas already shows errors |
+| Canvas bookmarks | Not implemented; sidebar section removed |
 | Configurable workload thresholds | Product decision; heuristic documented |
 | `seedToNodes` / `mockData` in repo | Dev/diagnostic only; guarded by diagnose |
 | Invite flow edge cases | Works on happy path; audit invites separately |

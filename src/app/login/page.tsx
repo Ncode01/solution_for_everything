@@ -26,7 +26,7 @@ export default function LoginPage() {
         const result = await authClient.signUp.email({
           email,
           password,
-          name: "Demo Owner",
+          name: email.split("@")[0] || "Member",
         });
         if (result.error) {
           setError(result.error.message ?? "Sign up failed");

@@ -2,6 +2,7 @@
 
 import React, { Component, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { logOnce } from "@/lib/diagnostics";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -11,15 +12,20 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   message: string;
+  resetKey: number;
 }
 
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  state: ErrorBoundaryState = { hasError: false, message: "" };
+  state: ErrorBoundaryState = {
+    hasError: false,
+    message: "",
+    resetKey: 0,
+  };
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
       message: error.message || "Something went wrong",
@@ -27,18 +33,26 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    logOnce(
+      `error-boundary-${this.props.fallbackLabel ?? "default"}`,
+      `[UI] ErrorBoundary: ${error.message}`,
+    );
     console.error("[ErrorBoundary]", error, info.componentStack);
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, message: "" });
+    this.setState((s) => ({
+      hasError: false,
+      message: "",
+      resetKey: s.resetKey + 1,
+    }));
   };
 
   render() {
     if (this.state.hasError) {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-surface-container-low p-8 text-center">
-          <AlertTriangle className="text-error" size={32} />
+          <AlertTriangle className="text-[#DD6974]" size={32} aria-hidden />
           <h2 className="text-body-md font-medium text-on-surface">
             {this.props.fallbackLabel ?? "Something went wrong"}
           </h2>
@@ -56,6 +70,10 @@ export class ErrorBoundary extends Component<
       );
     }
 
-    return this.props.children;
+    return (
+      <React.Fragment key={this.state.resetKey}>
+        {this.props.children}
+      </React.Fragment>
+    );
   }
 }

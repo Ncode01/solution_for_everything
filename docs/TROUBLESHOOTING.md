@@ -71,6 +71,28 @@ See `.env.local.example` for local development.
 
 **Fix:** Configure Vercel preview env vars for that preview’s URL, or test on production only.
 
+### Sidebar shows wrong project names
+
+**Symptom:** Left sidebar lists "Annual Hackathon" or other seed names not in your org.
+
+**Cause (fixed):** Sidebar previously used hardcoded demo data. It now reads from the org graph API.
+
+**Check:** `LeftSidebar.tsx` uses `useOrgGraphData`, not a static `PROJECTS` array.
+
+### Dashboard or Gantt shows blank with no message
+
+**Symptom:** View is empty after API failure.
+
+**Fix:** Use **Try again** on the error panel. For session errors, sign in again. Canvas overlay also offers **Retry** and **Sign in**.
+
+### Workload load levels seem arbitrary
+
+**Symptom:** People marked overloaded/at capacity unexpectedly.
+
+**Cause:** Heuristic `taskCount × 12.5%` (see `src/lib/userLoadLevel.ts`). Not a configurable capacity model.
+
+**Action:** Treat workload view as directional; configure thresholds in a future release.
+
 ### Workload view shows wrong overload counts
 
 **Symptom:** Workload banner counts do not match your team; wrong tasks highlighted.
