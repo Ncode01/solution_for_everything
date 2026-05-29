@@ -23,6 +23,18 @@ function graphContentHash(data: OrgGraphResponse): string {
     positions: data.tasks
       .map((t) => `${t.id}:${Math.round(t.canvasX)}:${Math.round(t.canvasY)}`)
       .sort(),
+    projectPositions: data.projects
+      .map(
+        (p) =>
+          `${p.id}:${Math.round(p.canvasX ?? 0)}:${Math.round(p.canvasY ?? 0)}`,
+      )
+      .sort(),
+    milestonePositions: (data.milestones ?? [])
+      .map(
+        (m) =>
+          `${m.id}:${Math.round(m.canvasX ?? 0)}:${Math.round(m.canvasY ?? 0)}`,
+      )
+      .sort(),
   });
 }
 
@@ -36,7 +48,7 @@ export function useOrgGraph() {
   const query = useQuery({
     queryKey: ["org-graph", ORG_ID],
     queryFn: () => apiClient.getOrgGraph(ORG_ID),
-    staleTime: 30_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
     enabled: ORG_ID.length > 0,
     retry: 1,

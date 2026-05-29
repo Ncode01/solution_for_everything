@@ -32,6 +32,12 @@ import {
   applyOptimisticTaskPosition,
   useUpdateTaskMutation,
 } from "@/lib/api/useTaskMutations";
+import {
+  applyOptimisticMilestonePosition,
+  applyOptimisticProjectPosition,
+  useUpdateMilestonePositionMutation,
+  useUpdateProjectPositionMutation,
+} from "@/lib/api/usePositionMutations";
 import { logDevOnce } from "@/lib/diagnostics";
 import { useUIStore } from "@/stores/ui.store";
 import type { ProjectClusterNodeData } from "@/types";
@@ -69,6 +75,7 @@ function FlowCanvasInner() {
   const setEdges = useCanvasStore((s) => s.setEdges);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const selectNode = useCanvasStore((s) => s.selectNode);
+  const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
   const cascadeChainTaskIds = useCanvasStore((s) => s.cascadeChainTaskIds);
   const cascadeImpact = useCanvasStore((s) => s.cascadeImpact);
   const activeLayer = useCanvasStore((s) => s.activeLayer);
@@ -90,41 +97,127 @@ function FlowCanvasInner() {
   );
 
   const updateTaskPosition = useUpdateTaskMutation();
+  const updateProjectPosition = useUpdateProjectPositionMutation();
+  const updateMilestonePosition = useUpdateMilestonePositionMutation();
   const updateTaskPositionRef = useRef(updateTaskPosition);
+  const updateProjectPositionRef = useRef(updateProjectPosition);
+  const updateMilestonePositionRef = useRef(updateMilestonePosition);
   updateTaskPositionRef.current = updateTaskPosition;
+  updateProjectPositionRef.current = updateProjectPosition;
+  updateMilestonePositionRef.current = updateMilestonePosition;
 
   const dragSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const milestoneDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const healthLoggedRef = useRef(false);
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      if (!node.id.startsWith("task-")) return;
-      const taskId = node.id.replace("task-", "");
       const canvasX = Math.round(node.position.x);
       const canvasY = Math.round(node.position.y);
 
-      applyOptimisticTaskPosition(queryClient, taskId, canvasX, canvasY);
+      if (node.id.startsWith("task-")) {
+        const taskId = node.id.replace("task-", "");
+        applyOptimisticTaskPosition(queryClient, taskId, canvasX, canvasY);
 
-      if (!updateTaskPositionRef.current?.mutate) {
-        logDevOnce(
-          "flowcanvas-drag-mutation-missing",
-          "[FlowCanvas] drag save skipped: mutation ref unavailable",
-        );
+        if (!updateTaskPositionRef.current?.mutate) {
+          logDevOnce(
+            "flowcanvas-drag-mutation-missing",
+            "[FlowCanvas] drag save skipped: mutation ref unavailable",
+          );
+          return;
+        }
+
+        if (dragSaveTimerRef.current) {
+          clearTimeout(dragSaveTimerRef.current);
+        }
+        dragSaveTimerRef.current = setTimeout(() => {
+          void updateTaskPositionRef.current.mutate({
+            taskId,
+            body: { canvasX, canvasY },
+          });
+        }, 300);
         return;
       }
 
-      if (dragSaveTimerRef.current) {
-        clearTimeout(dragSaveTimerRef.current);
+      if (node.id.startsWith("project-")) {
+        const projectId = node.id.replace("project-", "");
+        applyOptimisticProjectPosition(
+          queryClient,
+          projectId,
+          canvasX,
+          canvasY,
+        );
+
+        if (projectDragTimerRef.current) {
+          clearTimeout(projectDragTimerRef.current);
+        }
+        projectDragTimerRef.current = setTimeout(() => {
+          void updateProjectPositionRef.current.mutate({
+            projectId,
+            body: { canvasX, canvasY },
+          });
+        }, 400);
+        return;
       }
-      dragSaveTimerRef.current = setTimeout(() => {
-        void updateTaskPositionRef.current.mutate({
-          taskId,
-          body: { canvasX, canvasY },
-        });
-      }, 300);
+
+      if (node.id.startsWith("milestone-")) {
+        const milestoneId = node.id.replace("milestone-", "");
+        applyOptimisticMilestonePosition(
+          queryClient,
+          milestoneId,
+          canvasX,
+          canvasY,
+        );
+
+        if (milestoneDragTimerRef.current) {
+          clearTimeout(milestoneDragTimerRef.current);
+        }
+        milestoneDragTimerRef.current = setTimeout(() => {
+          void updateMilestonePositionRef.current.mutate({
+            milestoneId,
+            body: { canvasX, canvasY },
+          });
+        }, 400);
+      }
     },
     [queryClient],
   );
+
+  useEffect(() => {
+    return () => {
+      if (dragSaveTimerRef.current) clearTimeout(dragSaveTimerRef.current);
+      if (projectDragTimerRef.current) clearTimeout(projectDragTimerRef.current);
+      if (milestoneDragTimerRef.current) {
+        clearTimeout(milestoneDragTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setNodes((current) =>
+      current.map((node) => {
+        const isSelected = node.id === selectedNodeId;
+        const wasSelected = node.style?.outline !== undefined;
+        if (!isSelected && !wasSelected) return node;
+        return {
+          ...node,
+          style: isSelected
+            ? {
+                ...node.style,
+                outline: "2px solid rgba(255,255,255,0.25)",
+                outlineOffset: "3px",
+                borderRadius: "14px",
+              }
+            : {
+                ...node.style,
+                outline: undefined,
+                outlineOffset: undefined,
+              },
+        };
+      }),
+    );
+  }, [selectedNodeId, setNodes]);
 
   useEffect(() => {
     if (healthLoggedRef.current || process.env.NODE_ENV === "production") {

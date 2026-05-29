@@ -73,13 +73,16 @@ export async function getOrgExtensionData(orgId: string, projectIds: string[]) {
     };
   }
 
-  const partnerOrgsByProject: Record<string, { orgName: string; orgRole: string }[]> =
-    {};
+  const partnerOrgsByProject: Record<
+    string,
+    { id: string; orgName: string; orgRole: string }[]
+  > = {};
   for (const row of partnerRows) {
     if (!partnerOrgsByProject[row.projectId]) {
       partnerOrgsByProject[row.projectId] = [];
     }
     partnerOrgsByProject[row.projectId].push({
+      id: row.id,
       orgName: row.orgName,
       orgRole: row.orgRole,
     });

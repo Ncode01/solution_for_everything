@@ -8,7 +8,19 @@ import type {
   DomainUser,
   InviteValidation,
   CreateInviteResponse,
+  UpdateProjectBody,
+  PositionBody,
+  ApiProject,
+  ApiMilestone,
+  ApiBudgetEntry,
+  CreateMilestoneBody,
+  CreateBudgetEntryBody,
+  CreateProjectOrgBody,
+  UpdateUserBody,
+  CreateOrgRoleBody,
+  ApiUser,
 } from "./types";
+import type { OrgRole } from "@/types/project-extensions";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -123,4 +135,88 @@ export const apiClient = {
     apiFetch<DomainUser>(
       `/api/users/me?authUserId=${encodeURIComponent(authUserId)}`,
     ),
+
+  updateProject: (orgId: string, projectId: string, body: UpdateProjectBody) =>
+    apiFetch<ApiProject>(`/api/orgs/${orgId}/projects/${projectId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  updateProjectPosition: (
+    orgId: string,
+    projectId: string,
+    body: PositionBody,
+  ) =>
+    apiFetch<{ id: string; canvasX: number | null; canvasY: number | null }>(
+      `/api/orgs/${orgId}/projects/${projectId}/position`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  updateMilestonePosition: (
+    orgId: string,
+    milestoneId: string,
+    body: PositionBody,
+  ) =>
+    apiFetch<{ id: string; canvasX: number | null; canvasY: number | null }>(
+      `/api/orgs/${orgId}/milestones/${milestoneId}/position`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  createMilestone: (
+    orgId: string,
+    projectId: string,
+    body: CreateMilestoneBody,
+  ) =>
+    apiFetch<ApiMilestone>(
+      `/api/orgs/${orgId}/projects/${projectId}/milestones`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  deleteMilestone: (orgId: string, milestoneId: string) =>
+    apiFetch<ApiMilestone>(`/api/orgs/${orgId}/milestones/${milestoneId}`, {
+      method: "DELETE",
+    }),
+
+  createBudgetEntry: (
+    orgId: string,
+    projectId: string,
+    body: CreateBudgetEntryBody,
+  ) =>
+    apiFetch<ApiBudgetEntry>(
+      `/api/orgs/${orgId}/projects/${projectId}/budget`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  deleteBudgetEntry: (orgId: string, entryId: string) =>
+    apiFetch<ApiBudgetEntry>(`/api/orgs/${orgId}/budget-entries/${entryId}`, {
+      method: "DELETE",
+    }),
+
+  createProjectOrg: (orgId: string, body: CreateProjectOrgBody) =>
+    apiFetch<{ id: string; projectId: string; orgName: string; orgRole: string }>(
+      `/api/orgs/${orgId}/project-orgs`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  deleteProjectOrg: (orgId: string, partnerId: string) =>
+    apiFetch<{ id: string }>(`/api/orgs/${orgId}/project-orgs/${partnerId}`, {
+      method: "DELETE",
+    }),
+
+  updateUser: (orgId: string, userId: string, body: UpdateUserBody) =>
+    apiFetch<ApiUser>(`/api/orgs/${orgId}/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  createOrgRole: (orgId: string, body: CreateOrgRoleBody) =>
+    apiFetch<OrgRole>(`/api/orgs/${orgId}/org-roles`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  deleteOrgRole: (orgId: string, roleId: string) =>
+    apiFetch<OrgRole>(`/api/orgs/${orgId}/org-roles/${roleId}`, {
+      method: "DELETE",
+    }),
 };

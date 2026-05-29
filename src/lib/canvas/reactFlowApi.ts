@@ -27,27 +27,29 @@ export async function applyCanvasViewport(viewport: {
   useCanvasStore.getState().setViewport(viewport);
 }
 
-export async function focusCanvasNode(nodeId: string): Promise<void> {
+export async function focusCanvasNode(
+  nodeId: string,
+  options?: { zoom?: number; duration?: number },
+): Promise<void> {
   if (!instance) return;
-  const node = instance.getNode(nodeId);
-  if (!node) return;
 
-  const width =
-    typeof node.width === "number"
-      ? node.width
-      : typeof node.measured?.width === "number"
-        ? node.measured.width
-        : 220;
-  const height =
-    typeof node.height === "number"
-      ? node.height
-      : typeof node.measured?.height === "number"
-        ? node.measured.height
-        : 80;
-
-  await instance.setCenter(node.position.x + width / 2, node.position.y + height / 2, {
-    zoom: 1.15,
-    duration: 400,
+  await instance.fitView({
+    nodes: [{ id: nodeId }],
+    padding: 0.35,
+    duration: options?.duration ?? 420,
+    minZoom: options?.zoom ?? 0.8,
+    maxZoom: options?.zoom ?? 1.4,
   });
+  useCanvasStore.getState().setViewport(instance.getViewport());
+}
+
+export async function focusCanvasPoint(
+  x: number,
+  y: number,
+  zoom = 1.2,
+  duration = 400,
+): Promise<void> {
+  if (!instance) return;
+  await instance.setCenter(x, y, { zoom, duration });
   useCanvasStore.getState().setViewport(instance.getViewport());
 }

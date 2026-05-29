@@ -3,6 +3,11 @@ import type { Edge, Node, Viewport } from "@xyflow/react";
 import type { CascadeImpact } from "@/lib/cpm";
 import type { ActiveLayer, ZoomLevel } from "@/types";
 
+export interface SelectNodeOptions {
+  /** When false, selection updates without panning the camera. Default: true */
+  focus?: boolean;
+}
+
 interface CanvasState {
   nodes: Node[];
   edges: Edge[];
@@ -10,6 +15,7 @@ interface CanvasState {
   zoomLevel: ZoomLevel;
   selectedNodeId: string | null;
   selectedNodeType: "task" | "project" | "phase" | "person" | null;
+  focusNodeOnSelect: boolean;
   activeLayer: ActiveLayer;
   expandedProjects: Set<string>;
   cascadeChainTaskIds: string[] | null;
@@ -21,6 +27,7 @@ interface CanvasState {
   selectNode: (
     id: string | null,
     type: CanvasState["selectedNodeType"],
+    options?: SelectNodeOptions,
   ) => void;
   setActiveLayer: (layer: ActiveLayer) => void;
   toggleProjectExpanded: (projectId: string) => void;
@@ -36,6 +43,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   zoomLevel: "Z2",
   selectedNodeId: null,
   selectedNodeType: null,
+  focusNodeOnSelect: true,
   activeLayer: "default",
   expandedProjects: new Set(),
   cascadeChainTaskIds: null,
@@ -50,8 +58,17 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     })),
   setViewport: (viewport) => set({ viewport }),
   setZoomLevel: (zoomLevel) => set({ zoomLevel }),
-  selectNode: (selectedNodeId, selectedNodeType) =>
-    set({ selectedNodeId, selectedNodeType }),
+  selectNode: (selectedNodeId, selectedNodeType, options) => {
+    set({ selectedNodeId, selectedNodeType });
+    const shouldFocus = options?.focus ?? true;
+    if (selectedNodeId && shouldFocus) {
+      setTimeout(() => {
+        void import("@/lib/canvas/reactFlowApi").then(({ focusCanvasNode }) =>
+          focusCanvasNode(selectedNodeId),
+        );
+      }, 50);
+    }
+  },
   setActiveLayer: (activeLayer) => set({ activeLayer }),
   toggleProjectExpanded: (projectId) =>
     set((state) => {

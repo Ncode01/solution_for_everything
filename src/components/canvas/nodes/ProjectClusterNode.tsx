@@ -48,6 +48,16 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
   const zoomLevel = useCanvasStore((s) => s.zoomLevel);
   const isZ1 = zoomLevel === "Z1";
 
+  const selectNode = useCanvasStore((s) => s.selectNode);
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+      selectNode(`project-${nodeData.project.id}`, "project");
+    },
+    [selectNode, nodeData.project.id],
+  );
+
   const handleToggle = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -91,8 +101,9 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
 
   return (
     <div
+      onClick={handleClick}
       className={[
-        "relative overflow-hidden rounded-xl border border-white/[0.08] bg-surface-container-high",
+        "relative cursor-pointer overflow-hidden rounded-xl border border-white/[0.08] bg-surface-container-high",
         isZ1 ? "w-[260px] py-4 pl-5 pr-3" : "min-h-[88px] w-[200px]",
       ].join(" ")}
     >

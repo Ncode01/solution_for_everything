@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import type { NodeProps } from "@xyflow/react";
 import type { PersonAvatarNodeData } from "@/types";
+import { useCanvasStore } from "@/stores/canvas.store";
 
 const LOAD_STYLES: Record<
   string,
@@ -26,10 +27,26 @@ export const PersonAvatarNode = React.memo(function PersonAvatarNode({
   data,
 }: NodeProps) {
   const nodeData = data as PersonAvatarNodeData;
+  const selectNode = useCanvasStore((s) => s.selectNode);
   const styles = LOAD_STYLES[nodeData.user.loadLevel] ?? LOAD_STYLES.available;
 
+  const handleClick = useCallback(() => {
+    selectNode(`person-${nodeData.user.id}`, "person");
+  }, [selectNode, nodeData.user.id]);
+
   return (
-    <div className="flex flex-col items-center">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      className="flex cursor-pointer flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+    >
       <div className="relative">
         <div
           className={[

@@ -232,3 +232,51 @@ Add Stitch screen ID in HTML comment at top of each file for traceability.
 | collaboration | pink | Collaboration |
 
 Visible **only at Z0**; dashed 1.5px stroke; mid-edge pill label; optional `note` on hover.
+
+---
+
+## Selection Behavior
+
+| Action | Result |
+|--------|--------|
+| Click task card | `selectNode('task-{id}', 'task')` + `openTaskView()` → TaskDetailPanel (360px) |
+| Click project cluster | `selectNode('project-{id}', 'project')` → camera pans via `fitView`, ProjectDetailPanel (380px) |
+| Click person avatar | `selectNode('person-{id}', 'person')` → PersonDetailPanel (360px) |
+| Click canvas pane | `selectNode(null, null)` → all panels close |
+| Selected node | White outline ring on canvas node |
+
+Expand toggle on project clusters does **not** trigger selection (button click is excluded).
+
+---
+
+## ProjectDetailPanel
+
+**Trigger:** `selectedNodeType === 'project'`
+
+**Width:** 380px, slide-in from right (`transition-transform duration-300`)
+
+| Section | Editable | Notes |
+|---------|----------|-------|
+| Project identity | Name, color swatch, type pills, status, dates | Completion % read-only bar |
+| Health overview | Read-only | Collapsible; score ring, grade pill, blocked/overdue stats |
+| Partner organisations | Add/delete | Shown when `isCollaborative`; inline add form |
+| Milestones | Add/delete | Row click → `focusCanvasNode('milestone-{id}')` |
+| Budget | Add/delete entries | Income/expenditure summary bar |
+| Danger zone | Archive | Collapsed by default; confirm before archive |
+
+Mutations: `useProjectMutations.ts` (optimistic cache, no invalidation on metadata-only patches).
+
+---
+
+## PersonDetailPanel
+
+**Trigger:** `selectedNodeType === 'person'`
+
+| Section | Editable | Notes |
+|---------|----------|-------|
+| Member identity | Name, role | Email read-only; avatar initials |
+| Org roles | Assign/remove | Rank badge, teacher 🍎 indicator |
+| Assigned projects | — | Click row → selects project + focuses camera |
+| Workload summary | Read-only | Status breakdown bars, load badge (light/medium/heavy/overloaded) |
+
+Mutations: `useUpdateUserMutation`, `useCreateOrgRoleMutation`, `useDeleteOrgRoleMutation`.

@@ -250,7 +250,7 @@ Full table: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md), [PRE_RELEASE.md](./PRE_R
 
 | Topic | Approach |
 |-------|----------|
-| Graph rebuild | Content hash skips `setNodes` when API data unchanged |
+| Graph rebuild | Content hash skips `setNodes` when API data unchanged (includes task + project + milestone positions) |
 | Drag save | Debounced PATCH; optimistic position in query cache |
 | Invalidation | Position-only mutations skip full graph refetch |
 | Project wiring | Effect depends on `projectClusterCount`, not full `nodes` |
@@ -305,6 +305,34 @@ Pure function — no database calls. Computed in `getOrgGraph` per project for A
 **Types:** `launches_at`, `talent_pipeline`, `venue_shared`, `funds_from`, `collaboration`.
 
 **API:** Included in `GET /api/graph/:orgId` and `GET /api/orgs/:orgId/canvas-data`. Dedicated list: `GET /api/orgs/:orgId/projects/cross-links`.
+
+---
+
+## Node Selection & Camera Focus
+
+**Flow:** `selectNode(id, type)` in `canvas.store.ts` sets `selectedNodeId` / `selectedNodeType`, then after **50ms** dynamically imports `focusCanvasNode` from `reactFlowApi.ts`.
+
+**Why `fitView({ nodes })`:** Uses the rendered bounding box instead of `position + fallback width/height`, which was wrong for large `ProjectClusterNode` cards.
+
+**Programmatic selection:** Pass `{ focus: false }` as the third argument to `selectNode` when the camera should not pan (e.g. internal cross-links).
+
+**`focusCanvasPoint(x, y)`:** Explicit center+zoom when the caller knows coordinates.
+
+**Visual feedback:** `FlowCanvas` applies a white outline ring (`outline: 2px solid rgba(255,255,255,0.25)`) on the selected node.
+
+---
+
+## Position Persistence
+
+| Node type | Save hook | Debounce | Cache strategy |
+|-----------|-----------|----------|----------------|
+| Task | `useUpdateTaskMutation` | 300ms | `applyOptimisticTaskPosition` |
+| Project | `useUpdateProjectPositionMutation` | 400ms | `applyOptimisticProjectPosition` |
+| Milestone | `useUpdateMilestonePositionMutation` | 400ms | `applyOptimisticMilestonePosition` |
+
+All position saves: optimistic org-graph cache update, rollback canvas nodes on error, **no** full graph invalidation on success.
+
+**Stale refetch guard:** `graphContentHash` in `useOrgGraph.ts` includes task, project, and milestone positions. Org-graph `staleTime` is **60s** to reduce background refetch races during drag.
 
 ---
 

@@ -35,6 +35,7 @@ export interface ApiBudgetEntry {
 }
 
 export interface ApiPartnerOrg {
+  id: string;
   orgName: string;
   orgRole: string;
 }
@@ -154,4 +155,53 @@ export interface InviteValidation {
 export interface CreateInviteResponse {
   inviteUrl: string;
   token: string;
+}
+
+export interface UpdateProjectBody {
+  name?: string;
+  color?: string;
+  status?: string;
+  projectType?: ProjectType;
+  startDate?: string | null;
+  endDate?: string | null;
+  isCollaborative?: boolean;
+  canvasX?: number;
+  canvasY?: number;
+}
+
+export interface PositionBody {
+  canvasX: number;
+  canvasY: number;
+}
+
+export interface CreateMilestoneBody {
+  title: string;
+  date: string;
+  isHardDeadline?: boolean;
+  description?: string | null;
+}
+
+export interface CreateBudgetEntryBody {
+  label: string;
+  type: "income" | "expenditure";
+  amount: number;
+  confirmed?: boolean;
+}
+
+export interface CreateProjectOrgBody {
+  projectId: string;
+  orgName: string;
+  orgRole: string;
+}
+
+export interface UpdateUserBody {
+  name?: string;
+  role?: string;
+}
+
+export interface CreateOrgRoleBody {
+  userId: string;
+  title: string;
+  rank: number;
+  isTeacherInCharge?: boolean;
 }
