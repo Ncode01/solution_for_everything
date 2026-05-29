@@ -27,6 +27,7 @@ import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
 import { MilestoneNode } from "./nodes/MilestoneNode";
 import { CrossProjectEdge } from "./nodes/CrossProjectEdge";
+import { SwimlaneBands } from "./SwimlaneBands";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
 import {
   applyOptimisticTaskPosition,
@@ -430,6 +431,7 @@ function FlowCanvasInner() {
     >
       <ReactFlowApiBridge />
       <SemanticZoomTracker />
+      <SwimlaneBands />
       <Background
         variant={BackgroundVariant.Dots}
         gap={24}
