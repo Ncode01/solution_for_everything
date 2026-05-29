@@ -36,7 +36,7 @@ interface CanvasState {
   dismissCascade: () => void;
 }
 
-export const useCanvasStore = create<CanvasState>((set) => ({
+export const useCanvasStore = create<CanvasState>((set, get) => ({
   nodes: [],
   edges: [],
   viewport: { x: 0, y: 0, zoom: 1 },
@@ -61,13 +61,25 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   selectNode: (selectedNodeId, selectedNodeType, options) => {
     set({ selectedNodeId, selectedNodeType });
     const shouldFocus = options?.focus ?? true;
-    if (selectedNodeId && shouldFocus) {
-      setTimeout(() => {
-        void import("@/lib/canvas/reactFlowApi").then(({ focusCanvasNode }) =>
-          focusCanvasNode(selectedNodeId),
-        );
-      }, 50);
+    if (!selectedNodeId || !shouldFocus) return;
+
+    const currentNodes = get().nodes;
+    const targetNode = currentNodes.find((n) => n.id === selectedNodeId);
+    if (targetNode?.hidden) {
+      get().setNodes((nodes) =>
+        nodes.map((n) =>
+          n.id === selectedNodeId
+            ? { ...n, hidden: false, data: { ...n.data, isVisible: true } }
+            : n,
+        ),
+      );
     }
+
+    setTimeout(() => {
+      void import("@/lib/canvas/reactFlowApi").then(({ focusCanvasNode }) =>
+        focusCanvasNode(selectedNodeId),
+      );
+    }, 80);
   },
   setActiveLayer: (activeLayer) => set({ activeLayer }),
   toggleProjectExpanded: (projectId) =>
