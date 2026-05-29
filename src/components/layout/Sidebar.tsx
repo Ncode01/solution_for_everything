@@ -124,10 +124,26 @@ export function Sidebar() {
           ))}
         </div>
       ) : graph.isError ? (
-        !collapsed && (
-          <p className={`px-3 ${typography.scale.sm.class} ${colors.text.secondary}`}>
-            {formatQueryError(graph.error)}
-          </p>
+        collapsed ? (
+          <div className="flex justify-center px-2 py-1">
+            <span
+              className="h-2 w-2 rounded-full bg-red-500"
+              title={formatQueryError(graph.error)}
+            />
+          </div>
+        ) : (
+          <div className="px-3 py-2">
+            <p className={`${typography.scale.xs.class} ${colors.text.tertiary}`}>
+              {formatQueryError(graph.error)}
+            </p>
+            {process.env.NODE_ENV !== "production" ? (
+              <p
+                className={`mt-1 break-all ${typography.scale.xs.class} ${colors.text.tertiary}`}
+              >
+                ORG_ID: {process.env.NEXT_PUBLIC_ORG_ID || "(empty)"}
+              </p>
+            ) : null}
+          </div>
         )
       ) : (
         <ul className="flex flex-col gap-0.5 px-1">
