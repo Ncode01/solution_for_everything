@@ -15,10 +15,22 @@ const VISIBILITY_RULES: Record<
   ZoomLevel,
   { show: string[]; hide: string[] }
 > = {
-  Z0: { show: ["project-", "milestone-"], hide: ["task-", "phase-", "person-"] },
-  Z1: { show: ["project-", "phase-"], hide: ["task-", "person-"] },
-  Z2: { show: ["task-"], hide: ["project-", "phase-", "person-"] },
-  Z3: { show: ["task-"], hide: ["project-", "phase-", "person-"] },
+  Z0: {
+    show: ["project-", "milestone-"],
+    hide: ["task-", "phase-", "person-", "phase-header-"],
+  },
+  Z1: {
+    show: ["project-", "phase-"],
+    hide: ["task-", "person-", "phase-header-"],
+  },
+  Z2: {
+    show: ["task-", "phase-header-"],
+    hide: ["project-", "phase-", "person-"],
+  },
+  Z3: {
+    show: ["task-", "phase-header-"],
+    hide: ["project-", "phase-", "person-"],
+  },
 };
 
 export function useSemanticZoom() {

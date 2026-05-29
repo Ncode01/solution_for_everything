@@ -26,6 +26,7 @@ import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
 import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
 import { MilestoneNode } from "./nodes/MilestoneNode";
+import { PhaseHeaderNode } from "./nodes/PhaseHeaderNode";
 import { CrossProjectEdge } from "./nodes/CrossProjectEdge";
 import { SwimlaneBands } from "./SwimlaneBands";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
@@ -49,6 +50,7 @@ const nodeTypes = {
   phaseCluster: PhaseClusterNode,
   personAvatar: PersonAvatarNode,
   milestoneNode: MilestoneNode,
+  phaseHeader: PhaseHeaderNode,
 };
 
 const edgeTypes = {
