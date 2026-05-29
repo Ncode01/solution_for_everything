@@ -74,8 +74,16 @@ export function useViewportPersistence(graphReady: boolean) {
             zoom: saved.viewportZoom,
           });
           setSkipInitialFitView(true);
+          logOnce(
+            "viewport-restored",
+            "[ViewportPersistence] saved viewport restored",
+          );
         } else {
           void fitCanvasView();
+          logOnce(
+            "viewport-fit-default",
+            "[ViewportPersistence] no saved viewport — using fit view",
+          );
         }
       } catch {
         void fitCanvasView();

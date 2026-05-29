@@ -15,6 +15,7 @@ import { PresenceOrchestrator } from "./PresenceOrchestrator";
 import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
 import { ToastContainer } from "./Toast";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { ProductionBootstrap } from "./ProductionBootstrap";
 
 function CanvasEventListener() {
   useCanvasEvents();
@@ -31,6 +32,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0E0D0C]">
+      <ProductionBootstrap />
       <GlobalCommandOrchestrator />
       <OrgGraphHydrator />
       <PresenceOrchestrator />

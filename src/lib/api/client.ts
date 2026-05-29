@@ -27,6 +27,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (res.status === 401) {
+    logOnce(
+      "api-unauthorized",
+      "[ApiClient] 401 UNAUTHORIZED — session may be expired (no page reload)",
+    );
     throw new Error("UNAUTHORIZED");
   }
 

@@ -1,6 +1,8 @@
 # FlowCanvas — Troubleshooting
 
-Quick reference for production and preview debugging. Console diagnostics use consistent prefixes: `[FlowCanvas]`, `[OrgGraph]`, `[ViewportPersistence]`, `[CanvasEvents]`, `[Presence]`, `[AuthClient]`, `[Firebase]`.
+Quick reference for production and preview debugging. Console diagnostics use consistent prefixes: `[Audit]`, `[FlowCanvas]`, `[OrgGraph]`, `[ViewportPersistence]`, `[CanvasEvents]`, `[Presence]`, `[AuthClient]`, `[ApiClient]`, `[Firebase]`, `[DeadEnd]`, `[UI]`.
+
+See [PRE_RELEASE.md](./PRE_RELEASE.md) for a go/no-go checklist.
 
 ## Required environment variables
 
@@ -109,6 +111,32 @@ See `.env.local.example` for local development.
 
 **Check:** No `mockData` imports in `useWorkloadLayer.ts` or `WorkloadBanner.tsx`.
 
+### API or Railway unavailable (user offline)
+
+**Symptom:** Dashboard/Gantt show “Could not load data” with network message; canvas overlay may show API error.
+
+**Cause:** `NEXT_PUBLIC_API_URL` wrong, Railway service stopped, or browser offline.
+
+**Check:** `curl https://your-api/health` → `{ "status": "ok" }`. Console: `[OrgGraph] graph query failed: Failed to fetch`.
+
+**Recovery:** Fix API deployment; user clicks **Retry** on dashboard/gantt or **Retry** on canvas overlay.
+
+### Distinguish auth vs network
+
+| Message / log | Meaning |
+|---------------|---------|
+| `UNAUTHORIZED`, 401, “Session expired” | Sign in again; align `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL` with tab URL |
+| `Failed to fetch`, CORS error | API URL, Railway down, or `APP_URL`/`CORS_ORIGIN` mismatch |
+| `[ApiClient] 401` once | Session cookie rejected — not a network outage |
+
+### Firestore: missing env vs not created vs permission denied
+
+| Log | Action |
+|-----|--------|
+| `[Firebase] env vars missing` | Optional — set `NEXT_PUBLIC_FIREBASE_*` or ignore |
+| `not-found` / Database not found | Create Firestore in Firebase console (native mode) |
+| `permission-denied` | Run `firebase deploy --only firestore:rules` |
+
 ### Task drag snaps back after drop
 
 **Symptom:** Node jumps back until refresh.
@@ -121,12 +149,13 @@ See `.env.local.example` for local development.
 
 ## Debugging checklist
 
-1. **Render loop vs reload loop** — #185 in console without full document reload = effect/store loop. Full reload = redirect or hard navigation.
-2. **Auth origin** — `[AuthClient] baseURL resolved to ...` must match the browser address bar.
-3. **Firestore** — `[Firebase] env vars missing` = not configured; `permission-denied` = rules; `not-found` = database not created.
-4. **Optimistic drag** — Drop task → immediate `[OrgGraph] optimistic drag position applied` → after debounce, success or rollback log.
-5. **Mount guards** — On idle load, expect `[FlowCanvas] cascade clear skipped: initial mount` once, not repeated `setNodes` churn.
-6. **Production API** — `PROD_API_URL=... NEXT_PUBLIC_ORG_ID=... pnpm diagnose:prod`
+1. **Boot** — One `[Audit] FlowCanvas client started` and `[Audit] Org graph loaded` after sign-in.
+2. **Render loop vs reload loop** — #185 without document reload = effect loop. Full reload = redirect (should not happen on 401).
+3. **Auth origin** — `[AuthClient] baseURL` must match the browser address bar.
+4. **API** — `[OrgGraph] graph query failed` → Railway/CORS/URL; `[ApiClient] 401` → session.
+5. **Firestore** — Optional; one warning per session max.
+6. **Viewport** — `[ViewportPersistence] 401` is non-fatal; canvas still usable.
+7. **Automated** — `pnpm diagnose` and `pnpm diagnose:prod`
 
 ---
 

@@ -797,6 +797,38 @@ check("SRC: apiFetch uses credentials include", async () => {
   return content.includes('credentials: "include"') ? "PASS" : "FAIL";
 });
 
+check("SRC: ProductionBootstrap wired in AppShell", async () =>
+  fileContains("src/components/ui/AppShell.tsx", /ProductionBootstrap/)
+    ? "PASS"
+    : "FAIL",
+);
+
+check("SRC: no hard redirect in client fetch layer", async () => {
+  const hits: string[] = [];
+  for (const file of walkTsFiles(resolve(process.cwd(), "src/lib/api"))) {
+    const content = readFileSync(file, "utf8");
+    if (/window\.location|location\.reload/.test(content)) {
+      hits.push(file);
+    }
+  }
+  return hits.length === 0 ? "PASS" : `FAIL — ${hits.join(", ")}`;
+});
+
+check("SRC: client api does not embed server secrets", async () => {
+  const hits: string[] = [];
+  for (const file of walkTsFiles(resolve(process.cwd(), "src/components"))) {
+    const content = readFileSync(file, "utf8");
+    if (/BETTER_AUTH_SECRET|DATABASE_URL\s*=/.test(content)) {
+      hits.push(file);
+    }
+  }
+  return hits.length === 0 ? "PASS" : `FAIL — secrets in ${hits.join(", ")}`;
+});
+
+check("DOCS: PRE_RELEASE checklist exists", async () =>
+  fileExists("docs/PRE_RELEASE.md") ? "PASS" : "FAIL",
+);
+
 check("FIRESTORE: rules file has no open wildcard allow all", async () => {
   try {
     const content = readFileSync(

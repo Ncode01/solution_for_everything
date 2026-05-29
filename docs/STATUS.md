@@ -1,6 +1,6 @@
 # FlowCanvas — Live Project Status
 
-> Last updated: Wednesday, May 28, 2026
+> Last updated: May 29, 2026
 
 ## Phase 10 — DEPLOYED ✅
 
@@ -65,7 +65,23 @@ Branch: `fix/phase-11b-stability`
 - Vercel preview URL vs `BETTER_AUTH_URL` / `APP_URL` mismatch → 401
 - Workload thresholds are heuristic, not HR capacity rules
 
+**Pre-release (pilot-ready):** See [PRE_RELEASE.md](./PRE_RELEASE.md) for go/no-go verification.
+
 Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
+
+### Production-ready for pilot
+
+| Area | Status |
+|------|--------|
+| Canvas + API graph | Ready |
+| Auth (no hard reload on 401) | Ready |
+| Dashboard / Gantt errors + retry | Ready |
+| Sidebar / workload (real data) | Ready |
+| Viewport persistence | Non-critical; fails gracefully |
+| Firebase presence/events | Non-critical; fails gracefully |
+| Notifications | Disabled in UI |
+| Yjs CRDT | Deferred (GAP-006) |
+| Preview deploy auth/CORS | Documented risk — configure per preview URL |
 
 ## Phase history
 

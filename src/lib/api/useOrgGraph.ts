@@ -59,18 +59,27 @@ export function useOrgGraph() {
         setCanvasError("Session expired. Please refresh the page.");
         return;
       }
-      setCanvasError(
+      const message =
         query.error instanceof Error
           ? query.error.message
-          : "Failed to load graph",
+          : "Failed to load graph";
+      logOnce(
+        "org-graph-query-failed",
+        `[OrgGraph] graph query failed: ${message} (check API URL, CORS, or network)`,
       );
+      setCanvasError(message);
     } else {
       setCanvasError(null);
     }
   }, [query.error, setCanvasError]);
 
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || !query.isSuccess) return;
+
+    logOnce(
+      "org-graph-loaded",
+      `[Audit] Org graph loaded (${query.data.tasks.length} tasks, ${query.data.projects.length} projects)`,
+    );
 
     const hash = graphContentHash(query.data);
     if (hash === graphHashRef.current) {

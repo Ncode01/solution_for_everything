@@ -148,22 +148,54 @@ Prefixed one-line warnings help identify issues without spamming:
 
 | Prefix | Meaning |
 |--------|---------|
+| `[Audit]` | App boot, org graph loaded, env warnings |
 | `[AuthClient]` | Resolved Better Auth base URL |
+| `[ApiClient]` | Missing API URL default, 401 on API call |
 | `[Firebase]` | Missing Firebase env vars |
-| `[DeadEnd]` | User action blocked (e.g. create task with no project) |
-
-**Intentionally unavailable in UI:** Notifications (bell icon is disabled). Canvas bookmarks were removed from the sidebar.
 | `[CanvasEvents]` | Listener init, old event ignored, Firestore error |
 | `[Presence]` | Firestore unavailable, presence disabled |
 | `[ViewportPersistence]` | 401/404/network on viewport load or save |
-| `[OrgGraph]` | 401, skip rebuild, optimistic drag |
+| `[OrgGraph]` | 401, query failure, skip rebuild, optimistic drag |
 | `[FlowCanvas]` | Mount guards, project wiring, cascade |
+| `[DeadEnd]` | User action blocked (e.g. create task with no project) |
+| `[UI]` | Error boundary caught a render error |
+
+**Intentionally unavailable in UI:** Notifications (bell icon is disabled). Canvas bookmarks were removed from the sidebar.
+
+## Service degradation (what users see)
+
+| Failure | User impact | App behavior |
+|---------|-------------|--------------|
+| **Vercel down** | Cannot load app | Browser shows Vercel error; nothing to debug in-app |
+| **Railway API down** | Canvas error overlay; dashboard/gantt error + retry | `[OrgGraph] graph query failed`; mutations toast errors |
+| **Neon down** | Same as API down | 5xx or connection errors on graph/mutations |
+| **Firebase down / not enabled** | No presence chips; no live events | One-time `[Firebase]` / `[Presence]` / `[CanvasEvents]` warning; core app works |
+| **User offline** | API calls fail | `Failed to fetch` / network message; use retry after reconnect |
+| **Session expired** | “Session expired” on canvas | `[ApiClient] 401`; sign in via overlay or `/login` — **no full page reload** |
+| **Wrong preview URL** | 401 or CORS in console | Align `APP_URL`, `CORS_ORIGIN`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` for that preview |
+
+### Auth failure vs network failure
+
+| Signal | Likely cause |
+|--------|----------------|
+| `UNAUTHORIZED` / 401 / “Session expired” | Cookie invalid or origin mismatch — fix env URLs, sign in again |
+| `Failed to fetch` / CORS error in console | API unreachable, wrong `NEXT_PUBLIC_API_URL`, or `APP_URL` mismatch |
+| Firestore `not-found` / `permission-denied` | DB not created vs rules — see TROUBLESHOOTING |
+
+### Firestore: not enabled vs permission denied
+
+| Console / behavior | Meaning |
+|--------------------|---------|
+| `[Firebase] env vars missing` | `NEXT_PUBLIC_FIREBASE_*` not set on Vercel — optional features off |
+| `[CanvasEvents] Firestore unavailable: not-found` | Firestore database not created in console |
+| `permission-denied` | Rules not deployed or wrong project ID |
 
 See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for failure modes and debugging steps.
 
-## Production audit
+## Production audit & pre-release
 
-See [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md) for ranked issues, fixes, and remaining risks.
+- [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md) — ranked issues and fixes  
+- [PRE_RELEASE.md](./PRE_RELEASE.md) — go/no-go checklist and verification steps  
 
 **Pilot blockers resolved:** mock workload data, mock edge restore, drag invalidation churn.
 
