@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { shellVariants, buttonVariants, colors, typography } from "@/design-system";
+import { skeletonVariants } from "@/design-system/components";
 import { useUIStore } from "@/stores/ui.store";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import { useCurrentUser } from "@/lib/api/useCurrentUser";
@@ -45,7 +46,7 @@ export function Topbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLDivElement>(null);
 
-  const orgName = graph.data?.org.name ?? "Organization";
+  const orgName = graph.data?.org.name ?? (graph.isLoading ? null : "—");
   const onlineCount = presenceUsers.filter((u) => u.isOnline).length;
   const notificationCount = 0;
 
@@ -121,10 +122,19 @@ export function Topbar() {
           Command Center
         </span>
         <span
-          className={`${typography.scale.xs.class} ${colors.bg.elevated} ${colors.text.secondary} ${colors.border.default} truncate rounded-full border px-2.5 py-0.5 max-w-[180px]`}
-          title={orgName}
+          className={`${typography.scale.xs.class} ${colors.bg.elevated} ${colors.border.default} flex items-center truncate rounded-full border px-2.5 py-0.5 max-w-[180px] min-h-[22px]`}
+          title={orgName ?? undefined}
         >
-          {graph.isLoading ? "…" : orgName}
+          {orgName === null ? (
+            <span
+              className={`${skeletonVariants.base} block h-4 w-20`}
+              aria-hidden
+            />
+          ) : orgName === "—" ? (
+            <span className={colors.text.tertiary}>No org</span>
+          ) : (
+            <span className={`truncate ${colors.text.secondary}`}>{orgName}</span>
+          )}
         </span>
       </div>
 

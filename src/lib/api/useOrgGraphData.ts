@@ -10,21 +10,38 @@ const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
  * Read-only subscription to the org graph cache.
  * Does not register a fetch — relies on useOrgGraph() in AppShell.
  */
+const EMPTY_ORG_ERROR = new Error("NEXT_PUBLIC_ORG_ID is not set");
+
 export function useOrgGraphData() {
   const queryClient = useQueryClient();
 
   const data = useSyncExternalStore(
-    (onStoreChange) =>
-      queryClient.getQueryCache().subscribe((event) => {
+    (onStoreChange) => {
+      if (!ORG_ID) return () => {};
+      return queryClient.getQueryCache().subscribe((event) => {
         const key = event.query?.queryKey;
         if (key?.[0] === "org-graph" && key?.[1] === ORG_ID) {
           onStoreChange();
         }
-      }),
+      });
+    },
     () =>
-      queryClient.getQueryData<OrgGraphResponse>(["org-graph", ORG_ID]),
+      ORG_ID
+        ? queryClient.getQueryData<OrgGraphResponse>(["org-graph", ORG_ID])
+        : undefined,
     () => undefined,
   );
+
+  if (!ORG_ID) {
+    return {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: EMPTY_ORG_ERROR,
+      dataUpdatedAt: 0,
+      refetch: () => {},
+    };
+  }
 
   const state = queryClient.getQueryState<OrgGraphResponse>([
     "org-graph",
