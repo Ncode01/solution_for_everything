@@ -4,6 +4,10 @@ import { computeCPM } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 import { loadLevelFromTaskCount } from "@/lib/userLoadLevel";
 import {
+  ENVELOPE_BODY_TOP_OFFSET,
+  ENVELOPE_HEADER_HEIGHT,
+  ENVELOPE_PADDING_X,
+  envelopeSize,
   LAYOUT,
   milestonePosition,
   personRowPosition,
@@ -21,6 +25,7 @@ import type {
   Project,
   ProjectAccentColor,
   ProjectClusterNodeData,
+  ProjectEnvelopeNodeData,
   ProjectStatus,
   Task,
   TaskCardNodeData,
@@ -220,6 +225,48 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
 
   const projectPositionMap = new Map<string, { x: number; y: number }>(
     projectNodes.map((n) => [n.data.project.id, n.position]),
+  );
+
+  const envelopeNodes: Node<ProjectEnvelopeNodeData>[] = data.projects.map(
+    (proj) => {
+      const projectPos = projectPositionMap.get(proj.id) ?? { x: 0, y: 0 };
+
+      const projPhases = data.phases.filter((ph) => ph.projectId === proj.id);
+      const maxTasksInAnyPhase = projPhases.reduce((max, ph) => {
+        const count = data.tasks.filter((t) => t.phaseId === ph.id).length;
+        return Math.max(max, count);
+      }, 0);
+
+      const { width: envelopeWidth, height: envelopeHeight } = envelopeSize(
+        projPhases.length,
+        maxTasksInAnyPhase,
+      );
+
+      const envelopeX = projectPos.x - ENVELOPE_PADDING_X;
+      const envelopeY =
+        projectPos.y - ENVELOPE_HEADER_HEIGHT - ENVELOPE_BODY_TOP_OFFSET;
+
+      return {
+        id: `envelope-${proj.id}`,
+        type: "projectEnvelope",
+        position: { x: envelopeX, y: envelopeY },
+        zIndex: -1,
+        selectable: false,
+        draggable: true,
+        focusable: false,
+        data: {
+          projectId: proj.id,
+          projectName: proj.name,
+          projectColor: proj.color,
+          status: proj.status,
+          completionPercent: proj.completionPercent,
+          envelopeWidth,
+          envelopeHeight,
+          _savedToDb: false,
+        } satisfies ProjectEnvelopeNodeData & { _savedToDb: boolean },
+        hidden: false,
+      };
+    },
   );
 
   const milestonesByProject = new Map<string, Milestone[]>();
@@ -475,6 +522,7 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
 
   return {
     nodes: [
+      ...envelopeNodes,
       ...projectNodes,
       ...milestoneNodes,
       ...taskNodes,
