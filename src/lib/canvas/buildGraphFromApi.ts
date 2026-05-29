@@ -3,6 +3,13 @@ import type { OrgGraphResponse } from "@/lib/api/types";
 import { computeCPM } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 import { loadLevelFromTaskCount } from "@/lib/userLoadLevel";
+import {
+  LAYOUT,
+  milestonePosition,
+  personRowPosition,
+  projectGridPosition,
+  taskSwimlanePosition,
+} from "./layout";
 import type {
   Milestone,
   MilestoneNodeData,
@@ -22,18 +29,11 @@ import type {
   User,
 } from "@/types";
 
-const PROJECT_COLS = 3;
-const PROJECT_COL_WIDTH = 900;
-const PROJECT_ROW_HEIGHT = 1100;
-const PROJECT_ORIGIN_X = 100;
-const PROJECT_ORIGIN_Y = 100;
-
-const TASK_COL_WIDTH = 220;
-const TASK_ROW_HEIGHT = 130;
-const TASKS_PER_COL = 5;
-const PHASE_COL_GAP = 280;
-
-const PERSON_ROW_Y = PROJECT_ORIGIN_Y - 200;
+export type PhaseHeaderNodeData = {
+  phaseName: string;
+  projectColor: string;
+  [key: string]: unknown;
+};
 
 function toFrontendUser(
   apiUser: OrgGraphResponse["users"][number],
@@ -88,67 +88,8 @@ function pickUpcomingMilestone(
   return future ?? projectMilestones[0] ?? null;
 }
 
-function projectGridPosition(
-  index: number,
-  canvasX: number | null | undefined,
-  canvasY: number | null | undefined,
-): { x: number; y: number } {
-  if (canvasX != null && canvasY != null) {
-    return { x: canvasX, y: canvasY };
-  }
-  const col = index % PROJECT_COLS;
-  const row = Math.floor(index / PROJECT_COLS);
-  return {
-    x: PROJECT_ORIGIN_X + col * PROJECT_COL_WIDTH,
-    y: PROJECT_ORIGIN_Y + row * PROJECT_ROW_HEIGHT,
-  };
-}
-
-function taskNeedsAutoLayout(canvasX: number, canvasY: number): boolean {
-  return canvasX === 0 && canvasY === 0;
-}
-
-function layoutTasksForProject(
-  projectId: string,
-  clusterX: number,
-  clusterY: number,
-  phases: OrgGraphResponse["phases"],
-  tasks: OrgGraphResponse["tasks"],
-): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  const projectPhases = phases
-    .filter((ph) => ph.projectId === projectId)
-    .sort((a, b) => a.orderIndex - b.orderIndex);
-
-  const taskAreaOriginX = clusterX + 30;
-  const taskAreaOriginY = clusterY + 220;
-
-  projectPhases.forEach((phase, phaseIndex) => {
-    const phaseTasks = tasks
-      .filter((t) => t.phaseId === phase.id)
-      .sort((a, b) => {
-        if (a.canvasX !== b.canvasX) return a.canvasX - b.canvasX;
-        return a.canvasY - b.canvasY;
-      });
-
-    const phaseColOffset = phaseIndex * (TASK_COL_WIDTH + PHASE_COL_GAP);
-
-    phaseTasks.forEach((task, j) => {
-      if (!taskNeedsAutoLayout(task.canvasX, task.canvasY)) {
-        positions.set(task.id, { x: task.canvasX, y: task.canvasY });
-        return;
-      }
-
-      const col = Math.floor(j / TASKS_PER_COL);
-      const row = j % TASKS_PER_COL;
-      positions.set(task.id, {
-        x: taskAreaOriginX + phaseColOffset + col * TASK_COL_WIDTH,
-        y: taskAreaOriginY + row * TASK_ROW_HEIGHT,
-      });
-    });
-  });
-
-  return positions;
+function isSavedToDb(x?: number | null, y?: number | null): boolean {
+  return (x != null && x !== 0) || (y != null && y !== 0);
 }
 
 /** Nudge overlapping taskCard nodes apart (Manhattan proximity). */
@@ -240,12 +181,9 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     daysUntil: m.daysUntil,
   }));
 
-  const clusterPositions = new Map<string, { x: number; y: number }>();
-
   const projectNodes: Node<ProjectClusterNodeData>[] = data.projects.map(
     (p, i) => {
       const pos = projectGridPosition(i, p.canvasX, p.canvasY);
-      clusterPositions.set(p.id, pos);
 
       const partners =
         data.partnerOrgsByProject?.[p.id]?.map((o) => o.orgName) ?? [];
@@ -273,43 +211,49 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
           partnerOrgs: partners,
           budgetSummary,
           upcomingMilestone: pickUpcomingMilestone(p.id, milestoneList),
+          _savedToDb: isSavedToDb(p.canvasX, p.canvasY),
         },
         hidden: false,
       };
     },
   );
 
+  const projectPositionMap = new Map<string, { x: number; y: number }>(
+    projectNodes.map((n) => [n.data.project.id, n.position]),
+  );
+
   const milestonesByProject = new Map<string, Milestone[]>();
   for (const m of milestoneList) {
-    const list = milestonesByProject.get(m.projectId) ?? [];
-    list.push(m);
-    milestonesByProject.set(m.projectId, list);
+    if (!milestonesByProject.has(m.projectId)) {
+      milestonesByProject.set(m.projectId, []);
+    }
+    milestonesByProject.get(m.projectId)!.push(m);
   }
-  for (const [pid, list] of milestonesByProject) {
-    list.sort((a, b) => a.date.localeCompare(b.date));
-    milestonesByProject.set(pid, list);
+  for (const arr of milestonesByProject.values()) {
+    arr.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
   }
 
   const milestoneNodes: Node<MilestoneNodeData>[] = milestoneList.map((m) => {
     const project = data.projects.find((p) => p.id === m.projectId);
-    const cluster = clusterPositions.get(m.projectId) ?? { x: 200, y: 200 };
-    const milestonesForProject = milestonesByProject.get(m.projectId) ?? [];
-    const milestoneIndex = milestonesForProject.findIndex(
-      (item) => item.id === m.id,
+    const projectPos = projectPositionMap.get(m.projectId) ?? {
+      x: 200,
+      y: 200,
+    };
+    const milestoneArr = milestonesByProject.get(m.projectId) ?? [];
+    const milestoneIndex = milestoneArr.findIndex((ms) => ms.id === m.id);
+    const { x: mx, y: my } = milestonePosition(
+      projectPos,
+      milestoneIndex,
+      m.canvasX,
+      m.canvasY,
     );
-
-    const hasApiPosition = m.canvasX != null && m.canvasY != null;
-    const x = hasApiPosition
-      ? m.canvasX!
-      : cluster.x + 520;
-    const y = hasApiPosition
-      ? m.canvasY!
-      : cluster.y + 60 + milestoneIndex * 90;
 
     return {
       id: `milestone-${m.id}`,
       type: "milestoneNode",
-      position: { x, y },
+      position: { x: mx, y: my },
       data: {
         milestoneId: m.id,
         title: m.title,
@@ -317,24 +261,39 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         isHardDeadline: m.isHardDeadline,
         daysUntil: m.daysUntil,
         projectColor: project?.color ?? "sky",
+        _savedToDb: isSavedToDb(m.canvasX, m.canvasY),
       },
       hidden: false,
     };
   });
 
-  const taskPositionById = new Map<string, { x: number; y: number }>();
-  for (const p of data.projects) {
-    const cluster = clusterPositions.get(p.id) ?? { x: 200, y: 200 };
-    const projectLayouts = layoutTasksForProject(
-      p.id,
-      cluster.x,
-      cluster.y,
-      data.phases,
-      data.tasks,
-    );
-    for (const [taskId, pos] of projectLayouts) {
-      taskPositionById.set(taskId, pos);
-    }
+  const phaseColumnIndex = new Map<string, number>();
+  for (const proj of data.projects) {
+    const projPhases = data.phases
+      .filter((ph) => ph.projectId === proj.id)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+    projPhases.forEach((ph, idx) => {
+      phaseColumnIndex.set(ph.id, idx);
+    });
+  }
+
+  const taskIndexInPhase = new Map<string, number>();
+  const taskCountPerPhase = new Map<string, number>();
+
+  const tasksSortedByPhase = [...data.tasks].sort((a, b) => {
+    const colA = phaseColumnIndex.get(a.phaseId) ?? 0;
+    const colB = phaseColumnIndex.get(b.phaseId) ?? 0;
+    if (colA !== colB) return colA - colB;
+    const aCrit = cpmResult.nodes[a.id]?.isCriticalPath ? 0 : 1;
+    const bCrit = cpmResult.nodes[b.id]?.isCriticalPath ? 0 : 1;
+    if (aCrit !== bCrit) return aCrit - bCrit;
+    return a.title.localeCompare(b.title);
+  });
+
+  for (const t of tasksSortedByPhase) {
+    const current = taskCountPerPhase.get(t.phaseId) ?? 0;
+    taskIndexInPhase.set(t.id, current);
+    taskCountPerPhase.set(t.phaseId, current + 1);
   }
 
   let taskNodes: Node<TaskCardNodeData>[] = data.tasks.map((apiTask) => {
@@ -343,10 +302,24 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       .map((id) => userMap[id])
       .filter(Boolean);
     const cpmNode = cpmResult.nodes[apiTask.id];
-    const pos = taskPositionById.get(apiTask.id) ?? {
-      x: apiTask.canvasX,
-      y: apiTask.canvasY,
+    const projectPos = projectPositionMap.get(apiTask.projectId) ?? {
+      x: 120,
+      y: 200,
     };
+    const phaseCol = phaseColumnIndex.get(apiTask.phaseId) ?? 0;
+    const taskRow = taskIndexInPhase.get(apiTask.id) ?? 0;
+    const isCrit = cpmNode?.isCriticalPath ?? false;
+    const slack = cpmNode ? Math.round(cpmNode.float / 8) : 0;
+
+    const taskPos = taskSwimlanePosition(
+      projectPos,
+      phaseCol,
+      taskRow,
+      isCrit,
+      slack,
+      apiTask.canvasX,
+      apiTask.canvasY,
+    );
 
     const task: Task = {
       id: apiTask.id,
@@ -359,10 +332,10 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       assigneeIds: apiTask.assigneeIds,
       effortEstimate: apiTask.effortEstimate ?? undefined,
       dueDate: apiTask.dueDate ? new Date(apiTask.dueDate) : undefined,
-      canvasX: pos.x,
-      canvasY: pos.y,
-      isCriticalPath: cpmNode?.isCriticalPath ?? false,
-      slackTime: cpmNode ? Math.round(cpmNode.float / 8) : undefined,
+      canvasX: taskPos.x,
+      canvasY: taskPos.y,
+      isCriticalPath: isCrit,
+      slackTime: slack,
       earlyStart: cpmNode?.earlyStart,
       earlyFinish: cpmNode?.earlyFinish,
       lateStart: cpmNode?.lateStart,
@@ -374,7 +347,7 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     return {
       id: `task-${apiTask.id}`,
       type: "taskCard",
-      position: pos,
+      position: taskPos,
       data: {
         task,
         assignees,
@@ -382,27 +355,58 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         isCriticalPath: task.isCriticalPath,
         slackTime: task.slackTime,
         isExpanded: false,
+        _savedToDb: apiTask.canvasX !== 0 || apiTask.canvasY !== 0,
       },
     };
   });
 
   taskNodes = deCollide(taskNodes, 60) as Node<TaskCardNodeData>[];
 
-  const personNodes: Node<PersonAvatarNodeData>[] = data.users.map((u, i) => ({
-    id: `person-${u.id}`,
-    type: "personAvatar",
-    position: {
-      x: PROJECT_ORIGIN_X + i * 120,
-      y: PERSON_ROW_Y,
-    },
-    data: {
-      user: userMap[u.id],
-      isVisible: false,
-      projectIds: Array.from(userProjectIds[u.id] ?? []),
-    },
-    hidden: true,
-    zIndex: 1000,
-  }));
+  const phaseHeaderNodes: Node<PhaseHeaderNodeData>[] = [];
+  for (const proj of data.projects) {
+    const projectPos = projectPositionMap.get(proj.id);
+    if (!projectPos) continue;
+
+    const projPhases = data.phases
+      .filter((ph) => ph.projectId === proj.id)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+    projPhases.forEach((phase, phaseIdx) => {
+      const x =
+        projectPos.x +
+        phaseIdx * (LAYOUT.TASK.PHASE_COL_WIDTH + LAYOUT.TASK.PHASE_GAP);
+      const y = projectPos.y + LAYOUT.TASK.BAND_OFFSET_Y - 50;
+
+      phaseHeaderNodes.push({
+        id: `phase-header-${phase.id}`,
+        type: "phaseHeader",
+        position: { x, y },
+        data: {
+          phaseName: phase.name,
+          projectColor: proj.color,
+        },
+        draggable: false,
+        selectable: false,
+        hidden: true,
+      });
+    });
+  }
+
+  const personNodes: Node<PersonAvatarNodeData>[] = data.users.map((u, i) => {
+    const { x: px, y: py } = personRowPosition(i);
+    return {
+      id: `person-${u.id}`,
+      type: "personAvatar",
+      position: { x: px, y: py },
+      data: {
+        user: userMap[u.id],
+        isVisible: false,
+        projectIds: Array.from(userProjectIds[u.id] ?? []),
+      },
+      hidden: true,
+      zIndex: 1000,
+    };
+  });
 
   const edges: Edge[] = [];
   for (const apiTask of data.tasks) {
@@ -470,7 +474,13 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
   }
 
   return {
-    nodes: [...projectNodes, ...milestoneNodes, ...taskNodes, ...personNodes],
+    nodes: [
+      ...projectNodes,
+      ...milestoneNodes,
+      ...taskNodes,
+      ...phaseHeaderNodes,
+      ...personNodes,
+    ],
     edges,
   };
 }
