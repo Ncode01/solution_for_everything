@@ -7,8 +7,34 @@ import { apiClient } from "./client";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { applyCanvasViewport, fitCanvasView } from "@/lib/canvas/reactFlowApi";
+import { logOnce } from "@/lib/diagnostics";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+
+function logViewportFailure(
+  operation: "load" | "save",
+  err: unknown,
+): void {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message === "UNAUTHORIZED") {
+    logOnce(
+      `viewport-${operation}-401`,
+      `[ViewportPersistence] 401 on ${operation}Viewport, continuing without persistence`,
+    );
+    return;
+  }
+  if (message.includes("404") || message.toLowerCase().includes("not found")) {
+    logOnce(
+      `viewport-${operation}-404`,
+      `[ViewportPersistence] 404 on ${operation}Viewport, continuing without persistence`,
+    );
+    return;
+  }
+  logOnce(
+    `viewport-${operation}-network`,
+    `[ViewportPersistence] ${operation}Viewport failed (${message}), continuing without persistence`,
+  );
+}
 
 export function useViewportPersistence(graphReady: boolean) {
   const viewport = useCanvasStore((s) => s.viewport);
@@ -22,7 +48,8 @@ export function useViewportPersistence(graphReady: boolean) {
     queryFn: async () => {
       try {
         return await apiClient.getViewport(ORG_ID, session!.user.id);
-      } catch {
+      } catch (err) {
+        logViewportFailure("load", err);
         return null;
       }
     },
@@ -77,7 +104,9 @@ export function useViewportPersistence(graphReady: boolean) {
           viewportY: viewport.y,
           viewportZoom: viewport.zoom,
         })
-        .catch(() => undefined);
+        .catch((err) => {
+          logViewportFailure("save", err);
+        });
     }, 800);
 
     return () => {

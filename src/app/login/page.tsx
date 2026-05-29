@@ -4,11 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
+const isDev = process.env.NODE_ENV === "development";
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
-  const [email, setEmail] = useState("owner@flowcanvas.dev");
-  const [password, setPassword] = useState("demo12345");
+  const [email, setEmail] = useState(
+    isDev ? "owner@flowcanvas.dev" : "",
+  );
+  const [password, setPassword] = useState(isDev ? "demo12345" : "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -22,7 +26,7 @@ export default function LoginPage() {
         const result = await authClient.signUp.email({
           email,
           password,
-          name: "Demo Owner",
+          name: email.split("@")[0] || "Member",
         });
         if (result.error) {
           setError(result.error.message ?? "Sign up failed");
@@ -54,7 +58,9 @@ export default function LoginPage() {
           {mode === "sign-in" ? "Sign in" : "Create account"}
         </h1>
         <p className="text-body-sm mb-6 text-on-surface-variant">
-          Email and password only — local demo credentials supported.
+          {isDev
+            ? "Development: default seed credentials are prefilled."
+            : "Sign in with your organization account."}
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

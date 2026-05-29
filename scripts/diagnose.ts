@@ -294,6 +294,40 @@ check("AUTH: login page exists", async () =>
   fileExists("src/app/login/page.tsx") ? "PASS" : "FAIL — missing login page",
 );
 
+check("SRC: LeftSidebar has no hardcoded demo projects", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "src/components/ui/LeftSidebar.tsx"),
+    "utf8",
+  );
+  if (/Annual Hackathon|Platform Migration|const PROJECTS\s*=\s*\[/.test(content)) {
+    return "FAIL — LeftSidebar still uses hardcoded demo project list";
+  }
+  return /useOrgGraphData/.test(content) ? "PASS" : "FAIL — sidebar not API-backed";
+});
+
+check("SRC: workload layer has no mock runtime data", async () => {
+  const paths = [
+    "src/lib/canvas/useWorkloadLayer.ts",
+    "src/components/canvas/WorkloadBanner.tsx",
+    "src/components/canvas/FlowCanvas.tsx",
+  ];
+  for (const p of paths) {
+    const content = readFileSync(resolve(process.cwd(), p), "utf8");
+    if (/from ["']@\/lib\/seed\/mockData|MOCK_USERS|MOCK_TASKS/.test(content)) {
+      return `FAIL — mock data in ${p}`;
+    }
+    if (
+      p.includes("FlowCanvas") &&
+      /from ["']@\/lib\/canvas\/seedToNodes["']/.test(content)
+    ) {
+      return "FAIL — FlowCanvas imports seedToNodes (pulls mock bundle)";
+    }
+  }
+  return fileExists("src/lib/canvas/dependencyEdgeStyles.ts")
+    ? "PASS"
+    : "FAIL — missing dependencyEdgeStyles.ts";
+});
+
 check("SRC: FlowCanvas has no mock seed hydration", async () => {
   const flowContent = readFileSync(
     resolve(process.cwd(), "src/components/canvas/FlowCanvas.tsx"),

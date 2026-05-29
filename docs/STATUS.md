@@ -26,6 +26,41 @@
 
 **Login (production):** `owner@flowcanvas.dev` / `demo12345`
 
+## Phase 11B — Stability + production audit
+
+Branch: `fix/phase-11b-stability`
+
+**Production-ready (pilot):**
+- Canvas graph from API (`useOrgGraph` + hash guard + merge)
+- Task CRUD, drag persist, optimistic position cache
+- Project expand/collapse from API cache
+- Workload view from live canvas nodes (not mock seed)
+- Edge restore from API graph snapshot
+- Auth: no hard reload on 401; middleware + inline errors
+- Firebase events/presence: optional, graceful disable
+
+**Intentionally non-critical:**
+- Yjs CRDT sync (PRD vision — see GAP-006)
+- Preview deployment CORS (single `APP_URL` on Railway — use matching env per preview)
+- Workload `loadLevel` heuristic (`taskCount * 12.5` in `buildGraphFromApi`)
+
+**Pass 2 hardening (same branch):**
+- Sidebar: API-backed projects and people (no hardcoded demo list)
+- Dashboard / Gantt: error + retry + clearer empty states
+- Error boundaries remount on retry
+- Canvas error overlay: retry + sign-in link
+- Load heuristic documented in `userLoadLevel.ts`
+
+**Intentionally not shipped:**
+- Canvas bookmarks (sidebar section removed)
+- Yjs CRDT (GAP-006)
+
+**Still risky / watch:**
+- Vercel preview URL vs `BETTER_AUTH_URL` / `APP_URL` mismatch → 401
+- Workload thresholds are heuristic, not HR capacity rules
+
+Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
+
 ## Phase history
 
 - Phase 7–9: Gantt, dashboard, presence, invites, auth hardening

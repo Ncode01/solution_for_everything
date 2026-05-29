@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutDashboard, RefreshCw } from "lucide-react";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
+import { formatQueryError } from "@/lib/formatQueryError";
 import {
   getBlockedTasksSummary,
   getCriticalPathSummary,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/dashboard/dashboardUtils";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
+import { ViewErrorPanel } from "@/components/ui/ViewStatusPanel";
 import { ProjectHealthCard } from "@/components/dashboard/ProjectHealthCard";
 import { WorkloadChart } from "@/components/dashboard/WorkloadChart";
 import { CriticalPathPanel } from "@/components/dashboard/CriticalPathPanel";
@@ -70,6 +72,7 @@ export function DashboardView() {
     (taskId: string) => {
       selectNode(`task-${taskId}`, "task");
       openTaskView();
+      useUIStore.getState().setActiveView("canvas");
     },
     [selectNode, openTaskView],
   );
@@ -87,11 +90,30 @@ export function DashboardView() {
     );
   }
 
+  if (query.isError) {
+    return (
+      <ViewErrorPanel
+        message={formatQueryError(query.error)}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
   if (!query.data || query.data.projects.length === 0) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-2 bg-surface-container-low">
-        <LayoutDashboard size={32} className="text-outline" />
-        <p className="text-body-md text-on-surface-variant">No project data</p>
+        <LayoutDashboard size={32} className="text-outline" aria-hidden />
+        <p className="text-body-md text-on-surface">No project data</p>
+        <p className="text-body-sm text-on-surface-variant">
+          Create projects and tasks on the canvas to see dashboard KPIs.
+        </p>
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().setActiveView("canvas")}
+          className="text-body-sm mt-2 rounded-lg border border-white/10 px-4 py-2 text-on-surface hover:bg-white/5"
+        >
+          Open canvas
+        </button>
       </main>
     );
   }
@@ -111,7 +133,7 @@ export function DashboardView() {
           className="ml-auto flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-body-sm text-on-surface-variant hover:bg-white/5"
           aria-label="Refresh dashboard data"
         >
-          <RefreshCw size={14} />
+          <RefreshCw size={14} aria-hidden />
           Refresh
         </button>
       </header>

@@ -1,3 +1,4 @@
+import { logOnce } from "@/lib/diagnostics";
 import type {
   OrgGraphResponse,
   CreateTaskBody,
@@ -10,6 +11,13 @@ import type {
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+if (typeof window !== "undefined" && !process.env.NEXT_PUBLIC_API_URL) {
+  logOnce(
+    "api-base-default",
+    "[ApiClient] NEXT_PUBLIC_API_URL unset — defaulting to http://localhost:3001",
+  );
+}
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

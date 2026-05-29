@@ -3,11 +3,13 @@
 import {
   useMutation,
   useQueryClient,
+  type QueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { MarkerType, type Edge } from "@xyflow/react";
 import { apiClient } from "./client";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { logOnce, logDevOnce } from "@/lib/diagnostics";
 import type {
   ApiTask,
   CreateTaskBody,
@@ -16,6 +18,35 @@ import type {
 } from "./types";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
+
+export function isPositionOnlyBody(body: UpdateTaskBody): boolean {
+  const keys = Object.keys(body);
+  return (
+    keys.length > 0 && keys.every((k) => k === "canvasX" || k === "canvasY")
+  );
+}
+
+/** Apply optimistic canvas coordinates to the org-graph cache (immediate, pre-debounce). */
+export function applyOptimisticTaskPosition(
+  queryClient: QueryClient,
+  taskId: string,
+  canvasX: number,
+  canvasY: number,
+): void {
+  queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], (prev) => {
+    if (!prev) return prev;
+    return {
+      ...prev,
+      tasks: prev.tasks.map((t) =>
+        t.id === taskId ? { ...t, canvasX, canvasY } : t,
+      ),
+    };
+  });
+  logDevOnce(
+    "drag-optimistic",
+    `[OrgGraph] optimistic drag position applied for task ${taskId}`,
+  );
+}
 
 function dependencyEdge(upstreamTaskId: string, taskId: string): Edge {
   return {
@@ -64,6 +95,7 @@ type GraphCtx = { previous?: OrgGraphResponse };
 type CanvasCtx = GraphCtx & {
   previousNodes?: ReturnType<typeof useCanvasStore.getState>["nodes"];
   previousEdges?: ReturnType<typeof useCanvasStore.getState>["edges"];
+  positionOnly?: boolean;
 };
 
 export function useCreateTaskMutation(
@@ -127,7 +159,7 @@ export function useUpdateTaskMutation(
     ApiTask,
     Error,
     { taskId: string; body: UpdateTaskBody },
-    GraphCtx
+    CanvasCtx
   >,
 ) {
   const queryClient = useQueryClient();
@@ -141,6 +173,10 @@ export function useUpdateTaskMutation(
         "org-graph",
         ORG_ID,
       ]);
+      const positionOnly = isPositionOnlyBody(vars.body);
+      const previousNodes = positionOnly
+        ? useCanvasStore.getState().nodes
+        : undefined;
 
       if (previous) {
         queryClient.setQueryData<OrgGraphResponse>(["org-graph", ORG_ID], {
@@ -171,12 +207,19 @@ export function useUpdateTaskMutation(
         });
       }
 
-      const ctx = { previous };
+      const ctx: CanvasCtx = { previous, previousNodes, positionOnly };
       return (await options?.onMutate?.(vars, context)) ?? ctx;
     },
     onError: (err, vars, onMutateResult, ctx) => {
       if (onMutateResult?.previous) {
         queryClient.setQueryData(["org-graph", ORG_ID], onMutateResult.previous);
+      }
+      if (onMutateResult?.positionOnly && onMutateResult.previousNodes) {
+        useCanvasStore.getState().setNodes(onMutateResult.previousNodes);
+        logOnce(
+          "drag-rollback",
+          `[OrgGraph] drag save failed, rolling back position for task ${vars.taskId}`,
+        );
       }
       options?.onError?.(err, vars, onMutateResult, ctx);
     },
@@ -196,14 +239,16 @@ export function useUpdateTaskMutation(
           ),
         });
       }
+      if (isPositionOnlyBody(vars.body)) {
+        logDevOnce(
+          "drag-confirmed",
+          `[OrgGraph] drag position saved for task ${vars.taskId}`,
+        );
+      }
       options?.onSuccess?.(data, vars, onMutateResult, ctx);
     },
     onSettled: (data, err, vars, onMutateResult, ctx) => {
-      const keys = Object.keys(vars.body);
-      const positionOnly =
-        keys.length > 0 &&
-        keys.every((k) => k === "canvasX" || k === "canvasY");
-      if (!positionOnly) {
+      if (!isPositionOnlyBody(vars.body)) {
         void queryClient.invalidateQueries({ queryKey: ["org-graph", ORG_ID] });
       }
       options?.onSettled?.(data, err, vars, onMutateResult, ctx);
