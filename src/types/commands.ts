@@ -3,6 +3,8 @@ export type CommandGroupKey =
   | "canvas"
   | "view"
   | "tasks"
+  | "schools"
+  | "posters"
   | "debug";
 
 export type CommandContext =
@@ -29,5 +31,7 @@ export const COMMAND_GROUP_LABELS: Record<CommandGroupKey, string> = {
   canvas: "Canvas",
   view: "View",
   tasks: "Tasks",
+  schools: "SCHOOLS",
+  posters: "POSTERS",
   debug: "Debug",
 };

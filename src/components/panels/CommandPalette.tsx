@@ -8,7 +8,9 @@ import {
   CheckSquare,
   Compass,
   Grid3x3,
+  Image,
   LayoutGrid,
+  School,
   Search,
   X,
 } from "lucide-react";
@@ -37,10 +39,10 @@ const GROUP_ORDER: CommandGroupKey[] =
 
 const PROJECT_COLOR_MAP: Record<string, string> = {
   coral: "bg-[#E05C5C]",
-  amber: "bg-[#F59E0B]",
-  violet: "bg-[#8B5CF6]",
-  sky: "bg-[#3B82F6]",
-  mint: "bg-[#10B981]",
+  amber: "bg-[#E8AF34]",
+  violet: "bg-[#A86FDF]",
+  sky: "bg-[#5591C7]",
+  mint: "bg-[#6DAA45]",
 };
 
 const groupHeadingClass = [
@@ -135,6 +137,8 @@ export function CommandPalette() {
 
   const graph = useOrgGraphData();
   const projects = graph.data?.projects ?? [];
+  const schools = graph.data?.schools ?? [];
+  const posters = graph.data?.posters ?? [];
 
   const allCommands = useCommandRegistry();
 
@@ -191,6 +195,33 @@ export function CommandPalette() {
     );
   }, [projects, commandQuery]);
 
+  const filteredSchools = useMemo(() => {
+    const q = commandQuery.trim().toLowerCase();
+    return schools
+      .filter(
+        (s) =>
+          !q ||
+          s.name.toLowerCase().includes(q) ||
+          (s.district?.toLowerCase().includes(q) ?? false),
+      )
+      .slice(0, 5);
+  }, [schools, commandQuery]);
+
+  const filteredPosters = useMemo(() => {
+    const q = commandQuery.trim().toLowerCase();
+    const projectById = new Map(projects.map((p) => [p.id, p]));
+    return posters
+      .filter((p) => {
+        if (!q) return true;
+        const project = projectById.get(p.projectId);
+        return (
+          p.title.toLowerCase().includes(q) ||
+          (project?.name.toLowerCase().includes(q) ?? false)
+        );
+      })
+      .slice(0, 5);
+  }, [posters, projects, commandQuery]);
+
   const handleSelect = useCallback(
     (commandId: string) => {
       const command = allCommands.find((c) => c.id === commandId);
@@ -213,6 +244,18 @@ export function CommandPalette() {
     },
     [closeCommandPalette, setCommandQuery],
   );
+
+  const handleSchoolsView = useCallback(() => {
+    closeCommandPalette();
+    setCommandQuery("");
+    useUIStore.getState().setActiveView("schools");
+  }, [closeCommandPalette, setCommandQuery]);
+
+  const handlePostersView = useCallback(() => {
+    closeCommandPalette();
+    setCommandQuery("");
+    useUIStore.getState().setActiveView("posters");
+  }, [closeCommandPalette, setCommandQuery]);
 
   return (
     <AnimatePresence mode="wait">
@@ -242,6 +285,7 @@ export function CommandPalette() {
             <Command
               label="Command palette"
               shouldFilter={false}
+              loop
               className="flex flex-col"
             >
               <div
@@ -340,6 +384,79 @@ export function CommandPalette() {
                         </div>
                       </Command.Item>
                     ))}
+                  </Command.Group>
+                ) : null}
+                {!graph.isError && filteredSchools.length > 0 ? (
+                  <Command.Group heading="SCHOOLS" className={groupHeadingClass}>
+                    {filteredSchools.map((school) => (
+                      <Command.Item
+                        key={school.id}
+                        value={`school-${school.id}`}
+                        onSelect={handleSchoolsView}
+                        className={itemClass}
+                      >
+                        <div className="flex flex-1 items-center gap-3">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.04]">
+                            <School
+                              size={14}
+                              className={colors.text.tertiary}
+                              strokeWidth={1.75}
+                            />
+                          </span>
+                          <span
+                            className={`text-[13px] font-medium ${colors.text.primary}`}
+                          >
+                            {school.name}
+                          </span>
+                          {school.district ? (
+                            <span
+                              className={`ml-auto text-[11px] ${colors.text.tertiary}`}
+                            >
+                              {school.district}
+                            </span>
+                          ) : null}
+                        </div>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                ) : null}
+                {!graph.isError && filteredPosters.length > 0 ? (
+                  <Command.Group heading="POSTERS" className={groupHeadingClass}>
+                    {filteredPosters.map((poster) => {
+                      const project = projects.find(
+                        (p) => p.id === poster.projectId,
+                      );
+                      return (
+                        <Command.Item
+                          key={poster.id}
+                          value={`poster-${poster.id}`}
+                          onSelect={handlePostersView}
+                          className={itemClass}
+                        >
+                          <div className="flex flex-1 items-center gap-3">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.04]">
+                              <span
+                                className={`h-2 w-2 rounded-full ${PROJECT_COLOR_MAP[project?.color ?? "coral"] ?? PROJECT_COLOR_MAP.coral}`}
+                              />
+                            </span>
+                            <span
+                              className={`min-w-0 truncate text-[13px] font-medium ${colors.text.primary}`}
+                            >
+                              {poster.title}
+                            </span>
+                            <span
+                              className={`ml-auto shrink-0 text-[11px] ${colors.text.tertiary}`}
+                            >
+                              <Image
+                                size={12}
+                                className="inline opacity-60"
+                                aria-hidden
+                              />
+                            </span>
+                          </div>
+                        </Command.Item>
+                      );
+                    })}
                   </Command.Group>
                 ) : null}
               </Command.List>
