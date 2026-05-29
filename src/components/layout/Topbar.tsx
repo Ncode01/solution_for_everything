@@ -46,7 +46,12 @@ export function Topbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLDivElement>(null);
 
-  const orgName = graph.data?.org.name ?? (graph.isLoading ? null : "—");
+  const orgName = graph.data?.org.name ?? null;
+  const orgError = graph.isError
+    ? graph.error instanceof Error
+      ? graph.error.message
+      : "Org error"
+    : null;
   const onlineCount = presenceUsers.filter((u) => u.isOnline).length;
   const notificationCount = 0;
 
@@ -123,17 +128,30 @@ export function Topbar() {
         </span>
         <span
           className={`${typography.scale.xs.class} ${colors.bg.elevated} ${colors.border.default} flex items-center truncate rounded-full border px-2.5 py-0.5 max-w-[180px] min-h-[22px]`}
-          title={orgName ?? undefined}
+          title={
+            graph.data
+              ? `${orgName} · ${graph.data.org.id}`
+              : orgError ?? undefined
+          }
         >
-          {orgName === null ? (
+          {orgName === null && !orgError ? (
             <span
               className={`${skeletonVariants.base} block h-4 w-20`}
               aria-hidden
             />
-          ) : orgName === "—" ? (
-            <span className={colors.text.tertiary}>No org</span>
-          ) : (
+          ) : orgError !== null ? (
+            <span
+              className={`truncate ${colors.text.tertiary}`}
+              title={`Error: ${orgError} (ORG_ID: ${process.env.NEXT_PUBLIC_ORG_ID ?? "unset"})`}
+            >
+              {orgError === "NEXT_PUBLIC_ORG_ID is not set"
+                ? "ORG_ID unset"
+                : "Org not found"}
+            </span>
+          ) : orgName ? (
             <span className={`truncate ${colors.text.secondary}`}>{orgName}</span>
+          ) : (
+            <span className={colors.text.tertiary}>No org</span>
           )}
         </span>
       </div>
