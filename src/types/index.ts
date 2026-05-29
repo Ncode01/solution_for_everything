@@ -154,6 +154,7 @@ export interface TaskCardNodeData {
 export interface PersonAvatarNodeData {
   user: User;
   isVisible: boolean;
+  projectIds: string[];
   [key: string]: unknown;
 }
 

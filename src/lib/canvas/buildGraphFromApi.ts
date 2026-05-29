@@ -22,6 +22,19 @@ import type {
   User,
 } from "@/types";
 
+const PROJECT_COLS = 3;
+const PROJECT_COL_WIDTH = 900;
+const PROJECT_ROW_HEIGHT = 1100;
+const PROJECT_ORIGIN_X = 100;
+const PROJECT_ORIGIN_Y = 100;
+
+const TASK_COL_WIDTH = 220;
+const TASK_ROW_HEIGHT = 130;
+const TASKS_PER_COL = 5;
+const PHASE_COL_GAP = 280;
+
+const PERSON_ROW_Y = PROJECT_ORIGIN_Y - 200;
+
 function toFrontendUser(
   apiUser: OrgGraphResponse["users"][number],
   taskCount: number,
@@ -75,14 +88,104 @@ function pickUpcomingMilestone(
   return future ?? projectMilestones[0] ?? null;
 }
 
+function projectGridPosition(
+  index: number,
+  canvasX: number | null | undefined,
+  canvasY: number | null | undefined,
+): { x: number; y: number } {
+  if (canvasX != null && canvasY != null) {
+    return { x: canvasX, y: canvasY };
+  }
+  const col = index % PROJECT_COLS;
+  const row = Math.floor(index / PROJECT_COLS);
+  return {
+    x: PROJECT_ORIGIN_X + col * PROJECT_COL_WIDTH,
+    y: PROJECT_ORIGIN_Y + row * PROJECT_ROW_HEIGHT,
+  };
+}
+
+function taskNeedsAutoLayout(canvasX: number, canvasY: number): boolean {
+  return canvasX === 0 && canvasY === 0;
+}
+
+function layoutTasksForProject(
+  projectId: string,
+  clusterX: number,
+  clusterY: number,
+  phases: OrgGraphResponse["phases"],
+  tasks: OrgGraphResponse["tasks"],
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+  const projectPhases = phases
+    .filter((ph) => ph.projectId === projectId)
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+
+  const taskAreaOriginX = clusterX + 30;
+  const taskAreaOriginY = clusterY + 220;
+
+  projectPhases.forEach((phase, phaseIndex) => {
+    const phaseTasks = tasks
+      .filter((t) => t.phaseId === phase.id)
+      .sort((a, b) => {
+        if (a.canvasX !== b.canvasX) return a.canvasX - b.canvasX;
+        return a.canvasY - b.canvasY;
+      });
+
+    const phaseColOffset = phaseIndex * (TASK_COL_WIDTH + PHASE_COL_GAP);
+
+    phaseTasks.forEach((task, j) => {
+      if (!taskNeedsAutoLayout(task.canvasX, task.canvasY)) {
+        positions.set(task.id, { x: task.canvasX, y: task.canvasY });
+        return;
+      }
+
+      const col = Math.floor(j / TASKS_PER_COL);
+      const row = j % TASKS_PER_COL;
+      positions.set(task.id, {
+        x: taskAreaOriginX + phaseColOffset + col * TASK_COL_WIDTH,
+        y: taskAreaOriginY + row * TASK_ROW_HEIGHT,
+      });
+    });
+  });
+
+  return positions;
+}
+
+/** Nudge overlapping taskCard nodes apart (Manhattan proximity). */
+export function deCollide(nodes: Node[], minDist: number): Node[] {
+  const adjusted = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+  }));
+
+  for (let i = 0; i < adjusted.length; i++) {
+    for (let j = i + 1; j < adjusted.length; j++) {
+      if (adjusted[i].type !== "taskCard" || adjusted[j].type !== "taskCard") {
+        continue;
+      }
+      const dx = Math.abs(adjusted[i].position.x - adjusted[j].position.x);
+      const dy = Math.abs(adjusted[i].position.y - adjusted[j].position.y);
+      if (dx < minDist && dy < minDist) {
+        adjusted[j].position.y += minDist;
+      }
+    }
+  }
+
+  return adjusted;
+}
+
 export function buildGraphFromApi(data: OrgGraphResponse): {
   nodes: Node[];
   edges: Edge[];
 } {
   const userTaskCount: Record<string, number> = {};
+  const userProjectIds: Record<string, Set<string>> = {};
+
   for (const t of data.tasks) {
     for (const uid of t.assigneeIds) {
       userTaskCount[uid] = (userTaskCount[uid] ?? 0) + 1;
+      if (!userProjectIds[uid]) userProjectIds[uid] = new Set();
+      userProjectIds[uid].add(t.projectId);
     }
   }
 
@@ -137,55 +240,13 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     daysUntil: m.daysUntil,
   }));
 
-  const taskNodes: Node<TaskCardNodeData>[] = data.tasks.map((apiTask) => {
-    const project = projectMap[apiTask.projectId];
-    const assignees = apiTask.assigneeIds
-      .map((id) => userMap[id])
-      .filter(Boolean);
-    const cpmNode = cpmResult.nodes[apiTask.id];
-
-    const task: Task = {
-      id: apiTask.id,
-      phaseId: apiTask.phaseId,
-      projectId: apiTask.projectId,
-      title: apiTask.title,
-      description: apiTask.description ?? undefined,
-      status: apiTask.status as TaskStatus,
-      priority: apiTask.priority as TaskPriority,
-      assigneeIds: apiTask.assigneeIds,
-      effortEstimate: apiTask.effortEstimate ?? undefined,
-      dueDate: apiTask.dueDate ? new Date(apiTask.dueDate) : undefined,
-      canvasX: apiTask.canvasX,
-      canvasY: apiTask.canvasY,
-      isCriticalPath: cpmNode?.isCriticalPath ?? false,
-      slackTime: cpmNode ? Math.round(cpmNode.float / 8) : undefined,
-      earlyStart: cpmNode?.earlyStart,
-      earlyFinish: cpmNode?.earlyFinish,
-      lateStart: cpmNode?.lateStart,
-      lateFinish: cpmNode?.lateFinish,
-      dependencies: apiTask.dependencies,
-      dependents: apiTask.dependents,
-    };
-
-    return {
-      id: `task-${apiTask.id}`,
-      type: "taskCard",
-      position: { x: apiTask.canvasX, y: apiTask.canvasY },
-      data: {
-        task,
-        assignees,
-        projectColor: project?.color ?? "sky",
-        isCriticalPath: task.isCriticalPath,
-        slackTime: task.slackTime,
-        isExpanded: false,
-      },
-    };
-  });
+  const clusterPositions = new Map<string, { x: number; y: number }>();
 
   const projectNodes: Node<ProjectClusterNodeData>[] = data.projects.map(
     (p, i) => {
-      const px = p.canvasX ?? 60 + (i % 3) * 600;
-      const py = p.canvasY ?? 150 + Math.floor(i / 3) * 600;
+      const pos = projectGridPosition(i, p.canvasX, p.canvasY);
+      clusterPositions.set(p.id, pos);
+
       const partners =
         data.partnerOrgsByProject?.[p.id]?.map((o) => o.orgName) ?? [];
       const budgetSummary = data.budgetByProject?.[p.id]?.summary ?? null;
@@ -201,7 +262,7 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       return {
         id: `project-${p.id}`,
         type: "projectCluster",
-        position: { x: px, y: py },
+        position: pos,
         data: {
           project: projectMap[p.id],
           isExpanded: false,
@@ -218,19 +279,37 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     },
   );
 
+  const milestonesByProject = new Map<string, Milestone[]>();
+  for (const m of milestoneList) {
+    const list = milestonesByProject.get(m.projectId) ?? [];
+    list.push(m);
+    milestonesByProject.set(m.projectId, list);
+  }
+  for (const [pid, list] of milestonesByProject) {
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    milestonesByProject.set(pid, list);
+  }
+
   const milestoneNodes: Node<MilestoneNodeData>[] = milestoneList.map((m) => {
     const project = data.projects.find((p) => p.id === m.projectId);
-    const cluster = projectNodes.find((n) => n.id === `project-${m.projectId}`);
-    const baseX = cluster?.position.x ?? 200;
-    const baseY = cluster?.position.y ?? 200;
+    const cluster = clusterPositions.get(m.projectId) ?? { x: 200, y: 200 };
+    const milestonesForProject = milestonesByProject.get(m.projectId) ?? [];
+    const milestoneIndex = milestonesForProject.findIndex(
+      (item) => item.id === m.id,
+    );
+
+    const hasApiPosition = m.canvasX != null && m.canvasY != null;
+    const x = hasApiPosition
+      ? m.canvasX!
+      : cluster.x + 520;
+    const y = hasApiPosition
+      ? m.canvasY!
+      : cluster.y + 60 + milestoneIndex * 90;
 
     return {
       id: `milestone-${m.id}`,
       type: "milestoneNode",
-      position: {
-        x: m.canvasX ?? baseX + 400,
-        y: m.canvasY ?? baseY - 80,
-      },
+      position: { x, y },
       data: {
         milestoneId: m.id,
         title: m.title,
@@ -243,26 +322,87 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     };
   });
 
-  const personNodes: Node<PersonAvatarNodeData>[] = data.users.map((u) => {
-    const userTasks = data.tasks.filter((t) => t.assigneeIds.includes(u.id));
-    const avgX =
-      userTasks.length > 0
-        ? userTasks.reduce((s, t) => s + t.canvasX, 0) / userTasks.length
-        : 200;
-    const avgY =
-      userTasks.length > 0
-        ? userTasks.reduce((s, t) => s + t.canvasY, 0) / userTasks.length - 120
-        : 100;
+  const taskPositionById = new Map<string, { x: number; y: number }>();
+  for (const p of data.projects) {
+    const cluster = clusterPositions.get(p.id) ?? { x: 200, y: 200 };
+    const projectLayouts = layoutTasksForProject(
+      p.id,
+      cluster.x,
+      cluster.y,
+      data.phases,
+      data.tasks,
+    );
+    for (const [taskId, pos] of projectLayouts) {
+      taskPositionById.set(taskId, pos);
+    }
+  }
+
+  let taskNodes: Node<TaskCardNodeData>[] = data.tasks.map((apiTask) => {
+    const project = projectMap[apiTask.projectId];
+    const assignees = apiTask.assigneeIds
+      .map((id) => userMap[id])
+      .filter(Boolean);
+    const cpmNode = cpmResult.nodes[apiTask.id];
+    const pos = taskPositionById.get(apiTask.id) ?? {
+      x: apiTask.canvasX,
+      y: apiTask.canvasY,
+    };
+
+    const task: Task = {
+      id: apiTask.id,
+      phaseId: apiTask.phaseId,
+      projectId: apiTask.projectId,
+      title: apiTask.title,
+      description: apiTask.description ?? undefined,
+      status: apiTask.status as TaskStatus,
+      priority: apiTask.priority as TaskPriority,
+      assigneeIds: apiTask.assigneeIds,
+      effortEstimate: apiTask.effortEstimate ?? undefined,
+      dueDate: apiTask.dueDate ? new Date(apiTask.dueDate) : undefined,
+      canvasX: pos.x,
+      canvasY: pos.y,
+      isCriticalPath: cpmNode?.isCriticalPath ?? false,
+      slackTime: cpmNode ? Math.round(cpmNode.float / 8) : undefined,
+      earlyStart: cpmNode?.earlyStart,
+      earlyFinish: cpmNode?.earlyFinish,
+      lateStart: cpmNode?.lateStart,
+      lateFinish: cpmNode?.lateFinish,
+      dependencies: apiTask.dependencies,
+      dependents: apiTask.dependents,
+    };
 
     return {
-      id: `person-${u.id}`,
-      type: "personAvatar",
-      position: { x: avgX, y: avgY },
-      data: { user: userMap[u.id], isVisible: false },
-      hidden: true,
-      zIndex: 1000,
+      id: `task-${apiTask.id}`,
+      type: "taskCard",
+      position: pos,
+      data: {
+        task,
+        assignees,
+        projectColor: project?.color ?? "sky",
+        isCriticalPath: task.isCriticalPath,
+        slackTime: task.slackTime,
+        isExpanded: false,
+      },
     };
   });
+
+  taskNodes = deCollide(taskNodes, 60) as Node<TaskCardNodeData>[];
+
+  const personNodes: Node<PersonAvatarNodeData>[] = data.users.map((u, i) => ({
+    id: `person-${u.id}`,
+    type: "personAvatar",
+    position: {
+      x: PROJECT_ORIGIN_X + i * 120,
+      y: PERSON_ROW_Y,
+    },
+    data: {
+      user: userMap[u.id],
+      isVisible: false,
+      projectIds: Array.from(userProjectIds[u.id] ?? []),
+    },
+    hidden: true,
+    zIndex: 1000,
+  }));
 
   const edges: Edge[] = [];
   for (const apiTask of data.tasks) {

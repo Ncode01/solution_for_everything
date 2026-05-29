@@ -42,9 +42,15 @@ Extract: color swatches, typography specimen, button variants. Not a routable sc
 | Stitch ID | `bbdb07f9dd094322ace6c866a5c88c72` |
 | Zoom | `viewport.zoom < 0.3` |
 
-**Renders:** 4× `ProjectClusterNode`, `PersonAvatarNode` overlays, `CrossProjectEdge` (dashed)
+**Renders:** All `ProjectClusterNode` clusters (RCCS: 7 projects), `MilestoneNode` diamonds, `CrossProjectEdge` (dashed). Task cards hidden until Z2.
 
-**Components:** `ProjectClusterNode`, `PersonAvatarNode`, `CrossProjectEdge`
+**Layout (Z0):**
+
+- Projects in a **3-column grid** with **900px × 1100px** spacing (origin 100, 100)
+- Milestones **stacked vertically** to the right of their parent cluster (+520px X, +60px then +90px per milestone)
+- **Person nodes hidden** by default; on **project expand** they appear in an **arc above the cluster header**, showing **only assignees for that project**, with faint dashed edges to the project
+
+**Components:** `ProjectClusterNode`, `MilestoneNode`, `PersonAvatarNode`, `CrossProjectEdge`
 
 ---
 

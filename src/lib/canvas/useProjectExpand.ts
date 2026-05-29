@@ -3,7 +3,12 @@ import type { Node } from "@xyflow/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasStore } from "@/stores/canvas.store";
 import type { OrgGraphResponse } from "@/lib/api/types";
-import type { PhaseClusterNodeData, ProjectAccentColor, Phase } from "@/types";
+import type {
+  PhaseClusterNodeData,
+  PersonAvatarNodeData,
+  ProjectAccentColor,
+  Phase,
+} from "@/types";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -17,6 +22,64 @@ function getPhasePositions(
     x: BASE_X,
     y: BASE_Y + i * 90,
   }));
+}
+
+function applyPersonArcLayout(
+  nodes: Node[],
+  projectId: string,
+): Node[] {
+  const projectNode = nodes.find((nd) => nd.id === `project-${projectId}`);
+  const clusterX = projectNode?.position.x ?? 200;
+  const clusterY = projectNode?.position.y ?? 200;
+
+  const members = nodes.filter(
+    (nd) =>
+      nd.type === "personAvatar" &&
+      (nd.data as PersonAvatarNodeData).projectIds.includes(projectId),
+  );
+  const totalMembers = members.length;
+  const arcSpacing = 80;
+  const arcStartX = clusterX - (totalMembers * arcSpacing) / 2;
+
+  return nodes.map((n) => {
+    if (n.type !== "personAvatar") return n;
+    const personData = n.data as PersonAvatarNodeData;
+    if (!personData.projectIds.includes(projectId)) return n;
+
+    const memberIndex = members.findIndex((nd) => nd.id === n.id);
+    const arcX = arcStartX + memberIndex * arcSpacing;
+    const arcY = clusterY - 160;
+
+    return {
+      ...n,
+      position: { x: arcX, y: arcY },
+      hidden: false,
+      data: { ...personData, isVisible: true },
+    };
+  });
+}
+
+function hideProjectPersons(
+  nodes: Node[],
+  projectId: string,
+  expandedAfterCollapse: Set<string>,
+): Node[] {
+  return nodes.map((n) => {
+    if (n.type !== "personAvatar") return n;
+    const personData = n.data as PersonAvatarNodeData;
+    if (!personData.projectIds.includes(projectId)) return n;
+
+    const stillVisible = personData.projectIds.some(
+      (pid) => pid !== projectId && expandedAfterCollapse.has(pid),
+    );
+    if (stillVisible) return n;
+
+    return {
+      ...n,
+      hidden: true,
+      data: { ...personData, isVisible: false },
+    };
+  });
 }
 
 export function useProjectExpand() {
@@ -66,18 +129,31 @@ export function useProjectExpand() {
       toggleProjectExpanded(projectId);
 
       if (isCurrentlyExpanded) {
-        setNodes((nodes) =>
-          nodes
+        const expandedAfterCollapse =
+          useCanvasStore.getState().expandedProjects;
+
+        setNodes((nodes) => {
+          const withoutPhases = nodes
             .filter((n) => !n.id.startsWith(`phase-${projectId}-`))
             .map((n) => {
               if (n.id === `project-${projectId}`) {
                 return { ...n, data: { ...n.data, isExpanded: false } };
               }
               return n;
-            }),
-        );
+            });
+          return hideProjectPersons(
+            withoutPhases,
+            projectId,
+            expandedAfterCollapse,
+          );
+        });
+
         setEdges((edges) =>
-          edges.filter((e) => !e.id.startsWith(`project-phase-${projectId}`)),
+          edges.filter(
+            (e) =>
+              !e.id.startsWith(`project-phase-${projectId}`) &&
+              !e.id.startsWith(`person-assign-${projectId}-`),
+          ),
         );
       } else {
         setNodes((allNodes) => {
@@ -98,7 +174,7 @@ export function useProjectExpand() {
             }),
           );
 
-          return [
+          const withPhases = [
             ...allNodes.map((n) =>
               n.id === `project-${projectId}`
                 ? { ...n, data: { ...n.data, isExpanded: true } }
@@ -106,9 +182,35 @@ export function useProjectExpand() {
             ),
             ...phaseNodes,
           ];
+
+          return applyPersonArcLayout(withPhases, projectId);
         });
 
         setEdges((edges) => {
+          const withoutStale = edges.filter(
+            (e) => !e.id.startsWith(`person-assign-${projectId}-`),
+          );
+
+          const assigneeIds = new Set<string>();
+          for (const task of graph.tasks) {
+            if (task.projectId !== projectId) continue;
+            for (const uid of task.assigneeIds) {
+              assigneeIds.add(uid);
+            }
+          }
+
+          const assignmentEdges = [...assigneeIds].map((userId) => ({
+            id: `person-assign-${projectId}-${userId}`,
+            source: `person-${userId}`,
+            target: `project-${projectId}`,
+            style: {
+              stroke: "rgba(137, 146, 148, 0.15)",
+              strokeWidth: 1,
+              strokeDasharray: "3 4",
+            },
+            animated: false,
+          }));
+
           const phaseEdges = phases.map((phase) => ({
             id: `project-phase-${projectId}-${phase.id}`,
             source: `project-${projectId}`,
@@ -120,7 +222,8 @@ export function useProjectExpand() {
             },
             animated: false,
           }));
-          return [...edges, ...phaseEdges];
+
+          return [...withoutStale, ...phaseEdges, ...assignmentEdges];
         });
       }
     },

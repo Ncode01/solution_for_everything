@@ -91,6 +91,12 @@ function buildPersonAvatarNodes(): Node<PersonAvatarNodeData>[] {
           120
         : 100;
 
+    const projectIds = [
+      ...new Set(
+        userTasks.map((t) => t.projectId).filter((id): id is string => !!id),
+      ),
+    ];
+
     return {
       id: `person-${user.id}`,
       type: "personAvatar",
@@ -98,6 +104,7 @@ function buildPersonAvatarNodes(): Node<PersonAvatarNodeData>[] {
       data: {
         user,
         isVisible: false,
+        projectIds,
       },
       hidden: true,
       zIndex: 1000,

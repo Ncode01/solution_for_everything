@@ -123,6 +123,32 @@ GET /api/graph/:orgId
 
 Logs: `[Audit] Org graph loaded`, `[OrgGraph] graph content changed, rebuilding canvas` (dev).
 
+### Canvas layout (`buildGraphFromApi`)
+
+Deterministic positions are computed in `src/lib/canvas/buildGraphFromApi.ts` (API `canvasX`/`canvasY` wins when set).
+
+| Constant | Value | Role |
+|----------|-------|------|
+| `PROJECT_COLS` | 3 | Project cluster grid columns |
+| `PROJECT_COL_WIDTH` | 900 | Horizontal gap between clusters |
+| `PROJECT_ROW_HEIGHT` | 1100 | Vertical gap between cluster rows |
+| `PROJECT_ORIGIN_X` / `Y` | 100 / 100 | Top-left of project grid |
+| `TASK_COL_WIDTH` | 220 | Task column spacing within a phase |
+| `TASK_ROW_HEIGHT` | 130 | Task row spacing |
+| `TASKS_PER_COL` | 5 | Tasks per column before wrapping |
+| `PHASE_COL_GAP` | 280 | Extra horizontal gap between phase columns |
+| `PERSON_ROW_Y` | −100 | Default person row above project grid |
+
+**Projects:** Grid index layout unless API provides coordinates.
+
+**Milestones:** API coordinates if present; otherwise stacked at `clusterX + 520`, `clusterY + 60 + index × 90` (sorted by date per project).
+
+**Tasks:** If `canvasX === 0` **and** `canvasY === 0`, auto-layout in phase columns below the cluster (`TASK_AREA_ORIGIN` = cluster + 30, +220). Any non-zero X or Y is treated as manual placement and preserved.
+
+**deCollide:** Exported function; runs on `taskCard` nodes only with 60px Manhattan threshold — nudges the later node downward when two tasks overlap.
+
+**People:** Initial positions in a row above the grid (`PERSON_ROW_Y`). Hidden by default. On project expand (`useProjectExpand`), members arc above the cluster header; faint dashed edges to the project node.
+
 ### 4.2 Mutations (UI → server → cache)
 
 ```
