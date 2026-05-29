@@ -67,6 +67,8 @@ function FlowCanvasInner() {
   const { handleToggleExpand } = useProjectExpand();
 
   const updateTaskPosition = useUpdateTaskMutation();
+  const updateTaskPositionRef = useRef(updateTaskPosition);
+  updateTaskPositionRef.current = updateTaskPosition;
 
   const dragSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,13 +83,13 @@ function FlowCanvasInner() {
         clearTimeout(dragSaveTimerRef.current);
       }
       dragSaveTimerRef.current = setTimeout(() => {
-        void updateTaskPosition.mutate({
+        void updateTaskPositionRef.current.mutate({
           taskId,
           body: { canvasX, canvasY },
         });
       }, 300);
     },
-    [updateTaskPosition],
+    [],
   );
 
   // Wire onToggleExpand once on mount and whenever nodes list changes by count
@@ -99,7 +101,9 @@ function FlowCanvasInner() {
   useEffect(() => {
     // Read from store directly — do NOT subscribe to nodes via deps
     const currentNodes = useCanvasStore.getState().nodes;
-    const projectCount = currentNodes.filter((n) => n.type === "projectCluster").length;
+    const projectCount = currentNodes.filter(
+      (n) => n.type === "projectCluster",
+    ).length;
     if (projectCount === projectNodeCountRef.current) return;
     projectNodeCountRef.current = projectCount;
     setNodes((current) =>
@@ -119,7 +123,10 @@ function FlowCanvasInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setNodes]); // intentionally omit nodes and handleToggleExpand — read via refs/getState
 
-  const prevCascadeRef = useRef<{ ids: typeof cascadeChainTaskIds; impact: typeof cascadeImpact }>({
+  const prevCascadeRef = useRef<{
+    ids: string[] | null;
+    impact: typeof cascadeImpact;
+  }>({
     ids: null,
     impact: null,
   });
@@ -197,7 +204,7 @@ function FlowCanvasInner() {
     );
   }, [cascadeChainTaskIds, activeLayer, setEdges]);
 
-  const prevCascadeEdgeRef = useRef<typeof cascadeChainTaskIds>(null);
+  const prevCascadeEdgeRef = useRef<string[] | null>(null);
   useEffect(() => {
     if (cascadeChainTaskIds !== null) {
       prevCascadeEdgeRef.current = cascadeChainTaskIds;
