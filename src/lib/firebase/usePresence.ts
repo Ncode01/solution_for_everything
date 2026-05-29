@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type MutableRefObject,
+} from "react";
 import {
   doc,
   setDoc,
@@ -12,6 +18,7 @@ import {
 } from "firebase/firestore";
 import { getFirestoreDb, isFirebaseConfigured } from "./config";
 import { useUIStore } from "@/stores/ui.store";
+import { logOnce } from "@/lib/diagnostics";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -29,6 +36,23 @@ export interface PresenceUser {
   isOnline: boolean;
 }
 
+function disablePresenceForSession(
+  firestoreAvailableRef: MutableRefObject<boolean | null>,
+  heartbeatRef: MutableRefObject<ReturnType<typeof setInterval> | null>,
+  reason: string,
+): void {
+  if (firestoreAvailableRef.current === false) return;
+  firestoreAvailableRef.current = false;
+  if (heartbeatRef.current) {
+    clearInterval(heartbeatRef.current);
+    heartbeatRef.current = null;
+  }
+  logOnce(
+    "presence-disabled",
+    `[Presence] Firestore unavailable, presence disabled (${reason})`,
+  );
+}
+
 export function usePresence(
   currentUser: { id: string; name: string; initials: string } | null,
 ) {
@@ -37,7 +61,7 @@ export function usePresence(
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCursorWriteRef = useRef<number>(0);
   const lastViewportWriteRef = useRef<number>(0);
-  const firestoreAvailableRef = useRef<boolean | null>(null); // null=unknown, false=unavailable
+  const firestoreAvailableRef = useRef<boolean | null>(null);
 
   const writePresence = useCallback(
     async (
@@ -50,7 +74,7 @@ export function usePresence(
       }> = {},
     ) => {
       if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
-      if (firestoreAvailableRef.current === false) return; // already known unavailable
+      if (firestoreAvailableRef.current === false) return;
       const db = getFirestoreDb();
       if (!db) return;
 
@@ -75,24 +99,30 @@ export function usePresence(
     [currentUser, activeView],
   );
 
-  // Heartbeat — write presence on mount and every 30s
   useEffect(() => {
     if (!currentUser || !ORG_ID || !isFirebaseConfigured()) return;
 
     void writePresence().catch(() => {
-      firestoreAvailableRef.current = false;
+      disablePresenceForSession(
+        firestoreAvailableRef,
+        heartbeatRef,
+        "initial write failed",
+      );
     });
 
     heartbeatRef.current = setInterval(() => {
       void writePresence().catch(() => {
-        firestoreAvailableRef.current = false;
-        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        disablePresenceForSession(
+          firestoreAvailableRef,
+          heartbeatRef,
+          "heartbeat write failed",
+        );
       });
     }, 30_000);
 
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      if (firestoreAvailableRef.current === false) return; // don't try to delete if unavailable
+      if (firestoreAvailableRef.current === false) return;
       const db = getFirestoreDb();
       if (!db) return;
       const ref = doc(db, "orgs", ORG_ID, "presence", currentUser.id);
@@ -100,7 +130,6 @@ export function usePresence(
     };
   }, [currentUser, writePresence]);
 
-  // Listen to other users' presence
   useEffect(() => {
     if (!ORG_ID || !isFirebaseConfigured()) return;
     const db = getFirestoreDb();
@@ -110,7 +139,7 @@ export function usePresence(
     const unsubscribe = onSnapshot(
       ref,
       (snapshot) => {
-        firestoreAvailableRef.current = true; // confirmed working
+        firestoreAvailableRef.current = true;
         const now = Date.now();
         const users: PresenceUser[] = [];
         snapshot.forEach((docSnap) => {
@@ -137,10 +166,11 @@ export function usePresence(
         setPresenceUsers(users.filter((u) => u.isOnline));
       },
       (error) => {
-        // Firestore unavailable (not created, wrong project, missing env vars)
-        // Fail silently — presence is a non-critical feature
-        firestoreAvailableRef.current = false;
-        console.warn("[Presence] Firestore unavailable — presence disabled:", error.code);
+        disablePresenceForSession(
+          firestoreAvailableRef,
+          heartbeatRef,
+          error.code,
+        );
       },
     );
 
@@ -153,7 +183,13 @@ export function usePresence(
       const now = Date.now();
       if (now - lastCursorWriteRef.current < 2_000) return;
       lastCursorWriteRef.current = now;
-      void writePresence({ cursorX: canvasX, cursorY: canvasY }).catch(() => {});
+      void writePresence({ cursorX: canvasX, cursorY: canvasY }).catch(() => {
+        disablePresenceForSession(
+          firestoreAvailableRef,
+          heartbeatRef,
+          "cursor write failed",
+        );
+      });
     },
     [writePresence],
   );
@@ -164,7 +200,15 @@ export function usePresence(
       const now = Date.now();
       if (now - lastViewportWriteRef.current < 5_000) return;
       lastViewportWriteRef.current = now;
-      void writePresence({ viewportX: x, viewportY: y, viewportZoom: zoom }).catch(() => {});
+      void writePresence({ viewportX: x, viewportY: y, viewportZoom: zoom }).catch(
+        () => {
+          disablePresenceForSession(
+            firestoreAvailableRef,
+            heartbeatRef,
+            "viewport write failed",
+          );
+        },
+      );
     },
     [writePresence],
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ReactFlow,
   Background,
@@ -18,14 +19,18 @@ import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
 import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
-import { useUIStore } from "@/stores/ui.store";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
 import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
-import { useUpdateTaskMutation } from "@/lib/api/useTaskMutations";
+import {
+  applyOptimisticTaskPosition,
+  useUpdateTaskMutation,
+} from "@/lib/api/useTaskMutations";
+import { logDevOnce } from "@/lib/diagnostics";
+import { useUIStore } from "@/stores/ui.store";
 import type { ProjectClusterNodeData } from "@/types";
 
 const nodeTypes = {
@@ -52,6 +57,9 @@ function SemanticZoomTracker() {
 function FlowCanvasInner() {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
+  const projectClusterCount = useCanvasStore(
+    (s) => s.nodes.filter((n) => n.type === "projectCluster").length,
+  );
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
   const setViewport = useCanvasStore((s) => s.setViewport);
@@ -61,16 +69,19 @@ function FlowCanvasInner() {
   const activeLayer = useCanvasStore((s) => s.activeLayer);
 
   const skipInitialFitView = useUIStore((s) => s.skipInitialFitView);
+  const isCanvasLoading = useUIStore((s) => s.isCanvasLoading);
   const broadcastCursor = useUIStore((s) => s.broadcastCursor);
   const broadcastViewport = useUIStore((s) => s.broadcastViewport);
   const { screenToFlowPosition } = useReactFlow();
   const { handleToggleExpand } = useProjectExpand();
+  const queryClient = useQueryClient();
 
   const updateTaskPosition = useUpdateTaskMutation();
   const updateTaskPositionRef = useRef(updateTaskPosition);
   updateTaskPositionRef.current = updateTaskPosition;
 
   const dragSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const healthLoggedRef = useRef(false);
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -78,6 +89,16 @@ function FlowCanvasInner() {
       const taskId = node.id.replace("task-", "");
       const canvasX = Math.round(node.position.x);
       const canvasY = Math.round(node.position.y);
+
+      applyOptimisticTaskPosition(queryClient, taskId, canvasX, canvasY);
+
+      if (!updateTaskPositionRef.current?.mutate) {
+        logDevOnce(
+          "flowcanvas-drag-mutation-missing",
+          "[FlowCanvas] drag save skipped: mutation ref unavailable",
+        );
+        return;
+      }
 
       if (dragSaveTimerRef.current) {
         clearTimeout(dragSaveTimerRef.current);
@@ -89,8 +110,24 @@ function FlowCanvasInner() {
         });
       }, 300);
     },
-    [],
+    [queryClient],
   );
+
+  useEffect(() => {
+    if (healthLoggedRef.current || process.env.NODE_ENV === "production") {
+      return;
+    }
+    healthLoggedRef.current = true;
+    const currentNodes = useCanvasStore.getState().nodes;
+    const projectClusters = currentNodes.filter(
+      (n) => n.type === "projectCluster",
+    ).length;
+    const tasks = currentNodes.filter((n) => n.id.startsWith("task-")).length;
+    logDevOnce(
+      "flowcanvas-health",
+      `[FlowCanvas] mount health: projects=${projectClusters} tasks=${tasks} loading=${isCanvasLoading} skipFitView=${skipInitialFitView}`,
+    );
+  }, [isCanvasLoading, skipInitialFitView]);
 
   // Wire onToggleExpand once on mount and whenever nodes list changes by count
   // (new project added), NOT on every handleToggleExpand identity change
@@ -99,13 +136,14 @@ function FlowCanvasInner() {
   handleToggleExpandRef.current = handleToggleExpand;
 
   useEffect(() => {
-    // Read from store directly — do NOT subscribe to nodes via deps
-    const currentNodes = useCanvasStore.getState().nodes;
-    const projectCount = currentNodes.filter(
-      (n) => n.type === "projectCluster",
-    ).length;
-    if (projectCount === projectNodeCountRef.current) return;
-    projectNodeCountRef.current = projectCount;
+    if (projectClusterCount === projectNodeCountRef.current) {
+      logDevOnce(
+        "flowcanvas-project-wiring-skip",
+        "[FlowCanvas] project wiring skipped: count unchanged",
+      );
+      return;
+    }
+    projectNodeCountRef.current = projectClusterCount;
     setNodes((current) =>
       current.map((node) => {
         if (node.type === "projectCluster") {
@@ -120,8 +158,7 @@ function FlowCanvasInner() {
         return node;
       }),
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setNodes]); // intentionally omit nodes and handleToggleExpand — read via refs/getState
+  }, [projectClusterCount, setNodes]);
 
   const prevCascadeRef = useRef<{
     ids: string[] | null;
@@ -137,9 +174,13 @@ function FlowCanvasInner() {
     prevCascadeRef.current = { ids: cascadeChainTaskIds, impact: cascadeImpact };
 
     if (!cascadeChainTaskIds && !cascadeImpact) {
-      // Only clear styles if we're transitioning FROM an active cascade
-      // Skip on initial mount (prev was also null)
-      if (prevIds === null && prevImpact === null) return;
+      if (prevIds === null && prevImpact === null) {
+        logDevOnce(
+          "flowcanvas-cascade-clear-skip",
+          "[FlowCanvas] cascade clear skipped: initial mount",
+        );
+        return;
+      }
       setNodes((current) =>
         current.map((node) => {
           if (!node.id.startsWith("task-")) return node;
@@ -210,8 +251,13 @@ function FlowCanvasInner() {
       prevCascadeEdgeRef.current = cascadeChainTaskIds;
       return;
     }
-    // Only restore if transitioning FROM an active chain (not on initial mount)
-    if (prevCascadeEdgeRef.current === null) return;
+    if (prevCascadeEdgeRef.current === null) {
+      logDevOnce(
+        "flowcanvas-edge-restore-skip",
+        "[FlowCanvas] edge restore skipped: initial mount",
+      );
+      return;
+    }
     prevCascadeEdgeRef.current = null;
     if (activeLayer === "workload") return;
     setEdges((current) => restoreDependencyEdgeStyles(current));

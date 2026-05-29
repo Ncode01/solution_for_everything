@@ -26,6 +26,15 @@
 
 **Login (production):** `owner@flowcanvas.dev` / `demo12345`
 
+## Phase 11B — Stability hardening (in progress)
+
+Branch: `fix/phase-11b-stability`
+
+- Canvas: transition-guarded cascade/project effects, stable drag mutation, optimistic position cache
+- Firebase: `onError` on listeners, session-scoped event replay, presence disable on Firestore failure
+- API: no hard reload on 401; viewport persistence non-fatal with diagnostics
+- Docs: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md), expanded [DEPLOY.md](./DEPLOY.md)
+
 ## Phase history
 
 - Phase 7–9: Gantt, dashboard, presence, invites, auth hardening

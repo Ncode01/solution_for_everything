@@ -1,5 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { logOnce } from "@/lib/diagnostics";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,11 +12,18 @@ const firebaseConfig = {
 };
 
 export function isFirebaseConfigured(): boolean {
-  return Boolean(
+  const configured = Boolean(
     firebaseConfig.apiKey &&
       firebaseConfig.projectId &&
       firebaseConfig.appId,
   );
+  if (!configured) {
+    logOnce(
+      "firebase-env-missing",
+      "[Firebase] env vars missing — realtime events and presence disabled",
+    );
+  }
+  return configured;
 }
 
 let app: FirebaseApp | null = null;

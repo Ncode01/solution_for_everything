@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useViewport } from "@xyflow/react";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { logDevOnce } from "@/lib/diagnostics";
 import type { TaskCardNodeData, ZoomLevel } from "@/types";
 
 function getZoomLevel(zoom: number): ZoomLevel {
@@ -32,7 +33,13 @@ export function useSemanticZoom() {
     const newLevel = getZoomLevel(zoom);
     const sameLevel = newLevel === prevLevel.current;
     const sameLayer = activeLayer === prevActiveLayer.current;
-    if (sameLevel && sameLayer) return;
+    if (sameLevel && sameLayer) {
+      logDevOnce(
+        "semantic-zoom-skip",
+        `[FlowCanvas] semantic zoom skipped: level and layer unchanged (${newLevel}, ${activeLayer})`,
+      );
+      return;
+    }
     prevLevel.current = newLevel;
     prevActiveLayer.current = activeLayer;
     setZoomLevel(newLevel);

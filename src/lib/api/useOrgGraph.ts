@@ -8,6 +8,7 @@ import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { buildGraphFromApi } from "@/lib/canvas/buildGraphFromApi";
 import { mergeGraphNodes } from "@/lib/canvas/mergeGraphNodes";
+import { logOnce, logDevOnce } from "@/lib/diagnostics";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -51,8 +52,10 @@ export function useOrgGraph() {
         query.error instanceof Error &&
         query.error.message === "UNAUTHORIZED";
       if (isAuthError) {
-        // Session invalid — let Next.js middleware handle the redirect
-        // Do NOT call window.location here — middleware will redirect on next navigation
+        logOnce(
+          "org-graph-401",
+          "[OrgGraph] 401 UNAUTHORIZED — session invalid; sign in again (no hard reload)",
+        );
         setCanvasError("Session expired. Please refresh the page.");
         return;
       }
@@ -70,8 +73,15 @@ export function useOrgGraph() {
     if (!query.data) return;
 
     const hash = graphContentHash(query.data);
-    if (hash === graphHashRef.current) return;
+    if (hash === graphHashRef.current) {
+      logDevOnce(
+        "org-graph-unchanged",
+        "[OrgGraph] graph content unchanged, skipping rebuild",
+      );
+      return;
+    }
     graphHashRef.current = hash;
+    logDevOnce("org-graph-rebuild", "[OrgGraph] graph content changed, rebuilding canvas");
 
     const { nodes, edges } = buildGraphFromApi(query.data);
     setNodes((prev) => mergeGraphNodes(prev, nodes));

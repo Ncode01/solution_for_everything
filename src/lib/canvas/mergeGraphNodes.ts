@@ -23,12 +23,17 @@ export function mergeGraphNodes(prev: Node[], next: Node[]): Node[] {
     const prevData = prevNode.data as Record<string, unknown>;
     const nextData = nextNode.data as Record<string, unknown>;
 
+    // Prefer API/deterministic data; preserve only client-owned ephemeral fields.
+    // Do not carry stale callbacks (e.g. onToggleExpand) from prev — wired in FlowCanvas.
+    const { onToggleExpand: _omit, ...nextDataWithoutCallbacks } = nextData;
+    void _omit;
+
     merged.push({
       ...nextNode,
       position: userDragged ? prevNode.position : nextNode.position,
       hidden: prevNode.hidden ?? nextNode.hidden,
       data: {
-        ...nextData,
+        ...nextDataWithoutCallbacks,
         isExpanded: prevData.isExpanded ?? nextData.isExpanded,
       },
     });
