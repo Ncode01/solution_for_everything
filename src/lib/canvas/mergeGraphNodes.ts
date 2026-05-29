@@ -30,10 +30,18 @@ export function mergeGraphNodes(prev: Node[], next: Node[]): Node[] {
     const { onToggleExpand: _omit, ...nextDataWithoutCallbacks } = nextData;
     void _omit;
 
+    // Person nodes: preserve prev hidden state (controlled by project expand)
+    // All other nodes: always use nextNode.hidden (from buildGraphFromApi)
+    // This prevents stale hidden:true from old semantic-zoom runs from
+    // persisting into the new layout.
+    const resolvedHidden = nextNode.id.startsWith("person-")
+      ? (prevNode.hidden ?? nextNode.hidden)
+      : (nextNode.hidden ?? false);
+
     merged.push({
       ...nextNode,
       position: preservePosition ? prevNode.position : nextNode.position,
-      hidden: prevNode.hidden ?? nextNode.hidden,
+      hidden: resolvedHidden,
       data: {
         ...nextDataWithoutCallbacks,
         isExpanded: prevData.isExpanded ?? nextData.isExpanded,
