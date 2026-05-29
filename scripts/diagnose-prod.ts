@@ -67,9 +67,9 @@ async function run() {
     };
     const t = json.tasks?.length ?? 0;
     const p = json.projects?.length ?? 0;
-    return t >= 9 && p >= 3
+    return t >= 17 && p >= 7
       ? `PASS — users=${json.users?.length} projects=${p} tasks=${t}`
-      : `FAIL — tasks=${t} projects=${p}`;
+      : `FAIL — tasks=${t} projects=${p} (expected >=17 tasks, >=7 projects)`;
   });
 
   await check("API: GET /api/invites/:token route exists (404 on fake)", async () => {

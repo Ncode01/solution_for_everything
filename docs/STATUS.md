@@ -14,7 +14,7 @@
 | Firebase | flowcanvas-live.firebaseapp.com |
 | Database | Neon `dawn-snow-06912825` / branch `production` |
 
-**Production `ORG_ID`:** `f7e104a8-629e-4c58-9535-27f63237fd18`
+**Production `ORG_ID`:** `2098dc68-5ae1-4cc9-bf15-aebaa6d124cd` (RCCS 2026 seed — update Vercel `NEXT_PUBLIC_ORG_ID` to match)
 
 ## Verification (Phase 10E)
 

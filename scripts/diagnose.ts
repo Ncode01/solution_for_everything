@@ -109,7 +109,7 @@ check("DB: Organizations count > 0", async () => {
   }
 });
 
-check("DB: Tasks count >= 9", async () => {
+check("DB: Tasks count >= 17 (RCCS SparkIT seed)", async () => {
   const url = process.env.DATABASE_URL;
   if (!url || isPlaceholderDbUrl(url)) return "SKIP";
   try {
@@ -120,9 +120,9 @@ check("DB: Tasks count >= 9", async () => {
     const sql = neon(url);
     const db = drizzle(sql, { schema });
     const [result] = await db.select({ c: count() }).from(schema.tasks);
-    return result.c >= 9
+    return result.c >= 17
       ? `PASS — ${result.c} task(s)`
-      : `FAIL — expected >= 9, got ${result.c}`;
+      : `FAIL — expected >= 17, got ${result.c}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }
@@ -161,7 +161,7 @@ check("API: /health returns ok", async () => {
   }
 });
 
-check("API: /api/graph returns 3 projects, 9 tasks", async () => {
+check("API: /api/graph returns RCCS seed (7 projects, 17 tasks)", async () => {
   const orgId = process.env.NEXT_PUBLIC_ORG_ID;
   if (!orgId) return "SKIP — NEXT_PUBLIC_ORG_ID unset";
   try {
@@ -173,14 +173,19 @@ check("API: /api/graph returns 3 projects, 9 tasks", async () => {
       users?: unknown[];
       projects?: unknown[];
       tasks?: unknown[];
+      milestones?: unknown[];
+      crossProjectLinks?: unknown[];
     };
     const users = json.users?.length ?? 0;
     const projects = json.projects?.length ?? 0;
     const tasks = json.tasks?.length ?? 0;
-    const ok = users === 4 && projects === 3 && tasks >= 9;
+    const milestones = json.milestones?.length ?? 0;
+    const crossLinks = json.crossProjectLinks?.length ?? 0;
+    const ok =
+      users >= 22 && projects === 7 && tasks === 17 && milestones >= 7;
     return ok
-      ? `PASS — users=4 projects=3 tasks=${tasks}`
-      : `FAIL — users=${users} projects=${projects} tasks=${tasks}`;
+      ? `PASS — users=${users} projects=${projects} tasks=${tasks} milestones=${milestones} crossLinks=${crossLinks}`
+      : `FAIL — users=${users} projects=${projects} tasks=${tasks} milestones=${milestones} crossLinks=${crossLinks}`;
   } catch (e: unknown) {
     return `FAIL — ${e instanceof Error ? e.message : String(e)}`;
   }

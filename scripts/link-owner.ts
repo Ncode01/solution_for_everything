@@ -6,13 +6,18 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { users } from "../server/db/schema";
 
 async function linkOwner() {
   const databaseUrl = process.env.DATABASE_URL;
+  const orgId = process.env.NEXT_PUBLIC_ORG_ID;
   if (!databaseUrl) {
     console.error("DATABASE_URL missing");
+    process.exit(1);
+  }
+  if (!orgId) {
+    console.error("NEXT_PUBLIC_ORG_ID missing — set in .env.local");
     process.exit(1);
   }
 
@@ -29,27 +34,42 @@ async function linkOwner() {
 
   const authUserId = (authRows[0] as { id: string }).id;
 
-  let domainRows = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, "owner@flowcanvas.dev"))
-    .limit(1);
+  const preferredEmails = [
+    "nadula.nisith@rccs.lk",
+    "shasvinth.srikanth@rccs.lk",
+  ];
 
-  if (domainRows.length === 0) {
-    domainRows = await db
+  let domainUser = null as (typeof users.$inferSelect) | undefined;
+  for (const email of preferredEmails) {
+    const rows = await db
       .select()
       .from(users)
-      .where(eq(users.email, "sarah@flowcanvas.dev"))
+      .where(and(eq(users.orgId, orgId), eq(users.email, email)))
       .limit(1);
+    if (rows[0]) {
+      domainUser = rows[0];
+      break;
+    }
   }
 
-  const domainUser =
-    domainRows[0] ?? (await db.select().from(users).limit(1))[0];
+  if (!domainUser) {
+    const [fallback] = await db
+      .select()
+      .from(users)
+      .where(eq(users.orgId, orgId))
+      .limit(1);
+    domainUser = fallback;
+  }
 
   if (!domainUser) {
     console.error("No domain users found. Run pnpm db:seed first.");
     process.exit(1);
   }
+
+  await db
+    .update(users)
+    .set({ authUserId: null })
+    .where(eq(users.authUserId, authUserId));
 
   await db
     .update(users)
