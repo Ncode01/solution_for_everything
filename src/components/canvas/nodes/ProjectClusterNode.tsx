@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import type { NodeProps } from "@xyflow/react";
 import type { ProjectClusterNodeData } from "@/types";
 import type { ProjectType } from "@/types/project-extensions";
+import { colors, typography } from "@/design-system";
 import { useCanvasStore } from "@/stores/canvas.store";
 
 const COLOR_MAP: Record<string, string> = {
@@ -111,16 +112,30 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
           selectNode(`project-${nodeData.project.id}`, "project");
         }
       }}
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", borderColor: `${accentColor}4D` }}
       className={[
-        "relative overflow-hidden rounded-xl border border-white/[0.08] bg-surface-container-high",
-        isZ1 ? "w-[260px] py-4 pl-5 pr-3" : "min-h-[88px] w-[200px]",
+        `relative overflow-hidden rounded-xl border ${colors.bg.elevated} transition-shadow hover:shadow-md`,
+        isZ1 ? "w-[260px]" : "min-h-[48px] w-[200px]",
       ].join(" ")}
     >
       <div
-        className="absolute left-0 top-0 h-full w-0.5 rounded-l-xl"
+        className="absolute left-0 right-0 top-0 h-[3px] rounded-t-xl"
         style={{ backgroundColor: accentColor }}
       />
+      {health ? (
+        <div
+          className="absolute bottom-0 left-0 h-1 rounded-b-xl"
+          style={{
+            width: `${health.score}%`,
+            backgroundColor:
+              health.score > 80
+                ? "#6DAA45"
+                : health.score >= 50
+                  ? "#E8AF34"
+                  : "#DD6974",
+          }}
+        />
+      ) : null}
 
       {typeBadge && (
         <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/80">

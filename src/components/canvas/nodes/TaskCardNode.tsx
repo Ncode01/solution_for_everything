@@ -2,7 +2,9 @@
 
 import React, { useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Calendar, Clock, Lock, Zap } from "lucide-react";
+import { Calendar, Check, Circle, Clock, X, Zap } from "lucide-react";
+import { colors, typography } from "@/design-system";
+import { getUserColor } from "@/lib/presence/userColor";
 import type { TaskCardNodeData } from "@/types";
 import { handleKeyboardActivate } from "@/lib/a11y/keyboardActivate";
 import { useUIStore } from "@/stores/ui.store";
@@ -54,8 +56,10 @@ export const TaskCardNode = React.memo(function TaskCardNode({
   const isBlocked = nodeData.task.status === "blocked";
   const isDone = nodeData.task.status === "done";
   const isCritical = nodeData.isCriticalPath === true;
-  const isExpanded = nodeData.isExpanded === true;
+  const isDetailed =
+    nodeData.detailed === true || nodeData.isExpanded === true;
   const accentColor = COLOR_MAP[nodeData.projectColor] ?? "#5591C7";
+  const depCount = nodeData.task.dependencies?.length ?? 0;
 
   const formatDueDate = (date: Date) =>
     new Date(date).toLocaleDateString("en-US", {
@@ -71,71 +75,67 @@ export const TaskCardNode = React.memo(function TaskCardNode({
       onKeyDown={(e) => handleKeyboardActivate(e, handleClick)}
       aria-label={`Task: ${nodeData.task.title}, ${nodeData.task.status.replace("_", " ")}`}
       className={[
-        isExpanded ? "w-[280px]" : "w-[220px]",
-        "relative cursor-pointer rounded-lg bg-surface-container transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+        "relative w-[220px] cursor-pointer rounded-lg border transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+        colors.bg.surface,
         isBlocked
-          ? "border border-[#DD6974]/60"
-          : "border border-white/[0.08] hover:border-white/20",
+          ? "border-[#DD6974]/60"
+          : "border-white/[0.08] hover:-translate-y-px hover:border-white/20",
         isDone ? "opacity-55" : "",
         isCritical ? "shadow-[inset_3px_0_0_#E8AF34]" : "",
       ].join(" ")}
     >
+      <div
+        className="absolute bottom-0 left-0 top-0 w-[3px] rounded-l-lg"
+        style={{ backgroundColor: accentColor, opacity: 0.8 }}
+      />
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5">
+        {isCritical ? (
+          <Zap size={12} className="text-[#E8AF34]" aria-label="Critical path" />
+        ) : null}
+        <StatusIcon status={nodeData.task.status} />
+      </div>
       {isBlocked && (
         <div
           className="pointer-events-none absolute inset-0 rounded-lg bg-[#DD6974]/[0.03]"
           aria-hidden
         />
       )}
-
-      {(isCritical || isBlocked) && (
-        <div className="absolute right-2 top-2 z-10">
-          {isCritical && (
+      <div className="p-3 pl-4">
+        <span
+          className={[
+            `line-clamp-2 ${typography.scale.sm.class} font-medium text-white`,
+            isDone ? "line-through opacity-60" : "",
+          ].join(" ")}
+        >
+          {nodeData.task.title}
+        </span>
+        <div className="mt-2 flex items-center gap-2">
+          {nodeData.assignees[0] ? (
             <span
-              className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E8AF34]/20 text-[#E8AF34]"
-              aria-label="Critical path"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+              style={{
+                backgroundColor: getUserColor(nodeData.assignees[0].id),
+              }}
             >
-              <Zap size={10} />
+              {nodeData.assignees[0].initials.slice(0, 2)}
             </span>
-          )}
-          {isBlocked && !isCritical && (
-            <span
-              className="flex h-4 w-4 items-center justify-center rounded-full bg-[#DD6974]/20 text-[#DD6974]"
-              aria-label="Blocked"
-            >
-              <Lock size={10} />
+          ) : null}
+          {nodeData.task.dueDate ? (
+            <span className={`${typography.scale.xs.class} ${colors.text.tertiary}`}>
+              {formatDueDate(nodeData.task.dueDate)}
             </span>
-          )}
-          {isBlocked && isCritical && (
-            <span
-              className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#DD6974]/20 text-[#DD6974]"
-              aria-label="Blocked"
-            >
-              <Lock size={10} />
+          ) : null}
+          {depCount > 0 ? (
+            <span className={`${typography.scale.xs.class} text-[#E8AF34]`}>
+              ⤵{depCount}
             </span>
-          )}
+          ) : null}
+          {isBlocked ? (
+            <span className="h-2 w-2 rounded-full bg-[#DD6974]" title="Blocked" />
+          ) : null}
         </div>
-      )}
-      <div className="h-1 rounded-t-lg" style={{ backgroundColor: accentColor }} />
-
-      <div className="p-3">
         <div className="flex items-center gap-1.5">
-          <div
-            className={[
-              "h-2 w-2 shrink-0 rounded-full",
-              isBlocked ? "animate-blocked-pulse" : "",
-            ].join(" ")}
-            style={{
-              backgroundColor: STATUS_DOT_COLOR[nodeData.task.status],
-            }}
-          />
-          <span
-            className={[
-              "text-body-sm flex-1 truncate font-medium text-on-surface",
-              isDone ? "line-through decoration-on-surface-variant/60" : "",
-            ].join(" ")}
-          >
-            {nodeData.task.title}
-          </span>
+          <span className="sr-only">{nodeData.task.status}</span>
           {nodeData.task.priority !== "low" && (
             <span
               className={`font-mono-label shrink-0 rounded-full px-1.5 py-0.5 text-[9px] uppercase ${PRIORITY_CLASSES[nodeData.task.priority]}`}
@@ -147,13 +147,13 @@ export const TaskCardNode = React.memo(function TaskCardNode({
           )}
         </div>
 
-        {isExpanded && nodeData.task.description && (
+        {isDetailed && nodeData.task.description && (
           <p className="text-body-sm mt-1 line-clamp-2 text-on-surface-variant">
             {nodeData.task.description}
           </p>
         )}
 
-        {isExpanded && nodeData.task.dueDate && (
+        {isDetailed && nodeData.task.dueDate && (
           <div className="mt-2 flex items-center gap-1">
             <Calendar size={10} className="shrink-0 text-on-surface-variant" />
             <span className="font-mono-label text-[10px] text-on-surface-variant">
@@ -162,7 +162,7 @@ export const TaskCardNode = React.memo(function TaskCardNode({
           </div>
         )}
 
-        {isExpanded && nodeData.task.effortEstimate !== undefined && (
+        {isDetailed && nodeData.task.effortEstimate !== undefined && (
           <div className="mt-1 flex items-center gap-1">
             <Clock size={10} className="shrink-0 text-on-surface-variant" />
             <span className="font-mono-label text-[10px] text-on-surface-variant">
@@ -171,25 +171,11 @@ export const TaskCardNode = React.memo(function TaskCardNode({
           </div>
         )}
 
-        {nodeData.assignees.length > 0 && (
-          <div className="mt-2 flex items-center">
-            {nodeData.assignees.slice(0, 2).map((user, i) => (
-              <div
-                key={user.id}
-                className={[
-                  "flex h-5 w-5 items-center justify-center rounded-full border border-surface-container bg-tertiary-container text-[8px] font-bold text-on-surface",
-                  i > 0 ? "-ml-1.5" : "",
-                ].join(" ")}
-              >
-                {user.initials.slice(0, 2)}
-              </div>
-            ))}
-            {nodeData.assignees.length > 2 && (
-              <span className="ml-1 text-[9px] text-on-surface-variant">
-                +{nodeData.assignees.length - 2}
-              </span>
-            )}
-          </div>
+        {isDetailed && nodeData.task.dependencies.length > 0 && (
+          <p className={`mt-2 ${typography.scale.xs.class} ${colors.text.tertiary}`}>
+            Depends on {nodeData.task.dependencies.length} task
+            {nodeData.task.dependencies.length === 1 ? "" : "s"}
+          </p>
         )}
 
         {nodeData.slackTime !== undefined && nodeData.slackTime > 0 && (
@@ -218,3 +204,21 @@ export const TaskCardNode = React.memo(function TaskCardNode({
     </div>
   );
 });
+
+function StatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case "done":
+      return <Check size={14} className="text-[#6DAA45]" />;
+    case "blocked":
+      return <X size={14} className="text-[#DD6974]" />;
+    case "in_progress":
+      return (
+        <span className="relative flex h-3.5 w-3.5 items-center justify-center">
+          <Circle size={14} className="text-primary" />
+          <span className="absolute left-0 top-0 h-full w-1/2 overflow-hidden rounded-l-full bg-primary" />
+        </span>
+      );
+    default:
+      return <Circle size={14} className="text-outline" />;
+  }
+}

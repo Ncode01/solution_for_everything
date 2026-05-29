@@ -142,6 +142,8 @@ export interface PhaseClusterNodeData {
 }
 
 export interface TaskCardNodeData {
+  /** Set by semantic zoom when zoom > 1.5 */
+  detailed?: boolean;
   task: Task;
   assignees: User[];
   projectColor: ProjectAccentColor;

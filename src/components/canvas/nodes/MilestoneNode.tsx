@@ -2,7 +2,8 @@
 
 import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Lock } from "lucide-react";
+import { Flag, Lock } from "lucide-react";
+import { colors, typography } from "@/design-system";
 import type { MilestoneNodeData } from "@/types/project-extensions";
 
 const COLOR_MAP: Record<string, string> = {
@@ -34,12 +35,14 @@ export const MilestoneNode = memo(function MilestoneNode({ data }: NodeProps) {
       ? `${nodeData.title.slice(0, 20)}…`
       : nodeData.title;
   const sub = formatDaysLabel(nodeData.daysUntil);
-  const subClass =
-    nodeData.daysUntil <= 7
+  const isPastDue = nodeData.daysUntil < 0;
+  const subClass = isPastDue
+    ? "text-[#DD6974]"
+    : nodeData.daysUntil <= 7
       ? "text-[#DD6974]"
       : nodeData.daysUntil <= 30
         ? "text-[#E8AF34]"
-        : "text-outline";
+        : colors.text.tertiary;
 
   return (
     <div
@@ -52,15 +55,19 @@ export const MilestoneNode = memo(function MilestoneNode({ data }: NodeProps) {
         className="!h-2 !w-2 !border-white/20 !bg-surface-container-high"
       />
 
-      <div className="relative h-12 w-12">
+      <div className="relative flex h-12 w-12 items-center justify-center">
         <div
-          className="absolute inset-0 rounded-sm border-2"
+          className={`absolute inset-2 rounded-sm border-2 ${colors.bg.elevated}`}
           style={{
-            backgroundColor: `${accent}33`,
-            borderColor: glow,
+            borderColor: isPastDue ? "#DD6974" : `${accent}80`,
             transform: "rotate(45deg)",
-            boxShadow: `0 0 8px ${glow}55`,
+            boxShadow: isPastDue ? undefined : `0 0 8px ${glow}55`,
           }}
+        />
+        <Flag
+          size={14}
+          className="relative z-10"
+          style={{ color: isPastDue ? "#DD6974" : accent }}
         />
         {nodeData.isHardDeadline && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-surface-container-highest">
@@ -69,10 +76,12 @@ export const MilestoneNode = memo(function MilestoneNode({ data }: NodeProps) {
         )}
       </div>
 
-      <p className="mt-2 max-w-[120px] truncate text-center font-mono-label text-mono-label text-on-surface">
+      <p
+        className={`mt-2 max-w-[120px] truncate text-center ${typography.scale.xs.class} ${isPastDue ? "text-[#DD6974]" : colors.text.tertiary}`}
+      >
         {title}
       </p>
-      <p className={`font-mono-label text-[10px] ${subClass}`}>{sub}</p>
+      <p className={`${typography.scale.xs.class} ${subClass}`}>{sub}</p>
     </div>
   );
 });

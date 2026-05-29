@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { NodeProps } from "@xyflow/react";
+import { typography } from "@/design-system";
 
 const COLOR_MAP: Record<string, string> = {
   coral: "#E57373",
@@ -14,9 +15,11 @@ const COLOR_MAP: Record<string, string> = {
 export const PhaseHeaderNode = React.memo(function PhaseHeaderNode({
   data,
 }: NodeProps) {
-  const { phaseName, projectColor } = data as {
+  const { phaseName, projectColor, showTaskCount, taskCount } = data as {
     phaseName: string;
     projectColor: string;
+    showTaskCount?: boolean;
+    taskCount?: number;
   };
   const accent = COLOR_MAP[projectColor] ?? "#5591C7";
 
@@ -34,10 +37,11 @@ export const PhaseHeaderNode = React.memo(function PhaseHeaderNode({
           style={{ backgroundColor: accent }}
         />
         <span
-          className="text-section-header font-semibold uppercase tracking-wide"
-          style={{ color: accent }}
+          className={`${typography.scale.xs.class} font-semibold uppercase tracking-wide`}
+          style={{ color: `${accent}E6` }}
         >
           {phaseName}
+          {showTaskCount && taskCount !== undefined ? ` (${taskCount})` : ""}
         </span>
       </div>
     </div>
