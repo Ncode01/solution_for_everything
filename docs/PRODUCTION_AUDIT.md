@@ -9,7 +9,7 @@
 The app is **deployable** for a single-org pilot but had several **demo-path leaks** that made production behave like the seed prototype. The highest-risk issues were **mock data in the workload layer**, **edge restore using mock dependency styles**, and **mutation orchestrator invalidating the full graph after every drag save**.
 
 This pass **fixes all blocker and high items** listed below. Remaining gaps are mostly **vision features** (Yjs CRDT), **CORS preview URLs**, and **heuristic workload math** — documented as non-blockers.
-
+l
 | Priority | Found | Fixed this pass |
 |----------|-------|-----------------|
 | Blocker | 3 | 3 |
