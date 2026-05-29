@@ -26,6 +26,25 @@
 
 **Login (production):** `owner@flowcanvas.dev` / `demo12345`
 
+## Phase 12 — RCCS Org Intelligence ✅
+
+**Schema:** `project_type`, `is_collaborative`, tables `project_orgs`, `budget_entries`, `milestones`, `org_roles`, `cross_project_links`
+
+**Canvas:** `MilestoneNode`, `CrossProjectEdge`, enhanced `ProjectClusterNode` (type badge, health ring, partners, milestone strip)
+
+**API:** `GET /api/orgs/:orgId/canvas-data`, budget/milestones/cross-links routes; graph response extended with health + extensions
+
+**Seed:** 7 RCCS 2026 projects, org roles, budgets, milestones, 2 cross-project links, SparkIT'26 full task graph (17 tasks)
+
+**Migrate:** `pnpm db:push` then `pnpm db:seed`
+
+## Seed data (local / re-seed)
+
+**Organization:** Royal College Computer Society (`slug: rccs-2026`)  
+**Projects:** BTUI'26, RC Sports App, Tesseract'26, SparkIT'26, Digitalizer'26, The Syntax'26, PROTOX'26
+
+Run `pnpm db:seed` and set `NEXT_PUBLIC_ORG_ID` from the printed `ORG_ID`. Re-running seed wipes and recreates data for that slug only.
+
 ## Phase 11B — Stability + production audit
 
 Branch: `fix/phase-11b-stability`
@@ -66,6 +85,8 @@ Branch: `fix/phase-11b-stability`
 - Workload thresholds are heuristic, not HR capacity rules
 
 **Pre-release (pilot-ready):** See [PRE_RELEASE.md](./PRE_RELEASE.md) for go/no-go verification.
+
+**Documentation:** [README.md](./README.md) (index) · [USER_MANUAL.md](./USER_MANUAL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [API.md](./API.md)
 
 Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
 

@@ -19,6 +19,21 @@ This pass **fixes all blocker and high items** listed below. Remaining gaps are 
 
 ---
 
+## Documentation handoff (May 29, 2026)
+
+| Deliverable | Location |
+|-------------|----------|
+| Docs entry point | `docs/README.md` |
+| User manual | `docs/USER_MANUAL.md` |
+| Architecture | `docs/ARCHITECTURE.md` (rewritten for current stack) |
+| API contract | `docs/API.md` (replaces `docs/API_CONTRACTS.md`) |
+| Environment reference | `docs/ENV.md` |
+| Archived superseded API doc | `docs/.temp/API_CONTRACTS.md` |
+
+No runtime changes in this pass.
+
+---
+
 ## Pre-release pass (May 29, 2026) — observability & deployment safety
 
 | Area | Status |

@@ -8,7 +8,7 @@
 
 ## 1. Vision
 
-FlowCanvas is an **org-wide spatial task management** web application. The infinite canvas is the product — not a feature bolted onto a list view. Every project, phase, task, person, and dependency exists as a node on a live graph where **Critical Path Method (CPM)** computation surfaces what actually matters.
+FlowCanvas is the **command centre for Royal College Computer Society (RCCS)** — an org-wide spatial task system for managing a **portfolio of seven structurally different 2026 projects** (events, products, publications, collaborations) on one canvas. The infinite canvas is the product; **CPM**, **health scores**, **milestones**, and **cross-project links** surface what actually matters across BTUI, SparkIT, PROTOX, and the rest.
 
 > See everything. Know what matters.
 
@@ -27,12 +27,28 @@ FlowCanvas answers these **spatially** — on one canvas with semantic zoom from
 
 ## 3. Target Users
 
+FlowCanvas is built for **student-led technical societies** running multi-phase initiatives. The first production org is the **Royal College Computer Society (RCCS)**; **SparkIT'26** is its flagship year-long project (Flash → Fusion → Family).
+
 | Persona | Primary need |
 |---------|--------------|
-| Engineering Manager | Org-wide critical path, workload heatmap |
-| Tech Lead | Project phase planning, dependency wiring |
-| IC Engineer | Task detail, blocking chain visibility |
-| PM / Ops | Dashboard KPIs, milestone tracking |
+| **Chairman / Secretary (Officer view)** | All 7 projects at Z0, health rings, cross-project edges, workload layer |
+| **Treasurer / finance** | Budget burn per project (`budget_entries`), health budget penalty |
+| **Phase Lead** (e.g. SparkIT Flash) | Phase tasks, dependencies, milestones for their project |
+| **Committee Member** | Assigned tasks, status updates, workload visibility |
+| **Teacher-in-Charge** | Read-only oversight; `org_roles.is_teacher_in_charge` |
+
+Canvas-first principles unchanged: officers plan spatially at org zoom; members execute from the same graph.
+
+### Project Type Intelligence (Phase 12)
+
+FlowCanvas adapts cluster chrome by `project_type`:
+
+- **Type badge** — Event, Product, Education, etc. on each `ProjectClusterNode`
+- **Health ring** — 0–100 score from tasks, budget burn, blocked critical work
+- **Partner chips** — Collaborative projects (`is_collaborative`) show `project_orgs`
+- **Milestone strip** — Next hard date on the cluster card
+- **MilestoneNode** — Diamond anchors on canvas near each project
+- **CrossProjectEdge** — Dashed inter-project links at Z0 only (e.g. Syntax launches at BTUI)
 
 ---
 

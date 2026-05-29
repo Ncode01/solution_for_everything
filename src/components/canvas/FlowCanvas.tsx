@@ -25,6 +25,8 @@ import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
 import { PersonAvatarNode } from "./nodes/PersonAvatarNode";
 import { DependencyEdge } from "./nodes/DependencyEdge";
+import { MilestoneNode } from "./nodes/MilestoneNode";
+import { CrossProjectEdge } from "./nodes/CrossProjectEdge";
 import { ReactFlowApiBridge } from "./ReactFlowApiBridge";
 import {
   applyOptimisticTaskPosition,
@@ -39,10 +41,12 @@ const nodeTypes = {
   projectCluster: ProjectClusterNode,
   phaseCluster: PhaseClusterNode,
   personAvatar: PersonAvatarNode,
+  milestoneNode: MilestoneNode,
 };
 
 const edgeTypes = {
   dependency: DependencyEdge,
+  crossProject: CrossProjectEdge,
 };
 
 const defaultEdgeOptions = {

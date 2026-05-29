@@ -1,5 +1,25 @@
 # FlowCanvas Development Roadmap
 
+> **Phase 12 status:** RCCS Org Intelligence — shipped on `main`
+
+## Phase 12 — RCCS Org Intelligence ✅
+
+**Goal:** Multi-project portfolio support for RCCS 2026 (7 projects, health, budget, milestones, cross-links)
+
+- [x] `project_type` enum + `is_collaborative` on `projects`
+- [x] `project_orgs` — partner org tracking
+- [x] `budget_entries` — line-item income/expenditure
+- [x] `milestones` — hard deadline anchors
+- [x] `org_roles` — formal RCCS hierarchy
+- [x] `cross_project_links` — inter-project dependencies
+- [x] `MilestoneNode` — diamond canvas node
+- [x] `CrossProjectEdge` — dashed cross-project edge at Z0
+- [x] `ProjectClusterNode` — type badge, health ring, partner chips, milestone strip
+- [x] Health score engine (`src/lib/health-score.ts`)
+- [x] RCCS 2026 full seed (7 projects, milestones, budget, org roles, SparkIT tasks)
+
+---
+
 > **Phase 1 status:** IN PROGRESS — UI foundation complete, backend setup pending
 
 ## Phase 1 — Foundation (Week 1–2)

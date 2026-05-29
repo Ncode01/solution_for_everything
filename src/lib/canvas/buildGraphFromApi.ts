@@ -4,6 +4,11 @@ import { computeCPM } from "@/lib/cpm";
 import type { CPMTask } from "@/lib/cpm";
 import { loadLevelFromTaskCount } from "@/lib/userLoadLevel";
 import type {
+  Milestone,
+  MilestoneNodeData,
+  ProjectType,
+} from "@/types/project-extensions";
+import type {
   PersonAvatarNodeData,
   Phase,
   Project,
@@ -59,6 +64,17 @@ function toFrontendProject(
   };
 }
 
+function pickUpcomingMilestone(
+  projectId: string,
+  milestoneList: Milestone[],
+): Milestone | null {
+  const projectMilestones = milestoneList
+    .filter((m) => m.projectId === projectId)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+  const future = projectMilestones.find((m) => m.daysUntil >= 0);
+  return future ?? projectMilestones[0] ?? null;
+}
+
 export function buildGraphFromApi(data: OrgGraphResponse): {
   nodes: Node[];
   edges: Edge[];
@@ -109,6 +125,18 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
   }));
   const cpmResult = computeCPM(cpmTasks);
 
+  const milestoneList: Milestone[] = (data.milestones ?? []).map((m) => ({
+    id: m.id,
+    projectId: m.projectId,
+    title: m.title,
+    date: String(m.date),
+    isHardDeadline: m.isHardDeadline,
+    description: m.description ?? null,
+    canvasX: m.canvasX ?? null,
+    canvasY: m.canvasY ?? null,
+    daysUntil: m.daysUntil,
+  }));
+
   const taskNodes: Node<TaskCardNodeData>[] = data.tasks.map((apiTask) => {
     const project = projectMap[apiTask.projectId];
     const assignees = apiTask.assigneeIds
@@ -154,24 +182,66 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     };
   });
 
-  const PROJECT_Y: Record<string, number> = {};
-  data.projects.forEach((p, i) => {
-    PROJECT_Y[p.id] = 150 + i * 370;
-  });
-
   const projectNodes: Node<ProjectClusterNodeData>[] = data.projects.map(
-    (p) => ({
-      id: `project-${p.id}`,
-      type: "projectCluster",
-      position: { x: 60, y: PROJECT_Y[p.id] ?? 100 },
+    (p, i) => {
+      const px = p.canvasX ?? 60 + (i % 3) * 600;
+      const py = p.canvasY ?? 150 + Math.floor(i / 3) * 600;
+      const partners =
+        data.partnerOrgsByProject?.[p.id]?.map((o) => o.orgName) ?? [];
+      const budgetSummary = data.budgetByProject?.[p.id]?.summary ?? null;
+      const health = data.projectHealth?.[p.id] ?? {
+        score: 100,
+        grade: "green" as const,
+        blockedCriticalTasks: 0,
+        overdueTaskCount: 0,
+        budgetBurnPercent: null,
+        daysToNextMilestone: null,
+      };
+
+      return {
+        id: `project-${p.id}`,
+        type: "projectCluster",
+        position: { x: px, y: py },
+        data: {
+          project: projectMap[p.id],
+          isExpanded: false,
+          onToggleExpand: () => {},
+          projectType: (p.projectType ?? "event") as ProjectType,
+          isCollaborative: p.isCollaborative ?? false,
+          health,
+          partnerOrgs: partners,
+          budgetSummary,
+          upcomingMilestone: pickUpcomingMilestone(p.id, milestoneList),
+        },
+        hidden: false,
+      };
+    },
+  );
+
+  const milestoneNodes: Node<MilestoneNodeData>[] = milestoneList.map((m) => {
+    const project = data.projects.find((p) => p.id === m.projectId);
+    const cluster = projectNodes.find((n) => n.id === `project-${m.projectId}`);
+    const baseX = cluster?.position.x ?? 200;
+    const baseY = cluster?.position.y ?? 200;
+
+    return {
+      id: `milestone-${m.id}`,
+      type: "milestoneNode",
+      position: {
+        x: m.canvasX ?? baseX + 400,
+        y: m.canvasY ?? baseY - 80,
+      },
       data: {
-        project: projectMap[p.id],
-        isExpanded: false,
-        onToggleExpand: () => {},
+        milestoneId: m.id,
+        title: m.title,
+        date: m.date,
+        isHardDeadline: m.isHardDeadline,
+        daysUntil: m.daysUntil,
+        projectColor: project?.color ?? "sky",
       },
       hidden: false,
-    }),
-  );
+    };
+  });
 
   const personNodes: Node<PersonAvatarNodeData>[] = data.users.map((u) => {
     const userTasks = data.tasks.filter((t) => t.assigneeIds.includes(u.id));
@@ -226,8 +296,41 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
     }
   }
 
+  for (const link of data.crossProjectLinks ?? []) {
+    const colorMap: Record<string, string> = {
+      launches_at: "#a78bfa",
+      talent_pipeline: "#34d399",
+      venue_shared: "#60a5fa",
+      funds_from: "#fbbf24",
+      collaboration: "#f472b6",
+    };
+    const color = colorMap[link.type] ?? colorMap.collaboration;
+
+    edges.push({
+      id: `cross-${link.id}`,
+      source: `project-${link.sourceProjectId}`,
+      target: `project-${link.targetProjectId}`,
+      type: "crossProject",
+      hidden: false,
+      data: { linkType: link.type, note: link.note },
+      style: {
+        stroke: color,
+        strokeWidth: 1.5,
+        strokeDasharray: "6 4",
+        opacity: 0.6,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 10,
+        height: 10,
+        color,
+      },
+      animated: true,
+    });
+  }
+
   return {
-    nodes: [...projectNodes, ...taskNodes, ...personNodes],
+    nodes: [...projectNodes, ...milestoneNodes, ...taskNodes, ...personNodes],
     edges,
   };
 }

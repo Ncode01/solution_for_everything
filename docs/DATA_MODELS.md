@@ -197,4 +197,96 @@ CREATE INDEX idx_task_deps_downstream ON task_dependencies(downstream_task_id);
 
 1. Drizzle Kit generate from `server/db/schema.ts`
 2. Run migrations in CI before deploy
-3. Seed script for demo org (Phase 1 dev)
+3. Seed script for RCCS org (`slug: rccs-2026`) — `pnpm db:seed`
+
+---
+
+## Extended Entity Relationship (Phase 12)
+
+```
+organizations 1──* org_roles
+organizations 1──* users
+organizations 1──* projects
+projects 1──* project_orgs
+projects 1──* budget_entries
+projects 1──* milestones
+projects 1──* phases 1──* tasks
+projects *──* projects  (cross_project_links: source → target)
+```
+
+### `project_orgs`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| project_id | uuid FK → projects | cascade delete |
+| org_name | text | Partner org display name |
+| org_role | text | e.g. `co-organizer`, `sponsor` |
+| created_at | timestamptz | |
+
+### `budget_entries`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| project_id | uuid FK | |
+| label | text | Line item name |
+| type | enum | `income` \| `expenditure` |
+| amount | real | LKR amounts in seed |
+| confirmed | boolean | `false` = estimated |
+| created_at | timestamptz | |
+
+### `milestones`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| project_id | uuid FK | |
+| title | text | |
+| date | date | Hard anchor date |
+| is_hard_deadline | boolean | UI padlock on canvas |
+| description | text nullable | |
+| canvas_x, canvas_y | real nullable | Milestone node position |
+| created_at | timestamptz | |
+
+### `org_roles`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| org_id | uuid FK | |
+| user_id | uuid FK | |
+| title | text | e.g. Chairman, Treasurer |
+| rank | integer | Lower = more senior (0 = teacher) |
+| is_teacher_in_charge | boolean | |
+| created_at | timestamptz | |
+
+### `cross_project_links`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| source_project_id | uuid FK | |
+| target_project_id | uuid FK | |
+| type | enum | See below |
+| note | text nullable | Shown on edge hover |
+| created_at | timestamptz | |
+
+### `projects` (Phase 12 columns)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| project_type | enum | See ProjectType Reference |
+| is_collaborative | boolean | Shows partner org chips |
+
+## ProjectType Reference
+
+| Value | Meaning | RCCS 2026 project |
+|-------|---------|-----------------|
+| `event` | Single deadline-driven event | Beyond The User Interface'26 |
+| `product` | Continuous live product | RC Sports App |
+| `education` | Workshop / seminar series | Tesseract'26 |
+| `publication` | Content pipeline to print | The Syntax'26 |
+| `hackathon` | Hackathon-style event | PROTOX'26 |
+| `collaboration` | Multi-org initiative | SparkIT'26 |
+| `internal_software` | Internal multi-platform build | Digitalizer'26 |

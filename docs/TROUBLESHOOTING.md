@@ -2,7 +2,7 @@
 
 Quick reference for production and preview debugging. Console diagnostics use consistent prefixes: `[Audit]`, `[FlowCanvas]`, `[OrgGraph]`, `[ViewportPersistence]`, `[CanvasEvents]`, `[Presence]`, `[AuthClient]`, `[ApiClient]`, `[Firebase]`, `[DeadEnd]`, `[UI]`.
 
-See [PRE_RELEASE.md](./PRE_RELEASE.md) for a go/no-go checklist.
+**Doc index:** [README.md](./README.md) · [PRE_RELEASE.md](./PRE_RELEASE.md) (go/no-go checklist)
 
 ## Required environment variables
 
@@ -19,7 +19,7 @@ See [PRE_RELEASE.md](./PRE_RELEASE.md) for a go/no-go checklist.
 
 **Preview deployments:** Each Vercel preview has its own URL. Set `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` to that preview URL for that environment, or auth cookies and CORS will not align with the API.
 
-See `.env.local.example` for local development.
+See [ENV.md](./ENV.md) and `.env.local.example` for the full variable list.
 
 ---
 

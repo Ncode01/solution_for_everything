@@ -4,6 +4,7 @@ import React, { useCallback } from "react";
 import { ChevronRight } from "lucide-react";
 import type { NodeProps } from "@xyflow/react";
 import type { ProjectClusterNodeData } from "@/types";
+import type { ProjectType } from "@/types/project-extensions";
 import { useCanvasStore } from "@/stores/canvas.store";
 
 const COLOR_MAP: Record<string, string> = {
@@ -14,11 +15,30 @@ const COLOR_MAP: Record<string, string> = {
   mint: "#6DAA45",
 };
 
+const HEALTH_RING: Record<string, string> = {
+  green: "#22c55e",
+  amber: "#f59e0b",
+  red: "#ef4444",
+};
+
 const STATUS_DOT_COLOR: Record<string, string> = {
   planning: "#4f4f4d",
   active: "#5591C7",
   on_hold: "#E8AF34",
   completed: "#6DAA45",
+};
+
+const PROJECT_TYPE_BADGE: Record<
+  ProjectType,
+  { icon: string; label: string }
+> = {
+  event: { icon: "🎯", label: "Event" },
+  product: { icon: "📱", label: "Product" },
+  education: { icon: "📚", label: "Education" },
+  publication: { icon: "📰", label: "Publication" },
+  hackathon: { icon: "⚡", label: "Hackathon" },
+  collaboration: { icon: "🤝", label: "Collaboration" },
+  internal_software: { icon: "🔧", label: "Internal" },
 };
 
 export const ProjectClusterNode = React.memo(function ProjectClusterNode({
@@ -43,23 +63,86 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
     0,
   );
 
+  const projectType = nodeData.projectType ?? "event";
+  const typeBadge = PROJECT_TYPE_BADGE[projectType];
+  const health = nodeData.health;
+  const ringColor = health
+    ? HEALTH_RING[health.grade]
+    : accentColor;
+  const completion = nodeData.project.completionPercent;
+  const circumference = 2 * Math.PI * 18;
+  const strokeDash = (completion / 100) * circumference;
+
+  const partnerOrgs = nodeData.partnerOrgs ?? [];
+  const visiblePartners = partnerOrgs.slice(0, 2);
+  const overflowPartners = partnerOrgs.length - visiblePartners.length;
+
+  const upcoming = nodeData.upcomingMilestone;
+  const milestoneStripClass =
+    upcoming && upcoming.daysUntil <= 7
+      ? "text-[#DD6974]"
+      : upcoming && upcoming.daysUntil <= 30
+        ? "text-[#E8AF34]"
+        : "text-on-surface-variant";
+
+  const healthTooltip = health
+    ? `Health: ${health.score}/100 — ${health.blockedCriticalTasks} blocked critical, ${health.overdueTaskCount} overdue tasks`
+    : undefined;
+
   return (
     <div
       className={[
-        "relative overflow-hidden rounded-xl border border-white/[0.06] bg-surface-container",
-        isZ1 ? "w-[240px] py-4 pl-5 pr-3" : "h-[72px] w-[180px]",
+        "relative overflow-hidden rounded-xl border border-white/[0.08] bg-surface-container-high",
+        isZ1 ? "w-[260px] py-4 pl-5 pr-3" : "min-h-[88px] w-[200px]",
       ].join(" ")}
     >
       <div
-        className="absolute left-0 top-0 h-full w-1.5 rounded-l-xl"
+        className="absolute left-0 top-0 h-full w-0.5 rounded-l-xl"
         style={{ backgroundColor: accentColor }}
       />
 
-      <div className={`flex h-full flex-col ${isZ1 ? "" : "py-3 pl-5 pr-3"}`}>
+      {typeBadge && (
+        <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/80">
+          <span aria-hidden>{typeBadge.icon}</span>
+          <span>{typeBadge.label}</span>
+        </div>
+      )}
+
+      <div className={`flex h-full flex-col ${isZ1 ? "pt-6" : "py-3 pl-5 pr-3 pt-8"}`}>
         <div className="flex items-start justify-between gap-2">
           <p className="text-headline-sm truncate font-semibold text-on-surface">
             {nodeData.project.name}
           </p>
+          {!isZ1 && health && (
+            <div
+              className="relative h-11 w-11 shrink-0"
+              title={healthTooltip}
+            >
+              <svg className="h-11 w-11 -rotate-90" viewBox="0 0 44 44">
+                <circle
+                  cx="22"
+                  cy="22"
+                  r="18"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="3"
+                />
+                <circle
+                  cx="22"
+                  cy="22"
+                  r="18"
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="3"
+                  strokeDasharray={`${strokeDash} ${circumference}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="font-mono-label absolute inset-0 flex items-center justify-center text-[9px] text-on-surface">
+                {Math.round(completion)}%
+              </span>
+            </div>
+          )}
           {isZ1 ? (
             <button
               type="button"
@@ -77,12 +160,26 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
                 ].join(" ")}
               />
             </button>
-          ) : (
-            <span className="font-mono-label shrink-0 text-[10px] text-on-surface-variant">
-              {nodeData.project.completionPercent}%
-            </span>
-          )}
+          ) : null}
         </div>
+
+        {nodeData.isCollaborative && visiblePartners.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {visiblePartners.map((name) => (
+              <span
+                key={name}
+                className="rounded-full bg-[#E8AF34]/10 px-1.5 py-0.5 text-[10px] text-[#E8AF34]"
+              >
+                🤝 {name}
+              </span>
+            ))}
+            {overflowPartners > 0 && (
+              <span className="text-[10px] text-on-surface-variant">
+                +{overflowPartners} more
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="mt-1 flex items-center gap-1.5">
           <div
@@ -96,26 +193,47 @@ export const ProjectClusterNode = React.memo(function ProjectClusterNode({
           </span>
         </div>
 
-        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${nodeData.project.completionPercent}%`,
-              backgroundColor: accentColor,
-            }}
-          />
-        </div>
-
         {isZ1 && (
-          <p className="font-mono-label mt-2 text-[10px] text-on-surface-variant">
-            {phaseCount} phases · {taskCount} tasks
-          </p>
+          <div className="mt-2 flex items-center gap-2">
+            {health && (
+              <div className="relative h-9 w-9 shrink-0" title={healthTooltip}>
+                <svg className="h-9 w-9 -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.08)"
+                    strokeWidth="2.5"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="14"
+                    fill="none"
+                    stroke={ringColor}
+                    strokeWidth="2.5"
+                    strokeDasharray={`${(completion / 100) * (2 * Math.PI * 14)} ${2 * Math.PI * 14}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="font-mono-label absolute inset-0 flex items-center justify-center text-[8px]">
+                  {Math.round(completion)}%
+                </span>
+              </div>
+            )}
+            <p className="font-mono-label text-[10px] text-on-surface-variant">
+              {phaseCount} phases · {taskCount} tasks
+            </p>
+          </div>
         )}
 
-        {!isZ1 && (
-          <span className="font-mono-label absolute right-3 top-3 text-[10px] text-on-surface-variant">
-            {nodeData.project.completionPercent}%
-          </span>
+        {upcoming && (
+          <p
+            className={`mt-2 border-t border-white/5 pt-2 text-[10px] ${milestoneStripClass}`}
+          >
+            📅 {upcoming.title} — in {upcoming.daysUntil}d
+          </p>
         )}
       </div>
     </div>

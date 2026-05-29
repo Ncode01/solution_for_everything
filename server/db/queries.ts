@@ -9,6 +9,10 @@ import {
   taskAssignments,
   taskDependencies,
 } from "./schema";
+import {
+  computeProjectHealthMap,
+  getOrgExtensionData,
+} from "./org-extensions-queries";
 
 export async function getOrgGraph(orgId: string) {
   const orgRows = await db
@@ -93,6 +97,22 @@ export async function getOrgGraph(orgId: string) {
     dependents: dependentsMap[t.id] ?? [],
   }));
 
+  const extensions = await getOrgExtensionData(orgId, projectIds);
+  const projectHealth = computeProjectHealthMap(
+    projectIds,
+    enrichedTasks.map((t) => ({
+      projectId: t.projectId,
+      status: t.status,
+      priority: t.priority,
+      dueDate: t.dueDate,
+    })),
+    extensions.milestones.map((m) => ({
+      projectId: m.projectId,
+      date: String(m.date),
+    })),
+    extensions.budgetByProject,
+  );
+
   return {
     org,
     users: userRows,
@@ -100,5 +120,11 @@ export async function getOrgGraph(orgId: string) {
     phases: phaseRows,
     tasks: enrichedTasks,
     dependencies: filteredDepRows,
+    milestones: extensions.milestones,
+    crossProjectLinks: extensions.crossProjectLinks,
+    budgetByProject: extensions.budgetByProject,
+    partnerOrgsByProject: extensions.partnerOrgsByProject,
+    orgRoles: extensions.orgRoles,
+    projectHealth,
   };
 }

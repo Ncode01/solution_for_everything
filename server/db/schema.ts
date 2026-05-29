@@ -39,6 +39,29 @@ export const taskPriorityEnum = pgEnum("task_priority", [
 
 export const dependencyTypeEnum = pgEnum("dependency_type", ["FS", "FF", "SS"]);
 
+export const projectTypeEnum = pgEnum("project_type", [
+  "event",
+  "product",
+  "education",
+  "publication",
+  "hackathon",
+  "collaboration",
+  "internal_software",
+]);
+
+export const budgetEntryTypeEnum = pgEnum("budget_entry_type", [
+  "income",
+  "expenditure",
+]);
+
+export const crossProjectLinkTypeEnum = pgEnum("cross_project_link_type", [
+  "launches_at",
+  "talent_pipeline",
+  "venue_shared",
+  "funds_from",
+  "collaboration",
+]);
+
 export const organizations = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
@@ -103,6 +126,81 @@ export const projects = pgTable("projects", {
   endDate: date("end_date"),
   canvasX: real("canvas_x"),
   canvasY: real("canvas_y"),
+  projectType: projectTypeEnum("project_type").notNull().default("event"),
+  isCollaborative: boolean("is_collaborative").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const projectOrgs = pgTable("project_orgs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  orgName: text("org_name").notNull(),
+  orgRole: text("org_role").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const budgetEntries = pgTable("budget_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  type: budgetEntryTypeEnum("type").notNull(),
+  amount: real("amount").notNull().default(0),
+  confirmed: boolean("confirmed").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const milestones = pgTable("milestones", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  date: date("date").notNull(),
+  isHardDeadline: boolean("is_hard_deadline").notNull().default(true),
+  description: text("description"),
+  canvasX: real("canvas_x"),
+  canvasY: real("canvas_y"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const orgRoles = pgTable("org_roles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  rank: integer("rank").notNull().default(99),
+  isTeacherInCharge: boolean("is_teacher_in_charge").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const crossProjectLinks = pgTable("cross_project_links", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceProjectId: uuid("source_project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  targetProjectId: uuid("target_project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  type: crossProjectLinkTypeEnum("type").notNull(),
+  note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
