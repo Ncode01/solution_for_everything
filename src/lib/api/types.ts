@@ -77,6 +77,19 @@ export interface ApiPhase {
   orderIndex: number;
 }
 
+export interface ApiChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface ApiExternalLink {
+  id: string;
+  label: string;
+  url: string;
+  type: "figma" | "github" | "notion" | "loom" | "doc" | "other";
+}
+
 export interface ApiTask {
   id: string;
   phaseId: string;
@@ -92,6 +105,30 @@ export interface ApiTask {
   assigneeIds: string[];
   dependencies: string[];
   dependents: string[];
+
+  /** Rich fields for dynamic node type resolution */
+  costEstimate?: number | null;
+  checklist?: ApiChecklistItem[] | null;
+  requiresApproval?: boolean | null;
+  approverId?: string | null;
+  recurrence?: string | null;
+  recurrenceNext?: string | null;
+  recurrenceLast?: string | null;
+  blockedReason?: string | null;
+  blockedByTaskId?: string | null;
+  externalLinks?: ApiExternalLink[] | null;
+  githubPrUrl?: string | null;
+  githubPrStatus?: "open" | "merged" | "closed" | null;
+  githubPrTitle?: string | null;
+  riskLevel?: "low" | "medium" | "high" | "critical" | null;
+  riskDescription?: string | null;
+  note?: string | null;
+  noteAuthorId?: string | null;
+  isDecisionPoint?: boolean | null;
+  warpTargetNodeId?: string | null;
+  ganttStartDate?: string | null;
+  ganttEndDate?: string | null;
+  ganttProgress?: number | null;
 }
 
 export interface ApiDependency {

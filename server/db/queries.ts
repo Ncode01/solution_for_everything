@@ -90,12 +90,21 @@ export async function getOrgGraph(orgId: string) {
     dependentsMap[dep.upstreamTaskId].push(dep.downstreamTaskId);
   }
 
-  const enrichedTasks = taskRows.map((t) => ({
-    ...t,
-    assigneeIds: taskAssigneeMap[t.id] ?? [],
-    dependencies: dependenciesMap[t.id] ?? [],
-    dependents: dependentsMap[t.id] ?? [],
-  }));
+  const enrichedTasks = taskRows.map((t) => {
+    const meta =
+      t.metadata && typeof t.metadata === "object" && !Array.isArray(t.metadata)
+        ? (t.metadata as Record<string, unknown>)
+        : {};
+    const { metadata: _meta, ...taskRow } = t;
+    void _meta;
+    return {
+      ...taskRow,
+      ...meta,
+      assigneeIds: taskAssigneeMap[t.id] ?? [],
+      dependencies: dependenciesMap[t.id] ?? [],
+      dependents: dependentsMap[t.id] ?? [],
+    };
+  });
 
   const extensions = await getOrgExtensionData(orgId, projectIds);
   const projectHealth = computeProjectHealthMap(

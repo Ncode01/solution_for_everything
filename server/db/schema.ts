@@ -243,6 +243,8 @@ export const tasks = pgTable("tasks", {
     .defaultNow()
     .notNull(),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
+  /** Rich task fields for canvas node resolution (checklist, PR, risk, etc.) */
+  metadata: jsonb("metadata"),
 });
 
 export const taskAssignments = pgTable(

@@ -88,6 +88,18 @@ function toEmail(name: string): string {
   return `${first}.${last}@rccs.lk`;
 }
 
+function pastDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function futureDays(days: number): string {
+  return pastDays(days);
+}
+
+type TaskMetadata = Record<string, unknown>;
+
 async function wipeDemoOrg(orgId: string) {
   const projectRows = await db
     .select({ id: projects.id })
@@ -507,278 +519,366 @@ async function seed() {
     .values([
       {
         projectId: sparkit.id,
-        name: "SparkIT Flash",
+        name: "Discovery",
         orderIndex: 0,
-        canvasX: 200,
-        canvasY: 420,
+        canvasX: 0,
+        canvasY: 0,
       },
       {
         projectId: sparkit.id,
-        name: "SparkIT Fusion",
+        name: "Design",
         orderIndex: 1,
-        canvasX: 700,
-        canvasY: 420,
+        canvasX: 0,
+        canvasY: 0,
       },
       {
         projectId: sparkit.id,
-        name: "SparkIT Family",
+        name: "Engineering",
         orderIndex: 2,
-        canvasX: 1200,
-        canvasY: 420,
+        canvasX: 0,
+        canvasY: 0,
       },
     ])
     .returning();
 
-  const [flash, fusion, family] = phaseRows;
+  const [discovery, design, engineering] = phaseRows;
 
-  const flashBaseX = 200;
-  const fusionBaseX = 700;
-  const familyBaseX = 1200;
-  const taskBaseY = 620;
-  const taskStepX = 220;
+  const user1 = requireUser("Yehara Peiris");
+  const user2 = requireUser("Shasvinth Srikanth");
+  const user3 = requireUser("Nadula Nisith");
+  const user4 = requireUser("Afthab Ahamed");
+  const user5 = requireUser("Kathirkhmaruban Agsharan");
+
+  const sparkitTaskSpecs: {
+    phaseId: string;
+    title: string;
+    status: (typeof tasks.$inferInsert)["status"];
+    priority: (typeof tasks.$inferInsert)["priority"];
+    effortEstimate: number;
+    dueDate?: string;
+    isCriticalPath?: boolean;
+    metadata?: TaskMetadata;
+    assigneeIds?: string[];
+  }[] = [
+    {
+      phaseId: discovery.id,
+      title: "User Research Interviews",
+      status: "done",
+      priority: "high",
+      effortEstimate: 16,
+      dueDate: pastDays(-14),
+      metadata: {
+        checklist: [
+          { id: "c1", label: "Recruit 8 participants", done: true },
+          { id: "c2", label: "Prepare interview script", done: true },
+          { id: "c3", label: "Conduct sessions", done: true },
+          { id: "c4", label: "Synthesise findings", done: true },
+          { id: "c5", label: "Share readout", done: true },
+        ],
+      },
+      assigneeIds: [user1.id, user2.id],
+    },
+    {
+      phaseId: discovery.id,
+      title: "Competitive Analysis",
+      status: "done",
+      priority: "medium",
+      effortEstimate: 8,
+      dueDate: pastDays(-10),
+      assigneeIds: [user1.id],
+    },
+    {
+      phaseId: discovery.id,
+      title: "Technical Feasibility",
+      status: "in_progress",
+      priority: "high",
+      effortEstimate: 12,
+      isCriticalPath: true,
+    },
+    {
+      phaseId: discovery.id,
+      title: "Stakeholder Sign-off",
+      status: "blocked",
+      priority: "critical",
+      effortEstimate: 4,
+      metadata: {
+        blockedReason:
+          "Waiting for legal review of data privacy terms",
+        requiresApproval: true,
+        approverId: user3.id,
+      },
+    },
+    {
+      phaseId: discovery.id,
+      title: "Sign-off Approval Gate",
+      status: "not_started",
+      priority: "critical",
+      effortEstimate: 1,
+      metadata: {
+        requiresApproval: true,
+        approverId: user3.id,
+        isDecisionPoint: true,
+      },
+    },
+    {
+      phaseId: discovery.id,
+      title: "Risk Register",
+      status: "in_progress",
+      priority: "high",
+      effortEstimate: 6,
+      metadata: {
+        riskLevel: "high",
+        riskDescription:
+          "Third-party API deprecation in Q3 could break core feature",
+      },
+    },
+    {
+      phaseId: design.id,
+      title: "Brand Identity System",
+      status: "in_progress",
+      priority: "high",
+      effortEstimate: 24,
+      metadata: {
+        externalLinks: [
+          {
+            id: "el1",
+            label: "Figma Brand Kit",
+            url: "https://figma.com/file/sparkit-brand",
+            type: "figma",
+          },
+        ],
+      },
+      assigneeIds: [user2.id],
+    },
+    {
+      phaseId: design.id,
+      title: "Figma Design System",
+      status: "in_progress",
+      priority: "high",
+      effortEstimate: 40,
+      metadata: {
+        externalLinks: [
+          {
+            id: "el2",
+            label: "Component Library",
+            url: "https://figma.com/file/sparkit-ds",
+            type: "figma",
+          },
+        ],
+        checklist: [
+          { id: "d1", label: "Colour tokens", done: true },
+          { id: "d2", label: "Typography scale", done: true },
+          { id: "d3", label: "Button components", done: true },
+          { id: "d4", label: "Form elements", done: false },
+          { id: "d5", label: "Navigation patterns", done: false },
+          { id: "d6", label: "Data viz components", done: false },
+        ],
+      },
+      assigneeIds: [user2.id, user4.id],
+    },
+    {
+      phaseId: design.id,
+      title: "Prototype v1",
+      status: "in_review",
+      priority: "high",
+      effortEstimate: 20,
+      metadata: {
+        requiresApproval: true,
+        approverId: user3.id,
+      },
+    },
+    {
+      phaseId: design.id,
+      title: "Accessibility Audit",
+      status: "not_started",
+      priority: "medium",
+      effortEstimate: 8,
+      metadata: {
+        recurrence: "monthly",
+        recurrenceNext: futureDays(30),
+        recurrenceLast: pastDays(-30),
+      },
+    },
+    {
+      phaseId: design.id,
+      title: "Animation Spec",
+      status: "not_started",
+      priority: "low",
+      effortEstimate: 6,
+      metadata: {
+        note: "Keep transitions under 300ms per WCAG 2.5.3. Avoid parallax.",
+        noteAuthorId: user2.id,
+      },
+    },
+    {
+      phaseId: engineering.id,
+      title: "Auth Service",
+      status: "in_progress",
+      priority: "critical",
+      effortEstimate: 32,
+      isCriticalPath: true,
+      metadata: {
+        costEstimate: 4200,
+        githubPrUrl: "https://github.com/org/sparkit/pull/47",
+        githubPrStatus: "open",
+        githubPrTitle: "feat: JWT auth + refresh token rotation",
+      },
+      assigneeIds: [user4.id, user5.id],
+    },
+    {
+      phaseId: engineering.id,
+      title: "Database Schema v2",
+      status: "in_progress",
+      priority: "high",
+      effortEstimate: 16,
+      isCriticalPath: true,
+      metadata: {
+        costEstimate: 1800,
+        ganttStartDate: pastDays(-5),
+        ganttEndDate: futureDays(9),
+        ganttProgress: 35,
+      },
+      assigneeIds: [user4.id],
+    },
+    {
+      phaseId: engineering.id,
+      title: "API Gateway Setup",
+      status: "not_started",
+      priority: "high",
+      effortEstimate: 24,
+      metadata: { costEstimate: 3600 },
+    },
+    {
+      phaseId: engineering.id,
+      title: "Frontend Shell",
+      status: "not_started",
+      priority: "high",
+      effortEstimate: 20,
+      isCriticalPath: true,
+    },
+    {
+      phaseId: engineering.id,
+      title: "Legacy Migration Script",
+      status: "blocked",
+      priority: "high",
+      effortEstimate: 12,
+      metadata: {
+        blockedReason:
+          "Waiting for production DB read access from ops team",
+      },
+    },
+    {
+      phaseId: engineering.id,
+      title: "CI/CD Pipeline",
+      status: "in_progress",
+      priority: "medium",
+      effortEstimate: 8,
+      metadata: {
+        recurrence: "weekly",
+        recurrenceNext: futureDays(7),
+        recurrenceLast: pastDays(-7),
+      },
+    },
+    {
+      phaseId: engineering.id,
+      title: "Security Pen Test",
+      status: "not_started",
+      priority: "critical",
+      effortEstimate: 16,
+      metadata: {
+        riskLevel: "critical",
+        riskDescription:
+          "External pen test required before launch. Vendor not yet contracted.",
+        costEstimate: 8500,
+      },
+    },
+    {
+      phaseId: engineering.id,
+      title: "Performance Budget",
+      status: "not_started",
+      priority: "medium",
+      effortEstimate: 1,
+    },
+    {
+      phaseId: engineering.id,
+      title: "E2E Test Suite",
+      status: "not_started",
+      priority: "medium",
+      effortEstimate: 20,
+      metadata: {
+        checklist: [
+          { id: "e1", label: "Auth flows", done: false },
+          { id: "e2", label: "Checkout flows", done: false },
+          { id: "e3", label: "Dashboard smoke tests", done: false },
+        ],
+      },
+    },
+  ];
 
   const taskRows = await db
     .insert(tasks)
-    .values([
-      {
-        phaseId: flash.id,
+    .values(
+      sparkitTaskSpecs.map((spec) => ({
+        phaseId: spec.phaseId,
         projectId: sparkit.id,
-        title: "Identify industry speaker domains",
-        status: "done",
-        priority: "high",
-        effortEstimate: 4,
-        dueDate: "2026-02-15",
-        canvasX: flashBaseX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: flash.id,
-        projectId: sparkit.id,
-        title: "Schedule weekly online sessions (8 sessions)",
-        status: "in_progress",
-        priority: "critical",
-        effortEstimate: 6,
-        dueDate: "2026-03-01",
-        canvasX: flashBaseX + taskStepX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: flash.id,
-        projectId: sparkit.id,
-        title: "Design competition challenges per session topic",
-        status: "in_progress",
-        priority: "high",
-        effortEstimate: 8,
-        dueDate: "2026-03-15",
-        canvasX: flashBaseX + taskStepX * 2,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: flash.id,
-        projectId: sparkit.id,
-        title: "Build participant registration system",
-        status: "not_started",
-        priority: "high",
-        effortEstimate: 10,
-        dueDate: "2026-03-01",
-        canvasX: flashBaseX + taskStepX * 3,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: flash.id,
-        projectId: sparkit.id,
-        title: "Launch nationwide participant outreach",
-        status: "not_started",
-        priority: "critical",
-        effortEstimate: 5,
-        dueDate: "2026-03-10",
-        canvasX: flashBaseX + taskStepX * 4,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Confirm and shortlist 15 partner schools",
-        status: "in_progress",
-        priority: "critical",
-        effortEstimate: 8,
-        dueDate: "2026-04-01",
-        canvasX: fusionBaseX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Secure venue and logistics",
-        status: "not_started",
-        priority: "critical",
-        effortEstimate: 6,
-        dueDate: "2026-04-15",
-        canvasX: fusionBaseX + taskStepX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Prepare Cybersecurity session (Legion Offensive Security)",
-        status: "not_started",
-        priority: "high",
-        effortEstimate: 8,
-        dueDate: "2026-04-20",
-        canvasX: fusionBaseX + taskStepX * 2,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Prepare Robotics session materials",
-        status: "not_started",
-        priority: "high",
-        effortEstimate: 10,
-        dueDate: "2026-04-20",
-        canvasX: fusionBaseX + taskStepX * 3,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Arrange resource donations for schools",
-        status: "not_started",
-        priority: "medium",
-        effortEstimate: 6,
-        dueDate: "2026-05-01",
-        canvasX: fusionBaseX + taskStepX * 4,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Plan awards and certificates (top 3 teams)",
-        status: "not_started",
-        priority: "medium",
-        effortEstimate: 3,
-        dueDate: "2026-05-01",
-        canvasX: fusionBaseX + taskStepX * 5,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: fusion.id,
-        projectId: sparkit.id,
-        title: "Coordinate transportation and RFID logistics",
-        status: "not_started",
-        priority: "medium",
-        effortEstimate: 4,
-        dueDate: "2026-05-05",
-        canvasX: fusionBaseX + taskStepX * 6,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: family.id,
-        projectId: sparkit.id,
-        title: "Establish WhatsApp network for all partner schools",
-        status: "not_started",
-        priority: "high",
-        effortEstimate: 3,
-        dueDate: "2026-06-01",
-        canvasX: familyBaseX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: family.id,
-        projectId: sparkit.id,
-        title: "Build web portal (project docs + learning modules)",
-        status: "not_started",
-        priority: "critical",
-        effortEstimate: 20,
-        dueDate: "2026-07-01",
-        canvasX: familyBaseX + taskStepX,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: family.id,
-        projectId: sparkit.id,
-        title: "Onboard 10+ new ICT societies into the network",
-        status: "not_started",
-        priority: "critical",
-        effortEstimate: 10,
-        dueDate: "2026-06-15",
-        canvasX: familyBaseX + taskStepX * 2,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: family.id,
-        projectId: sparkit.id,
-        title: "Set up mentorship chain (advanced students → new schools)",
-        status: "not_started",
-        priority: "high",
-        effortEstimate: 8,
-        dueDate: "2026-07-15",
-        canvasX: familyBaseX + taskStepX * 3,
-        canvasY: taskBaseY,
-      },
-      {
-        phaseId: family.id,
-        projectId: sparkit.id,
-        title: "Run first cross-school innovation challenge",
-        status: "not_started",
-        priority: "medium",
-        effortEstimate: 12,
-        dueDate: "2026-08-01",
-        canvasX: familyBaseX + taskStepX * 4,
-        canvasY: taskBaseY,
-      },
-    ])
+        title: spec.title,
+        status: spec.status,
+        priority: spec.priority,
+        effortEstimate: spec.effortEstimate,
+        dueDate: spec.dueDate ?? null,
+        canvasX: 0,
+        canvasY: 0,
+        isCriticalPath: spec.isCriticalPath ?? false,
+        metadata: spec.metadata ?? null,
+      })),
+    )
     .returning();
 
-  const [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17] =
-    taskRows;
+  const taskByTitle = new Map(taskRows.map((t) => [t.title, t]));
+  const competitive = taskByTitle.get("Competitive Analysis")!;
+  const technical = taskByTitle.get("Technical Feasibility")!;
+  const stakeholder = taskByTitle.get("Stakeholder Sign-off")!;
+  const auth = taskByTitle.get("Auth Service")!;
+  const dbSchema = taskByTitle.get("Database Schema v2")!;
+  const apiGateway = taskByTitle.get("API Gateway Setup")!;
+  const frontend = taskByTitle.get("Frontend Shell")!;
+  const legacy = taskByTitle.get("Legacy Migration Script")!;
 
-  type AssigneeSpec = { taskId: string; names: string[] };
+  await db
+    .update(tasks)
+    .set({
+      metadata: {
+        ...(stakeholder.metadata as TaskMetadata),
+        blockedByTaskId: technical.id,
+      },
+    })
+    .where(eq(tasks.id, stakeholder.id));
 
-  const assigneeSpecs: AssigneeSpec[] = [
-    { taskId: t1.id, names: ["Yehara Peiris"] },
-    { taskId: t2.id, names: ["Yehara Peiris", "Shasvinth Srikanth"] },
-    {
-      taskId: t3.id,
-      names: ["Sailesh Rengaraj", "Rihan Rishi Ekanayake"],
-    },
-    {
-      taskId: t4.id,
-      names: ["Afthab Ahamed", "Kathirkhmaruban Agsharan"],
-    },
-    { taskId: t5.id, names: ["Nadula Nisith", "Senudi Withanage"] },
-    { taskId: t6.id, names: ["Senudi Withanage"] },
-    { taskId: t7.id, names: ["Randeepa Jayasekara", "Abdul Munaf"] },
-    {
-      taskId: t8.id,
-      names: ["Zakir Hassan", "Thisara Randinu Perera"],
-    },
-    {
-      taskId: t9.id,
-      names: ["Sailesh Rengaraj", "Rihan Rishi Ekanayake"],
-    },
-    { taskId: t10.id, names: ["Umanee De Silva", "Pinidi Harinsa"] },
-    { taskId: t11.id, names: ["Pasanya Ranatunge", "Senudi De Silva"] },
-    { taskId: t12.id, names: ["Randeepa Jayasekara"] },
-    { taskId: t13.id, names: ["Radinsa Jayasinghe"] },
-    {
-      taskId: t14.id,
-      names: [
-        "Nethuki Wickramanayake",
-        "Mihini Kodithuwakku",
-        "Bodhini Piyumika",
-      ],
-    },
-    { taskId: t15.id, names: ["Radinsa Jayasinghe", "Thanushi Yeshani"] },
-    { taskId: t16.id, names: ["Kavindi Thisumya", "Senudi Withanage"] },
-    { taskId: t17.id, names: ["Nadula Nisith", "Radinsa Jayasinghe"] },
-  ];
+  await db
+    .update(tasks)
+    .set({
+      metadata: {
+        ...(legacy.metadata as TaskMetadata),
+        blockedByTaskId: dbSchema.id,
+      },
+    })
+    .where(eq(tasks.id, legacy.id));
+
+  type AssigneeSpec = { taskId: string; userIds: string[] };
+
+  const assigneeSpecs: AssigneeSpec[] = sparkitTaskSpecs
+    .map((spec) => {
+      const row = taskByTitle.get(spec.title);
+      if (!row || !spec.assigneeIds?.length) return null;
+      return { taskId: row.id, userIds: spec.assigneeIds };
+    })
+    .filter((s): s is AssigneeSpec => s != null);
 
   await db.insert(taskAssignees).values(
     assigneeSpecs.flatMap((spec) =>
-      spec.names.map((name) => ({
+      spec.userIds.map((userId) => ({
         taskId: spec.taskId,
-        userId: requireUser(name).id,
+        userId,
       })),
     ),
   );
@@ -786,22 +886,26 @@ async function seed() {
   const dependencyRows = await db
     .insert(taskDependencies)
     .values([
-      { upstreamTaskId: t1.id, downstreamTaskId: t2.id, type: "FS" },
-      { upstreamTaskId: t1.id, downstreamTaskId: t3.id, type: "FS" },
-      { upstreamTaskId: t2.id, downstreamTaskId: t5.id, type: "FS" },
-      { upstreamTaskId: t4.id, downstreamTaskId: t5.id, type: "FS" },
-      { upstreamTaskId: t6.id, downstreamTaskId: t7.id, type: "FS" },
-      { upstreamTaskId: t6.id, downstreamTaskId: t8.id, type: "FS" },
-      { upstreamTaskId: t6.id, downstreamTaskId: t9.id, type: "FS" },
-      { upstreamTaskId: t7.id, downstreamTaskId: t10.id, type: "FS" },
-      { upstreamTaskId: t7.id, downstreamTaskId: t11.id, type: "FS" },
-      { upstreamTaskId: t7.id, downstreamTaskId: t12.id, type: "FS" },
-      { upstreamTaskId: t6.id, downstreamTaskId: t15.id, type: "FS" },
-      { upstreamTaskId: t15.id, downstreamTaskId: t13.id, type: "FS" },
-      { upstreamTaskId: t15.id, downstreamTaskId: t16.id, type: "FS" },
-      { upstreamTaskId: t13.id, downstreamTaskId: t17.id, type: "FS" },
-      { upstreamTaskId: t16.id, downstreamTaskId: t17.id, type: "FS" },
-      { upstreamTaskId: t14.id, downstreamTaskId: t17.id, type: "FS" },
+      {
+        upstreamTaskId: competitive.id,
+        downstreamTaskId: technical.id,
+        type: "FS",
+      },
+      {
+        upstreamTaskId: auth.id,
+        downstreamTaskId: apiGateway.id,
+        type: "FS",
+      },
+      {
+        upstreamTaskId: dbSchema.id,
+        downstreamTaskId: apiGateway.id,
+        type: "FS",
+      },
+      {
+        upstreamTaskId: apiGateway.id,
+        downstreamTaskId: frontend.id,
+        type: "FS",
+      },
     ])
     .returning();
 
