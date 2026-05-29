@@ -97,9 +97,9 @@ export function AppShell() {
 
   return (
     <>
+      <OrgGraphHydrator />
       <ProductionBootstrap />
       <GlobalCommandOrchestrator />
-      <OrgGraphHydrator />
       <PresenceOrchestrator />
       <CanvasEventListener />
       <CommandPalette />
