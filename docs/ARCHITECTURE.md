@@ -294,14 +294,22 @@ Pure function — no database calls. Computed in `getOrgGraph` per project for A
 - `src/lib/canvas/buildGraphFromApi.ts` — calls layout functions to assign positions to every node type
 - `src/lib/canvas/mergeGraphNodes.ts` — preserves DB-saved positions via `_savedToDb`; zero-coordinate nodes receive fresh layout positions
 
+### Semantic Zoom
+
+Semantic zoom **no longer hides nodes**. All node types are always visible at every zoom level. `useSemanticZoom` only updates `zoomLevel` in the store (used by node components for conditional rendering of fine detail — e.g. showing the expand toggle on `ProjectClusterNode` only at Z1+).
+
+The only hidden nodes are:
+
+- `personAvatar` nodes: start hidden, shown when a project is expanded via `useProjectExpand`.
+
 ### Zoom layers
 
-| Level | Zoom range | Visible nodes | Layout pattern |
-|-------|------------|---------------|----------------|
-| Z0 | &lt; 0.3 | projectCluster, milestoneNode | hex-offset 3-col grid |
-| Z1 | 0.3–0.7 | projectCluster, phaseCluster | phase fan-out columns |
-| Z2 | 0.7–1.5 | taskCard, phaseHeader | phase swimlane columns |
-| Z3 | &gt; 1.5 | taskCard (expanded), phaseHeader | phase swimlane columns |
+| Level | Zoom range | UI detail (not visibility) | Layout pattern |
+|-------|------------|---------------------------|----------------|
+| Z0 | &lt; 0.3 | compact project cards | hex-offset 3-col grid |
+| Z1 | 0.3–0.7 | expand chevron on projects | phase fan-out columns |
+| Z2 | 0.7–1.5 | full task swimlanes | phase swimlane columns |
+| Z3 | &gt; 1.5 | expanded task cards | phase swimlane columns |
 
 ### Task swimlane algorithm
 
@@ -318,13 +326,13 @@ Pure function — no database calls. Computed in `getOrgGraph` per project for A
 - id prefix: `phase-header-`
 - type: `phaseHeader`
 - Not draggable, not selectable
-- Shown only at Z2/Z3 via `useSemanticZoom`
+- Always visible; labels render at all zoom levels
 
 ### Swimlane background bands
 
 - `SwimlaneBands.tsx` renders faint tinted rectangles in canvas space via `ViewportPortal`
 - One band per project, color-coded by project accent color
-- Visible only at Z2/Z3
+- Opacity may vary by zoom in the component; bands are not hidden via `node.hidden`
 
 ### deCollide
 
@@ -334,9 +342,18 @@ Runs on `taskCard` nodes only with 60px Manhattan threshold — nudges overlappi
 
 ## Node Selection & Camera Focus
 
-**Flow:** `selectNode(id, type)` in `canvas.store.ts` sets `selectedNodeId` / `selectedNodeType`, then after **50ms** dynamically imports `focusCanvasNode` from `reactFlowApi.ts`.
+### selectNode flow (exact sequence)
 
-**Why `fitView({ nodes })`:** Uses the rendered bounding box instead of `position + fallback width/height`, which was wrong for large `ProjectClusterNode` cards.
+1. `selectNode(id, type)` called (from node onClick or CommandPalette)
+2. Store sets `selectedNodeId` + `selectedNodeType` immediately
+3. If the target node is `hidden: true` in the store, `setNodes` flips it to `hidden: false` before the focus call (handles person nodes)
+4. After **80ms** (React commit window), `focusCanvasNode(id)` is called
+5. `focusCanvasNode` reads `node.position` + `node.measured` dimensions from the ReactFlow instance, computes the center in flow coordinates, and calls `instance.setCenter(cx, cy, { zoom: 1.1, duration: 420 })`
+6. Viewport is synced back to the canvas store
+
+### Why fitView({nodes}) is NOT used for focus
+
+`fitView({nodes:[{id}]})` silently no-ops if the target node is hidden. It also requires the node to be in the ReactFlow internal registry with measured dimensions. `setCenter` with manually-computed coordinates is more reliable and works immediately after unhiding.
 
 **Programmatic selection:** Pass `{ focus: false }` as the third argument to `selectNode` when the camera should not pan (e.g. internal cross-links).
 
