@@ -213,6 +213,40 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel() {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [projectId, graph?.milestones]);
 
+  const phases = useMemo(() => {
+    if (!projectId || !graph) return [];
+    const taskCountByPhase: Record<string, number> = {};
+    for (const t of graph.tasks) {
+      if (t.projectId !== projectId) continue;
+      taskCountByPhase[t.phaseId] = (taskCountByPhase[t.phaseId] ?? 0) + 1;
+    }
+    return graph.phases
+      .filter((p) => p.projectId === projectId)
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((p) => ({
+        ...p,
+        taskCount: taskCountByPhase[p.id] ?? 0,
+      }));
+  }, [projectId, graph]);
+
+  const teamMembers = useMemo(() => {
+    if (!projectId || !graph) return [];
+    const assigneeIds = new Set<string>();
+    for (const t of graph.tasks) {
+      if (t.projectId === projectId) {
+        for (const id of t.assigneeIds) assigneeIds.add(id);
+      }
+    }
+    return graph.users.filter((u) => assigneeIds.has(u.id));
+  }, [projectId, graph]);
+
+  const externalCollaborators = useMemo(() => {
+    if (!projectId || !graph?.externalCollaborators) return [];
+    return graph.externalCollaborators.filter(
+      (c) => c.projectId === projectId || c.projectId === null,
+    );
+  }, [projectId, graph?.externalCollaborators]);
+
   const handleClose = useCallback(() => {
     selectNode(null, null);
   }, [selectNode]);
@@ -382,6 +416,71 @@ export const ProjectDetailPanel = React.memo(function ProjectDetailPanel() {
             </div>
           </div>
         </div>
+
+        <div className="border-b border-white/[0.06] p-4">
+          <p className="text-section-header mb-2 text-on-surface-variant">
+            Phases
+          </p>
+          <ul className="space-y-1.5">
+            {phases.map((phase) => (
+              <li
+                key={phase.id}
+                className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-surface-container-low px-2.5 py-2"
+              >
+                <span className="text-body-sm text-on-surface">{phase.name}</span>
+                <span className="font-mono-label text-mono-label text-outline">
+                  {phase.taskCount} tasks
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {teamMembers.length > 0 ? (
+          <div className="border-b border-white/[0.06] p-4">
+            <p className="text-section-header mb-2 text-on-surface-variant">
+              Team on this project
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-surface-container-low px-2.5 py-1"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-on-surface">
+                    {member.initials}
+                  </span>
+                  <span className="text-body-sm text-on-surface">
+                    {member.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {externalCollaborators.length > 0 ? (
+          <div className="border-b border-white/[0.06] p-4">
+            <p className="text-section-header mb-2 text-on-surface-variant">
+              External collaborators
+            </p>
+            <ul className="space-y-1.5">
+              {externalCollaborators.map((collab) => (
+                <li
+                  key={collab.id}
+                  className="rounded-lg border border-white/[0.06] bg-surface-container-low px-2.5 py-2"
+                >
+                  <p className="text-body-sm text-on-surface">{collab.name}</p>
+                  <p className="text-body-sm text-on-surface-variant">
+                    {[collab.organization, collab.role, collab.type]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="border-b border-white/[0.06] px-4">
           <SectionHeader

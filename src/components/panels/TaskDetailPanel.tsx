@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Calendar,
@@ -17,7 +17,8 @@ import type { CPMTask } from "@/lib/cpm";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import { useMutationOrchestrator } from "@/lib/api/useMutationOrchestrator";
 import { DependencyEditSection } from "./DependencyEditSection";
-import type { Task, TaskCardNodeData, ProjectClusterNodeData } from "@/types";
+import type { Task, TaskCardNodeData, ProjectClusterNodeData, TaskStatus } from "@/types";
+import type { UpdateTaskBody } from "@/lib/api/types";
 import type { TaskFormValues } from "./TaskForm";
 import {
   TaskForm,
@@ -39,7 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
   not_started: "text-on-surface-variant",
   in_progress: "text-[#5591C7]",
   blocked: "text-[#DD6974]",
-  in_review: "text-[#E8AF34]",
+  in_review: "text-[#A86FDF]",
   done: "text-[#6DAA45]",
 };
 
@@ -147,6 +148,51 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
       .map((id) => byId.get(id))
       .filter((t): t is Task => Boolean(t));
   }, [task, allTasks]);
+
+  const blockedTasks = useMemo(() => {
+    if (!task) return [];
+    const byId = new Map(allTasks.map((t) => [t.id, t]));
+    return task.dependents
+      .map((id) => byId.get(id))
+      .filter((t): t is Task => Boolean(t));
+  }, [task, allTasks]);
+
+  const phaseName = useMemo(() => {
+    if (!task || !graph) return "";
+    return graph.phases.find((p) => p.id === task.phaseId)?.name ?? "";
+  }, [task, graph]);
+
+  const [titleDraft, setTitleDraft] = useState("");
+  const [descDraft, setDescDraft] = useState("");
+  const descDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!task) return;
+    setTitleDraft(task.title);
+    setDescDraft(task.description ?? "");
+  }, [task?.id, task?.title, task?.description]);
+
+  const patchTask = useCallback(
+    (body: UpdateTaskBody) => {
+      if (!task) return;
+      void updateTask.mutateAsync({ taskId: task.id, body });
+    },
+    [task, updateTask],
+  );
+
+  useEffect(() => {
+    if (!task || rightPanelMode !== "task-view") return;
+    if (descDraft === (task.description ?? "")) return;
+
+    if (descDebounceRef.current) clearTimeout(descDebounceRef.current);
+    descDebounceRef.current = setTimeout(() => {
+      patchTask({ description: descDraft || null });
+    }, 500);
+
+    return () => {
+      if (descDebounceRef.current) clearTimeout(descDebounceRef.current);
+    };
+  }, [descDraft, task, rightPanelMode, patchTask]);
 
   const defaultProjectId =
     graph?.projects[0]?.id ?? task?.projectId ?? "";
@@ -318,9 +364,21 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
               {project.name}
             </span>
           </div>
-          <h2 className="text-headline-sm font-semibold leading-snug text-on-surface">
-            {task.title}
-          </h2>
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => {
+              const trimmed = titleDraft.trim();
+              if (trimmed && trimmed !== task.title) {
+                patchTask({ title: trimmed });
+              } else {
+                setTitleDraft(task.title);
+              }
+            }}
+            className="text-headline-sm w-full rounded-lg border border-transparent bg-transparent font-semibold leading-snug text-on-surface outline-none focus:border-primary focus:bg-surface-container px-1 -mx-1"
+            aria-label="Task title"
+          />
         </div>
         <div className="flex shrink-0 gap-1">
           <button
@@ -356,11 +414,20 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
           <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
             Status
           </p>
-          <p
-            className={`text-body-sm font-medium ${STATUS_COLORS[task.status]}`}
+          <select
+            value={task.status}
+            onChange={(e) =>
+              patchTask({ status: e.target.value as TaskStatus })
+            }
+            className={`text-body-sm w-full rounded-lg border border-white/10 bg-surface-container px-2 py-1.5 font-medium outline-none focus:border-primary ${STATUS_COLORS[task.status]}`}
+            aria-label="Task status"
           >
-            {STATUS_LABELS[task.status]}
-          </p>
+            {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => (
+              <option key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
@@ -382,22 +449,30 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
             </p>
           </div>
         </div>
-        {task.dueDate && (
-          <div>
-            <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
-              Due
-            </p>
-            <div className="flex items-center gap-1">
-              <Calendar size={11} className="text-on-surface-variant" />
-              <p className="text-body-sm text-on-surface">
-                {new Date(task.dueDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-          </div>
-        )}
+        <div>
+          <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
+            Due
+          </p>
+          <input
+            type="date"
+            value={
+              task.dueDate
+                ? new Date(task.dueDate).toISOString().slice(0, 10)
+                : ""
+            }
+            onChange={(e) =>
+              patchTask({ dueDate: e.target.value || null })
+            }
+            className="text-body-sm w-full rounded-lg border border-white/10 bg-surface-container px-2 py-1.5 text-on-surface outline-none focus:border-primary"
+            aria-label="Due date"
+          />
+        </div>
+        <div>
+          <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
+            Phase
+          </p>
+          <p className="text-body-sm text-on-surface">{phaseName || "—"}</p>
+        </div>
         {task.effortEstimate !== undefined && (
           <div>
             <p className="font-mono-label mb-1 text-[9px] uppercase text-on-surface-variant">
@@ -433,58 +508,131 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
         )}
 
       <div className="border-b border-white/[0.06] p-4">
+        <p className="text-section-header mb-2 text-on-surface-variant">
+          Details
+        </p>
         <p className="font-mono-label mb-2 text-[9px] uppercase text-on-surface-variant">
           Assigned to
         </p>
-        <div className="flex flex-col gap-2">
-          {assignees.map((user) => (
-            <div key={user.id} className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-tertiary-container text-[11px] font-bold text-on-surface">
-                {user.initials}
-              </div>
-              <div>
-                <p className="text-body-sm leading-none text-on-surface">
-                  {user.name}
-                </p>
-                <p className="mt-0.5 text-[9px] text-on-surface-variant">
-                  {user.role}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {dependencyTasks.length > 0 && (
-        <div className="overflow-y-auto p-4">
-          <p className="font-mono-label mb-2 text-[9px] uppercase text-on-surface-variant">
-            Depends on
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {dependencyTasks.map((dep) => (
-              <div
-                key={dep.id}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-surface-container-low px-2.5 py-2"
-              >
-                <div
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor:
-                      dep.status === "done"
-                        ? "#6DAA45"
-                        : dep.status === "blocked"
-                          ? "#DD6974"
-                          : "#5591C7",
+        {graph ? (
+          <div className="flex flex-wrap gap-1.5">
+            {graph.users.map((user) => {
+              const selected = task.assigneeIds.includes(user.id);
+              return (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => {
+                    const next = selected
+                      ? task.assigneeIds.filter((id) => id !== user.id)
+                      : [...task.assigneeIds, user.id];
+                    patchTask({ assigneeIds: next });
                   }}
-                />
-                <span className="text-body-sm truncate text-on-surface">
-                  {dep.title}
-                </span>
+                  className={
+                    selected
+                      ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-body-sm text-on-surface"
+                      : "rounded-full border border-white/10 px-2.5 py-1 text-body-sm text-on-surface-variant hover:bg-white/5"
+                  }
+                >
+                  {user.initials} {user.name.split(" ")[0]}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {assignees.map((user) => (
+              <div key={user.id} className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-tertiary-container text-[11px] font-bold text-on-surface">
+                  {user.initials}
+                </div>
+                <p className="text-body-sm text-on-surface">{user.name}</p>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="border-b border-white/[0.06] p-4">
+        <p className="text-section-header mb-2 text-on-surface-variant">
+          Description
+        </p>
+        <textarea
+          value={descDraft}
+          onChange={(e) => setDescDraft(e.target.value)}
+          placeholder="Add a description…"
+          rows={4}
+          className="text-body-sm w-full resize-y rounded-lg border border-white/10 bg-surface-container px-3 py-2 text-on-surface outline-none placeholder:text-outline focus:border-primary"
+        />
+      </div>
+
+      <div className="border-b border-white/[0.06] p-4">
+        <p className="text-section-header mb-2 text-on-surface-variant">
+          Dependencies
+        </p>
+        {dependencyTasks.length > 0 ? (
+          <>
+            <p className="font-mono-label mb-1.5 text-[9px] uppercase text-on-surface-variant">
+              Depends on
+            </p>
+            <div className="mb-3 flex flex-col gap-1.5">
+              {dependencyTasks.map((dep) => (
+                <div
+                  key={dep.id}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-surface-container-low px-2.5 py-2"
+                >
+                  <div
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      dep.status === "done"
+                        ? "bg-[#6DAA45]"
+                        : dep.status === "blocked"
+                          ? "bg-[#E8AF34]"
+                          : "bg-primary"
+                    }`}
+                  />
+                  <span className="text-body-sm truncate text-on-surface">
+                    {dep.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {blockedTasks.length > 0 ? (
+          <>
+            <p className="font-mono-label mb-1.5 text-[9px] uppercase text-on-surface-variant">
+              Blocks
+            </p>
+            <div className="mb-3 flex flex-col gap-1.5">
+              {blockedTasks.map((dep) => (
+                <div
+                  key={dep.id}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-surface-container-low px-2.5 py-2"
+                >
+                  <span className="text-body-sm truncate text-on-surface">
+                    {dep.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+        <DependencyEditSection
+          task={task}
+          allTasks={allTasks}
+          addDependency={addDependency}
+          removeDependency={removeDependency}
+        />
+      </div>
+
+      <div className="border-b border-white/[0.06] p-4">
+        <p className="text-section-header mb-2 text-on-surface-variant">
+          Activity
+        </p>
+        <p className="text-body-sm text-on-surface-variant">
+          Activity log coming soon
+        </p>
+      </div>
 
       <div className="mt-auto border-t border-white/[0.06] p-4">
         <button
