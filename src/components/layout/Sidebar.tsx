@@ -250,7 +250,8 @@ export function Sidebar() {
           collapsed={collapsed}
           icon={Settings}
           label="Settings"
-          onClick={() => {}}
+          active={activeView === "settings"}
+          onClick={() => setActiveView("settings")}
         />
         <NavItem
           collapsed={collapsed}

@@ -33,6 +33,8 @@ export function Topbar() {
 
   const openTaskCreate = useUIStore((s) => s.openTaskCreate);
   const presenceUsers = useUIStore((s) => s.presenceUsers);
+  const invitePanelRequested = useUIStore((s) => s.invitePanelRequested);
+  const clearInvitePanelRequest = useUIStore((s) => s.clearInvitePanelRequest);
 
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -74,6 +76,14 @@ export function Topbar() {
   const avatarColor = session?.user?.id
     ? getUserColor(session.user.id)
     : rawAvatarFallback();
+
+  useEffect(() => {
+    if (invitePanelRequested) {
+      setUserMenuOpen(false);
+      setInviteOpen(true);
+      clearInvitePanelRequest();
+    }
+  }, [invitePanelRequested, clearInvitePanelRequest]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {

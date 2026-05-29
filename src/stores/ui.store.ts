@@ -10,7 +10,8 @@ export type AppView =
   | "team"
   | "schools"
   | "dashboard"
-  | "gantt";
+  | "gantt"
+  | "settings";
 
 export type RightPanelMode =
   | "closed"
@@ -47,6 +48,7 @@ interface UIState {
   broadcastCursor: ((x: number, y: number) => void) | null;
   broadcastViewport: ((x: number, y: number, zoom: number) => void) | null;
   showKeyboardHelp: boolean;
+  invitePanelRequested: boolean;
   toasts: ToastMessage[];
   setCanvasLoading: (isCanvasLoading: boolean) => void;
   setCanvasError: (canvasError: string | null) => void;
@@ -69,6 +71,8 @@ interface UIState {
     fn: ((x: number, y: number, zoom: number) => void) | null,
   ) => void;
   toggleKeyboardHelp: (open?: boolean) => void;
+  requestInvitePanel: () => void;
+  clearInvitePanelRequest: () => void;
   addToast: (type: ToastMessage["type"], message: string) => void;
   dismissToast: (id: string) => void;
 }
@@ -89,6 +93,7 @@ export const useUIStore = create<UIState>((set) => ({
   broadcastCursor: null,
   broadcastViewport: null,
   showKeyboardHelp: false,
+  invitePanelRequested: false,
   toasts: [],
   setCanvasLoading: (isCanvasLoading) => set({ isCanvasLoading }),
   setCanvasError: (canvasError) => set({ canvasError }),
@@ -139,6 +144,8 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({
       showKeyboardHelp: open !== undefined ? open : !state.showKeyboardHelp,
     })),
+  requestInvitePanel: () => set({ invitePanelRequested: true }),
+  clearInvitePanelRequest: () => set({ invitePanelRequested: false }),
   addToast: (type, message) =>
     set((state) => ({
       toasts: [

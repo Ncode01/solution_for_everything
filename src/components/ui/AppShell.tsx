@@ -15,7 +15,8 @@ import { CommandPalette } from "@/components/panels/CommandPalette";
 import { useCanvasEvents } from "@/lib/firebase/useCanvasEvents";
 import { useOrgGraph } from "@/lib/api/useOrgGraph";
 import { PresenceOrchestrator } from "./PresenceOrchestrator";
-import { KeyboardHelpOverlay } from "./KeyboardHelpOverlay";
+import { KeyboardHelpModal } from "@/components/panels/KeyboardHelpModal";
+import { SettingsView } from "@/components/views/SettingsView";
 import { ToastContainer } from "./Toast";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ProductionBootstrap } from "./ProductionBootstrap";
@@ -83,6 +84,12 @@ function MainView() {
           <DashboardView />
         </ErrorBoundary>
       );
+    case "settings":
+      return (
+        <ErrorBoundary fallbackLabel="Settings failed to load">
+          <SettingsView />
+        </ErrorBoundary>
+      );
     default:
       return (
         <ErrorBoundary fallbackLabel="Canvas failed to load">
@@ -103,7 +110,7 @@ export function AppShell() {
       <PresenceOrchestrator />
       <CanvasEventListener />
       <CommandPalette />
-      <KeyboardHelpOverlay />
+      <KeyboardHelpModal />
       <ToastContainer />
       <RootLayout>
         <MainView />
