@@ -31,6 +31,45 @@ pnpm dev
 # Backend only: localhost:3001
 ```
 
+## Environment setup (required after every db:seed)
+
+1. Copy the template:
+
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Set required variables in `.env.local`:
+
+   ```env
+   NEXT_PUBLIC_ORG_ID=<uuid>        # printed by `pnpm db:seed` as "ORG_ID=..."
+   NEXT_PUBLIC_API_URL=http://localhost:3001
+   ```
+
+3. Run seed (creates org + test data):
+
+   ```bash
+   pnpm db:seed
+   ```
+
+   The last lines of output will be:
+
+   ```
+   ORG_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   Add to .env.local: NEXT_PUBLIC_ORG_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ```
+
+   Copy that UUID into `NEXT_PUBLIC_ORG_ID`.
+
+4. Start both servers:
+
+   ```bash
+   pnpm dev          # Next.js on :3000
+   pnpm server:dev   # Fastify on :3001
+   ```
+
+⚠️ If the topbar shows **Org not found**: the DB was re-seeded and `.env.local` has a stale `ORG_ID`. Re-run `pnpm db:seed` and update `.env.local`.
+
 ## Architecture
 
 - **Frontend**: Next.js 15 (App Router) + ReactFlow v12 + Tailwind v4
