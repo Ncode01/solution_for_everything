@@ -67,6 +67,8 @@ Branch: `fix/phase-11b-stability`
 
 **Pre-release (pilot-ready):** See [PRE_RELEASE.md](./PRE_RELEASE.md) for go/no-go verification.
 
+**Documentation:** [README.md](./README.md) (index) · [USER_MANUAL.md](./USER_MANUAL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [API.md](./API.md)
+
 Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
 
 ### Production-ready for pilot

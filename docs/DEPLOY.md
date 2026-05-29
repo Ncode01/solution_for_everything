@@ -1,8 +1,10 @@
 # FlowCanvas — Deployment Guide
 
-Free-tier deployment: **Vercel** (Next.js frontend) + **Railway** or **Render** (Fastify API) + **Neon** (Postgres) + **Firebase** (Firestore events + presence).
+Free-tier deployment: **Vercel** (Next.js frontend) + **Railway** or **Render** (Fastify API) + **Neon** (Postgres) + **Firebase** (Firestore events + presence, optional).
 
-For debugging production issues, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+**Documentation index:** [README.md](./README.md)  
+**Environment variables (full list):** [ENV.md](./ENV.md)  
+**Debugging:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 ## Prerequisites
 
@@ -29,7 +31,7 @@ These must be consistent across Vercel (frontend) and Railway (API) where noted.
 
 **Preview deployments:** Vercel preview URLs differ per branch. Either set preview-specific `NEXT_PUBLIC_APP_URL` / `BETTER_AUTH_URL` / `APP_URL` / `CORS_ORIGIN`, or test auth only on production. Mismatched origins cause 401s and failed viewport persistence — see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md#preview-url-vs-production-url-auth-mismatch).
 
-Copy `.env.local.example` → `.env.local` for local development.
+Copy `.env.local.example` → `.env.local` and `.env.server.example` → `.env.server` for local development. See [ENV.md](./ENV.md) for every variable and matching rules.
 
 ## 1. Neon database
 

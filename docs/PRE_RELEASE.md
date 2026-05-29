@@ -3,6 +3,8 @@
 **Branch:** `fix/phase-11b-stability`  
 **Purpose:** Confirm the app is safe for a single-org production pilot.
 
+**Full documentation:** [README.md](./README.md) · [USER_MANUAL.md](./USER_MANUAL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [API.md](./API.md) · [ENV.md](./ENV.md)
+
 ## What was checked
 
 - Deployment docs and env examples (Vercel, Railway, Firebase, preview)

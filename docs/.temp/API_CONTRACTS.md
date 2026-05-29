@@ -1,4 +1,10 @@
-# FlowCanvas — API Contracts
+# FlowCanvas — API Contracts (ARCHIVED)
+
+> **Superseded by [../API.md](../API.md).** This draft described WebSocket-first flows and incorrect paths. Do not use for production integration.
+
+---
+
+# FlowCanvas — API Contracts (original)
 
 **Base URL (REST):** `http://localhost:3001`  
 **WebSocket:** `ws://localhost:3001/ws`  
