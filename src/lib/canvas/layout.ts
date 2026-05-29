@@ -191,3 +191,83 @@ export function envelopeSize(
 
   return { width, height };
 }
+
+export const RICH_LAYOUT = {
+  COL_WIDTH: 300,
+  WIDGET_COL_WIDTH: 320,
+  START_Y_OFFSET: 250,
+  VERTICAL_GAP: 18,
+  PHASE_LABEL_H: 44,
+  PHASE_LABEL_GAP: 16,
+} as const;
+
+/**
+ * Computes the x offset from projectPos.x for a given column index.
+ * Columns 0–2 are task phases (width=300 each).
+ * Columns 3–6 are widget areas (width=320 each).
+ */
+export function richColumnX(
+  projectPosX: number,
+  columnIndex: number,
+): number {
+  const TASK_COLS = 3;
+  const TASK_COL_W = RICH_LAYOUT.COL_WIDTH;
+  const WIDGET_COL_W = RICH_LAYOUT.WIDGET_COL_WIDTH;
+  if (columnIndex < TASK_COLS) {
+    return projectPosX + columnIndex * TASK_COL_W;
+  }
+  return (
+    projectPosX +
+    TASK_COLS * TASK_COL_W +
+    (columnIndex - TASK_COLS) * WIDGET_COL_W
+  );
+}
+
+/**
+ * Computes cumulative y positions for nodes stacked in a column.
+ */
+export function stackedColumnPositions(
+  projectPosY: number,
+  nodeHeights: number[],
+  startYOffset: number = RICH_LAYOUT.START_Y_OFFSET,
+  gap: number = RICH_LAYOUT.VERTICAL_GAP,
+): number[] {
+  const positions: number[] = [];
+  let cursor = projectPosY + startYOffset;
+  for (const h of nodeHeights) {
+    positions.push(cursor);
+    cursor += h + gap;
+  }
+  return positions;
+}
+
+/** Total height consumed by a column of stacked nodes. */
+export function columnHeight(
+  nodeHeights: number[],
+  gap = RICH_LAYOUT.VERTICAL_GAP,
+): number {
+  if (nodeHeights.length === 0) return 0;
+  return nodeHeights.reduce((s, h) => s + h + gap, 0) - gap;
+}
+
+/** Envelope size for rich column layout (3 task + up to 4 widget columns). */
+export function richEnvelopeSize(
+  columnCount: number,
+  maxColumnHeight: number,
+): { width: number; height: number } {
+  const TASK_COLS = Math.min(columnCount, 3);
+  const WIDGET_COLS = Math.max(columnCount - 3, 0);
+  const width =
+    TASK_COLS * RICH_LAYOUT.COL_WIDTH +
+    WIDGET_COLS * RICH_LAYOUT.WIDGET_COL_WIDTH +
+    ENVELOPE_PADDING_X * 2 +
+    40;
+
+  const height =
+    ENVELOPE_HEADER_HEIGHT +
+    RICH_LAYOUT.START_Y_OFFSET +
+    maxColumnHeight +
+    80;
+
+  return { width: Math.max(width, 400), height: Math.max(height, 300) };
+}
