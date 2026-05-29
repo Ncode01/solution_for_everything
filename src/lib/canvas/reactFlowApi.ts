@@ -1,5 +1,6 @@
 import type { ReactFlowInstance } from "@xyflow/react";
 import { useCanvasStore } from "@/stores/canvas.store";
+import type { ProjectEnvelopeNodeData } from "@/types";
 
 let instance: ReactFlowInstance | null = null;
 
@@ -64,6 +65,19 @@ export async function focusCanvasNode(
 
   // Prefer measured dimensions (post-render); fall back to sensible defaults
   // per node type so the camera always lands on something reasonable.
+  if (node.type === "projectEnvelope") {
+    const envData = node.data as ProjectEnvelopeNodeData;
+    const w = envData.envelopeWidth ?? 300;
+    const h = envData.envelopeHeight ?? 200;
+    const cx = node.position.x + w / 2;
+    const cy = node.position.y + h / 2;
+    const targetZoom = options?.zoom ?? 1.1;
+    const duration = options?.duration ?? 420;
+    await instance.setCenter(cx, cy, { zoom: targetZoom, duration });
+    useCanvasStore.getState().setViewport(instance.getViewport());
+    return;
+  }
+
   const typeDefaults: Record<string, { w: number; h: number }> = {
     projectCluster: { w: 210, h: 110 },
     taskCard: { w: 210, h: 80 },
