@@ -308,6 +308,63 @@ export const canvasBookmarks = pgTable("canvas_bookmarks", {
 });
 
 /** Per-auth-user viewport persistence (Better Auth id, not domain users) */
+export const posters = pgTable("posters", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  tags: text("tags").array().default([]),
+  canvasX: real("canvas_x"),
+  canvasY: real("canvas_y"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const networkSchools = pgTable("network_schools", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  district: text("district"),
+  province: text("province"),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  status: text("status").notNull().default("active"),
+  projectIds: uuid("project_ids").array().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const externalCollaborators = pgTable("external_collaborators", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, {
+    onDelete: "set null",
+  }),
+  name: text("name").notNull(),
+  organization: text("organization"),
+  role: text("role"),
+  email: text("email"),
+  type: text("type").notNull().default("partner"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const canvasPositions = pgTable(
   "canvas_positions",
   {

@@ -30,6 +30,9 @@ import {
   milestones,
   projectOrgs,
   crossProjectLinks,
+  posters,
+  networkSchools,
+  externalCollaborators,
 } from "./schema";
 
 const DEMO_SLUG = "rccs-2026";
@@ -805,11 +808,208 @@ async function seed() {
     ])
     .returning();
 
+  const POSTER_TAGS = [
+    "design",
+    "tech",
+    "outreach",
+    "education",
+    "events",
+  ] as const;
+
+  const posterTitles = [
+    "Kickoff Vision Board",
+    "Community Outreach Flyer",
+    "Sponsor Deck Cover",
+    "Workshop Series Promo",
+    "Hackathon Save the Date",
+    "Magazine Cover Concept",
+    "Sports App Launch Teaser",
+    "Seminar Registration Poster",
+    "Fusion Event Banner",
+    "Digitalizer Roadmap",
+    "Flash Session Recap",
+    "Family Network Welcome",
+    "PROTOX Venue Map",
+    "BTUI Main Stage Art",
+  ];
+
+  const posterValues = projectRows.flatMap((project, projectIndex) => {
+    const baseX = 100 + (projectIndex % 3) * 400;
+    const baseY = 100 + Math.floor(projectIndex / 3) * 280;
+    return [0, 1].map((slot) => {
+      const titleIndex = projectIndex * 2 + slot;
+      const tagA = POSTER_TAGS[titleIndex % POSTER_TAGS.length];
+      const tagB = POSTER_TAGS[(titleIndex + 2) % POSTER_TAGS.length];
+      return {
+        orgId: org.id,
+        projectId: project.id,
+        title: posterTitles[titleIndex] ?? `${project.name} Poster ${slot + 1}`,
+        description: `Visual asset for ${project.name} — ${slot === 0 ? "primary" : "secondary"} campaign.`,
+        imageUrl: null,
+        tags: [tagA, tagB],
+        canvasX: baseX + slot * 180,
+        canvasY: baseY + slot * 120,
+      };
+    });
+  });
+
+  await db.insert(posters).values(posterValues);
+
+  const schoolSeeds = [
+    {
+      name: "Royal College",
+      district: "Colombo",
+      province: "Western",
+      contactName: "ICT Society Lead",
+      contactEmail: "ict@royalcollege.lk",
+      status: "active",
+    },
+    {
+      name: "Nalanda College",
+      district: "Colombo",
+      province: "Western",
+      contactName: "Computer Club President",
+      contactEmail: "cc@nalanda.sch.lk",
+      status: "active",
+    },
+    {
+      name: "Visakha Vidyalaya",
+      district: "Colombo",
+      province: "Western",
+      contactName: "ICT Society Secretary",
+      contactEmail: "ict@visakha.sch.lk",
+      status: "active",
+    },
+    {
+      name: "Devi Balika",
+      district: "Colombo",
+      province: "Western",
+      contactName: "Tech Club Coordinator",
+      contactEmail: "tech@devibalika.sch.lk",
+      status: "active",
+    },
+    {
+      name: "D.S. Senanayake College",
+      district: "Colombo",
+      province: "Western",
+      contactName: "ICT Coordinator",
+      contactEmail: "ict@ds.sch.lk",
+      status: "active",
+    },
+    {
+      name: "Ananda College",
+      district: "Colombo",
+      province: "Western",
+      contactName: "Computer Society",
+      contactEmail: "cs@ananda.sch.lk",
+      status: "inactive",
+    },
+    {
+      name: "Dharmaraja College",
+      district: "Kandy",
+      province: "Central",
+      contactName: "ICT Society",
+      contactEmail: "ict@dharmaraja.sch.lk",
+      status: "active",
+    },
+    {
+      name: "Ladies' College",
+      district: "Colombo",
+      province: "Western",
+      contactName: "STEM Club Lead",
+      contactEmail: "stem@ladiescollege.lk",
+      status: "active",
+    },
+  ];
+
+  const projectIdList = projectRows.map((p) => p.id);
+  await db.insert(networkSchools).values(
+    schoolSeeds.map((school, index) => {
+      const offset = index % projectIdList.length;
+      const linked = [
+        projectIdList[offset],
+        projectIdList[(offset + 1) % projectIdList.length],
+        projectIdList[(offset + 2) % projectIdList.length],
+      ].slice(0, index % 2 === 0 ? 3 : 2);
+      return {
+        orgId: org.id,
+        ...school,
+        projectIds: linked,
+      };
+    }),
+  );
+
+  const collabSeeds = [
+    {
+      name: "Legion Offensive Security",
+      organization: "Legion Offensive Security",
+      role: "Cybersecurity Partner",
+      email: "partnerships@legion.lk",
+      type: "partner",
+      projectName: "SparkIT'26",
+    },
+    {
+      name: "TechLanka Foundation",
+      organization: "TechLanka Foundation",
+      role: "Education Partner",
+      email: "hello@techlanka.org",
+      type: "partner",
+      projectName: "Tesseract'26",
+    },
+    {
+      name: "Colombo Dev Community",
+      organization: "CDC",
+      role: "Mentorship Network",
+      email: "team@cdc.lk",
+      type: "partner",
+      projectName: "PROTOX'26",
+    },
+    {
+      name: "National ICT Agency",
+      organization: "ICTA",
+      role: "Program Sponsor",
+      email: "grants@icta.lk",
+      type: "sponsor",
+      projectName: "Beyond The User Interface'26",
+    },
+    {
+      name: "Royal Sports Council",
+      organization: "RSC",
+      role: "Sports Program Sponsor",
+      email: "sponsors@royalsports.lk",
+      type: "sponsor",
+      projectName: "RC Sports App",
+    },
+    {
+      name: "Dr. Anuki Perera",
+      organization: "University of Colombo",
+      role: "Technical Advisor",
+      email: "anuki.perera@cmb.ac.lk",
+      type: "advisor",
+      projectName: "Digitalizer'26",
+    },
+  ];
+
+  await db.insert(externalCollaborators).values(
+    collabSeeds.map((c) => ({
+      orgId: org.id,
+      projectId: requireProject(c.projectName).id,
+      name: c.name,
+      organization: c.organization,
+      role: c.role,
+      email: c.email,
+      type: c.type,
+    })),
+  );
+
   console.log("Seed complete.");
   console.log(`ORG_ID=${org.id}`);
   console.log(`PROJECTS=7`);
   console.log(`TASKS=${taskRows.length}`);
   console.log(`DEPENDENCIES=${dependencyRows.length}`);
+  console.log(`POSTERS=${posterValues.length}`);
+  console.log(`SCHOOLS=${schoolSeeds.length}`);
+  console.log(`COLLABORATORS=${collabSeeds.length}`);
   console.log("Add to .env.local: NEXT_PUBLIC_ORG_ID=" + org.id);
   process.exit(0);
 }
