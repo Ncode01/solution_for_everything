@@ -294,6 +294,17 @@ check("AUTH: login page exists", async () =>
   fileExists("src/app/login/page.tsx") ? "PASS" : "FAIL — missing login page",
 );
 
+check("SRC: notifications control is not a dead button", async () => {
+  const content = readFileSync(
+    resolve(process.cwd(), "src/components/ui/TopBar.tsx"),
+    "utf8",
+  );
+  if (/aria-label="Notifications"[^>]*>\s*<Bell/.test(content) && !/disabled|not available/i.test(content)) {
+    return "FAIL — notifications bell looks active but has no handler";
+  }
+  return /not available yet|aria-disabled/.test(content) ? "PASS" : "FAIL";
+});
+
 check("SRC: LeftSidebar has no hardcoded demo projects", async () => {
   const content = readFileSync(
     resolve(process.cwd(), "src/components/ui/LeftSidebar.tsx"),

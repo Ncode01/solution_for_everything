@@ -71,6 +71,14 @@ See `.env.local.example` for local development.
 
 **Fix:** Configure Vercel preview env vars for that preview’s URL, or test on production only.
 
+### A button looks clickable but does nothing
+
+**Symptom:** Bell icon, bookmark, or similar control has no effect.
+
+**Check:** Production UI should either wire the action or show `disabled` / “not available yet”. Notifications are intentionally disabled until a backend exists.
+
+**Keyboard:** Task nodes support Enter/Space to open the detail panel. Use `?` for shortcut help.
+
 ### Sidebar shows wrong project names
 
 **Symptom:** Left sidebar lists "Annual Hackathon" or other seed names not in your org.

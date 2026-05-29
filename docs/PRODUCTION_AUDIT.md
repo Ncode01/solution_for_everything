@@ -19,6 +19,20 @@ This pass **fixes all blocker and high items** listed below. Remaining gaps are 
 
 ---
 
+## Third pass (May 29, 2026) — dead-end UI, a11y, placeholder clarity
+
+| ID | Priority | Status | Summary |
+|----|----------|--------|---------|
+| AUD-020 | **High** | Fixed | Notifications bell was clickable with fake unread dot but no handler |
+| AUD-021 | Medium | Fixed | Task cards keyboard-inaccessible (div onClick only) |
+| AUD-022 | Medium | Fixed | `new-task` command silently failed with no org projects |
+| AUD-023 | Medium | Fixed | Debug command exposed in production command palette |
+| AUD-024 | Low | Fixed | TopBar menus missing Escape / aria-expanded |
+| AUD-025 | Low | Fixed | Canvas empty state had no clickable create path |
+| AUD-026 | Low | Fixed | Login/Gantt/keyboard overlay a11y polish |
+
+---
+
 ## Second pass (May 29, 2026) — medium/low hardening
 
 | ID | Priority | Status | Summary |

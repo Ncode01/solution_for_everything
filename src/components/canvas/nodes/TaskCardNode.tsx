@@ -4,6 +4,7 @@ import React, { useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Calendar, Clock } from "lucide-react";
 import type { TaskCardNodeData } from "@/types";
+import { handleKeyboardActivate } from "@/lib/a11y/keyboardActivate";
 import { useUIStore } from "@/stores/ui.store";
 import { useCanvasStore } from "@/stores/canvas.store";
 
@@ -62,10 +63,14 @@ export const TaskCardNode = React.memo(function TaskCardNode({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={(e) => handleKeyboardActivate(e, handleClick)}
+      aria-label={`Task: ${nodeData.task.title}, ${nodeData.task.status.replace("_", " ")}`}
       className={[
         isExpanded ? "w-[280px]" : "w-[220px]",
-        "cursor-pointer rounded-lg bg-surface-container transition-colors duration-150",
+        "cursor-pointer rounded-lg bg-surface-container transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
         isBlocked
           ? "border border-[#DD6974]/60"
           : "border border-white/[0.08] hover:border-white/20",

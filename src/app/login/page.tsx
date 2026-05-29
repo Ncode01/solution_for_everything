@@ -63,7 +63,11 @@ export default function LoginPage() {
             : "Sign in with your organization account."}
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4"
+          aria-busy={pending}
+        >
           <label className="flex flex-col gap-1.5">
             <span className="font-mono-label text-[10px] uppercase tracking-wide text-on-surface-variant">
               Email
@@ -95,15 +99,20 @@ export default function LoginPage() {
             />
           </label>
 
-          {error && (
-            <p className="text-body-sm rounded-lg border border-[#DD6974]/40 bg-[#DD6974]/10 px-3 py-2 text-[#DD6974]">
+          {error ? (
+            <p
+              role="alert"
+              aria-live="polite"
+              className="text-body-sm rounded-lg border border-[#DD6974]/40 bg-[#DD6974]/10 px-3 py-2 text-[#DD6974]"
+            >
               {error}
             </p>
-          )}
+          ) : null}
 
           <button
             type="submit"
             disabled={pending}
+            aria-busy={pending}
             className="text-body-sm rounded-lg bg-primary px-4 py-2 font-medium text-on-primary disabled:opacity-50"
           >
             {pending

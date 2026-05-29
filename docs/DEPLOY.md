@@ -150,6 +150,9 @@ Prefixed one-line warnings help identify issues without spamming:
 |--------|---------|
 | `[AuthClient]` | Resolved Better Auth base URL |
 | `[Firebase]` | Missing Firebase env vars |
+| `[DeadEnd]` | User action blocked (e.g. create task with no project) |
+
+**Intentionally unavailable in UI:** Notifications (bell icon is disabled). Canvas bookmarks were removed from the sidebar.
 | `[CanvasEvents]` | Listener init, old event ignored, Firestore error |
 | `[Presence]` | Firestore unavailable, presence disabled |
 | `[ViewportPersistence]` | 401/404/network on viewport load or save |

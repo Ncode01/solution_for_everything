@@ -12,3 +12,8 @@ export function logDevOnce(key: string, message: string): void {
   if (process.env.NODE_ENV === "production") return;
   logOnce(key, message);
 }
+
+/** Log when a user action is blocked (e.g. missing prerequisites). */
+export function logDeadEndOnce(key: string, message: string): void {
+  logOnce(`dead-end-${key}`, `[DeadEnd] ${message}`);
+}

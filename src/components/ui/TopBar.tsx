@@ -59,6 +59,18 @@ export function TopBar() {
     : "#5591C7";
 
   useEffect(() => {
+    if (!inviteOpen && !userMenuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setInviteOpen(false);
+        setUserMenuOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inviteOpen, userMenuOpen]);
+
+  useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (
         inviteRef.current &&
@@ -206,6 +218,9 @@ export function TopBar() {
               setInviteOpen((o) => !o);
               setUserMenuOpen(false);
             }}
+            aria-expanded={inviteOpen}
+            aria-haspopup="dialog"
+            aria-label="Invite team member"
             className="text-body-sm flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-on-surface-variant hover:bg-white/5"
           >
             <UserPlus size={14} />
@@ -253,14 +268,20 @@ export function TopBar() {
                     required
                     className="text-body-sm rounded-lg border border-white/10 bg-surface-container px-3 py-2 text-on-surface outline-none focus:border-primary"
                   />
+                  <label className="flex flex-col gap-1.5">
+                    <span className="font-mono-label text-[10px] uppercase tracking-wide text-on-surface-variant">
+                      Role
+                    </span>
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value)}
+                    aria-label="Invite role"
                     className="text-body-sm rounded-lg border border-white/10 bg-surface-container px-3 py-2 text-on-surface outline-none focus:border-primary"
                   >
                     <option value="member">Member</option>
                     <option value="lead">Lead</option>
                   </select>
+                  </label>
                   {inviteError ? (
                     <p className="text-body-sm text-error">{inviteError}</p>
                   ) : null}
@@ -280,6 +301,7 @@ export function TopBar() {
         <button
           type="button"
           onClick={openCommandPalette}
+          aria-label="Open command palette"
           className="font-mono-label text-mono-label cursor-pointer rounded-lg border border-white/10 bg-surface-container-low px-2 py-1 text-on-surface-variant hover:bg-white/5"
         >
           ⌘K
@@ -287,11 +309,13 @@ export function TopBar() {
 
         <button
           type="button"
-          className="relative text-on-surface-variant hover:text-on-surface"
-          aria-label="Notifications"
+          disabled
+          aria-disabled="true"
+          title="Notifications are not available in this release"
+          aria-label="Notifications (not available yet)"
+          className="cursor-not-allowed text-on-surface-variant opacity-40"
         >
-          <Bell size={18} />
-          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-error" />
+          <Bell size={18} aria-hidden />
         </button>
 
         <div className="relative" ref={userMenuRef}>
@@ -301,9 +325,11 @@ export function TopBar() {
               setUserMenuOpen((o) => !o);
               setInviteOpen(false);
             }}
+            aria-expanded={userMenuOpen}
+            aria-haspopup="menu"
             className="text-body-sm flex h-8 w-8 items-center justify-center rounded-full font-bold text-white"
             style={{ backgroundColor: avatarColor }}
-            aria-label={session?.user?.name ?? "Signed in user"}
+            aria-label={session?.user?.name ?? "Account menu"}
             title={
               !isLinked
                 ? "Complete setup — accept an invite to link your profile"

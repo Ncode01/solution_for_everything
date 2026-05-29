@@ -139,6 +139,8 @@ export function GanttView() {
               key={z}
               type="button"
               onClick={() => setZoomLevel(z)}
+              aria-pressed={zoomLevel === z}
+              aria-label={`${z} zoom level`}
               className={
                 zoomLevel === z
                   ? "font-mono-label rounded-full border border-primary/30 bg-primary/20 px-3 py-1 text-xs text-primary capitalize"
@@ -152,6 +154,7 @@ export function GanttView() {
         <button
           type="button"
           onClick={scrollToToday}
+          aria-label="Scroll timeline to today"
           className="text-body-sm rounded-lg border border-white/10 px-3 py-1 text-on-surface-variant hover:bg-white/5"
         >
           Today

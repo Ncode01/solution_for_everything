@@ -22,7 +22,12 @@ export function ViewStatusPanel({
     <main className="flex flex-1 flex-col items-center justify-center gap-3 bg-surface-container-low p-8 text-center">
       <Icon className="text-outline" size={32} aria-hidden />
       <h1 className="text-body-md font-medium text-on-surface">{title}</h1>
-      <p className="text-body-sm max-w-md text-on-surface-variant">{message}</p>
+      <p
+        role="alert"
+        className="text-body-sm max-w-md text-on-surface-variant"
+      >
+        {message}
+      </p>
       {onRetry ? (
         <button
           type="button"

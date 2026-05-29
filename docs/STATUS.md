@@ -44,6 +44,12 @@ Branch: `fix/phase-11b-stability`
 - Preview deployment CORS (single `APP_URL` on Railway — use matching env per preview)
 - Workload `loadLevel` heuristic (`taskCount * 12.5` in `buildGraphFromApi`)
 
+**Pass 3 hardening (same branch):**
+- Dead notifications control disabled with clear label (no fake unread dot)
+- Task nodes keyboard-accessible; command palette debug hidden in production
+- Canvas empty state includes **Create task** button; failed commands show toasts
+- Menus: Escape to close; expanded state exposed to assistive tech
+
 **Pass 2 hardening (same branch):**
 - Sidebar: API-backed projects and people (no hardcoded demo list)
 - Dashboard / Gantt: error + retry + clearer empty states
