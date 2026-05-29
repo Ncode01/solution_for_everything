@@ -63,11 +63,6 @@ const defaultEdgeOptions = {
   animated: false,
 };
 
-function SemanticZoomTracker() {
-  useSemanticZoom();
-  return null;
-}
-
 function FlowCanvasInner() {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
@@ -412,6 +407,8 @@ function FlowCanvasInner() {
     [broadcastCursor, screenToFlowPosition],
   );
 
+  useSemanticZoom();
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -432,7 +429,6 @@ function FlowCanvasInner() {
       proOptions={{ hideAttribution: true }}
     >
       <ReactFlowApiBridge />
-      <SemanticZoomTracker />
       <SwimlaneBands />
       <Background
         variant={BackgroundVariant.Dots}
