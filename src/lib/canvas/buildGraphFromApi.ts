@@ -357,6 +357,7 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         isExpanded: false,
         _savedToDb: apiTask.canvasX !== 0 || apiTask.canvasY !== 0,
       },
+      hidden: false,
     };
   });
 
@@ -387,7 +388,7 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
         },
         draggable: false,
         selectable: false,
-        hidden: true,
+        hidden: false,
       });
     });
   }
@@ -455,7 +456,6 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       source: `project-${link.sourceProjectId}`,
       target: `project-${link.targetProjectId}`,
       type: "crossProject",
-      hidden: false,
       data: { linkType: link.type, note: link.note },
       style: {
         stroke: color,
