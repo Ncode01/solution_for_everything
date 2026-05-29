@@ -10,6 +10,10 @@ import {
   getProjectHealthData,
   getWorkloadData,
 } from "@/lib/dashboard/dashboardUtils";
+import { computeProjectHealth } from "@/lib/health-score";
+import { colors, typography } from "@/design-system";
+import { getUserColor } from "@/lib/presence/userColor";
+import type { ApiTask } from "@/lib/api/types";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
 import { ViewErrorPanel } from "@/components/ui/ViewStatusPanel";
@@ -50,6 +54,59 @@ export function DashboardView() {
   }, []);
 
   const updatedLabel = formatUpdatedAgo(query.dataUpdatedAt);
+
+  const stats = useMemo(() => {
+    if (!query.data) return null;
+    const tasks = query.data.tasks;
+    const budgetTotal = Object.values(query.data.budgetByProject ?? {}).reduce(
+      (sum, b) => sum + (b.summary?.totalIncome ?? 0),
+      0,
+    );
+    return {
+      totalTasks: tasks.length,
+      completed: tasks.filter((t) => t.status === "done").length,
+      inProgress: tasks.filter((t) => t.status === "in_progress").length,
+      blocked: tasks.filter((t) => t.status === "blocked").length,
+      projects: query.data.projects.length,
+      members: query.data.users.length,
+      budgetTotal,
+      milestones: query.data.milestones?.length ?? 0,
+    };
+  }, [query.data]);
+
+  const recentTasks = useMemo(() => {
+    if (!query.data) return [];
+    return [...query.data.tasks]
+      .sort((a, b) => {
+        const au = (a as ApiTask & { updatedAt?: string }).updatedAt ?? "";
+        const bu = (b as ApiTask & { updatedAt?: string }).updatedAt ?? "";
+        return bu.localeCompare(au);
+      })
+      .slice(0, 5);
+  }, [query.data]);
+
+  const healthBars = useMemo(() => {
+    if (!query.data) return [];
+    return query.data.projects.map((project) => {
+      const projectTasks = query.data!.tasks.filter(
+        (t) => t.projectId === project.id,
+      );
+      const projectMilestones = (query.data!.milestones ?? []).filter(
+        (m) => m.projectId === project.id,
+      );
+      const budget = query.data!.budgetByProject?.[project.id]?.summary ?? null;
+      const health = computeProjectHealth(
+        projectTasks.map((t) => ({
+          status: t.status,
+          priority: t.priority,
+          dueDate: t.dueDate,
+        })),
+        projectMilestones.map((m) => ({ date: String(m.date) })),
+        budget,
+      );
+      return { project, score: health.score };
+    });
+  }, [query.data]);
 
   const { healthCards, workload, criticalPath, blocked } = useMemo(() => {
     if (!query.data) {
@@ -138,6 +195,22 @@ export function DashboardView() {
         </button>
       </header>
 
+      {stats ? (
+        <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          <StatCard label="Total Tasks" value={stats.totalTasks} />
+          <StatCard label="Completed" value={stats.completed} />
+          <StatCard label="In Progress" value={stats.inProgress} />
+          <StatCard label="Blocked" value={stats.blocked} />
+          <StatCard label="Projects" value={stats.projects} />
+          <StatCard label="Team Members" value={stats.members} />
+          <StatCard
+            label="Budget Total"
+            value={stats.budgetTotal.toLocaleString()}
+          />
+          <StatCard label="Milestones" value={stats.milestones} />
+        </section>
+      ) : null}
+
       <section className="mb-6 flex flex-wrap gap-3">
         {healthCards.map((card) => (
           <ProjectHealthCard key={card.projectId} card={card} />
@@ -152,6 +225,98 @@ export function DashboardView() {
         />
         <BlockedTasksPanel items={blocked} onTaskClick={handleTaskClick} />
       </div>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-section-header text-on-surface-variant">
+          Health Scores
+        </h2>
+        <ul className="space-y-3">
+          {healthBars.map(({ project, score }) => (
+            <li key={project.id}>
+              <div className="mb-1 flex justify-between text-body-sm text-on-surface">
+                <span>{project.name}</span>
+                <span className="font-mono-label text-mono-label">{score}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full ${
+                    score > 80
+                      ? "bg-[#6DAA45]"
+                      : score >= 50
+                        ? "bg-[#E8AF34]"
+                        : "bg-[#DD6974]"
+                  }`}
+                  style={{ width: `${score}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-section-header text-on-surface-variant">
+          Recent Activity
+        </h2>
+        {recentTasks.length === 0 ? (
+          <p className={`${typography.scale.sm.class} ${colors.text.tertiary}`}>
+            No recent task updates.
+          </p>
+        ) : (
+          <ul className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08]">
+            {recentTasks.map((task) => {
+              const project = query.data!.projects.find(
+                (p) => p.id === task.projectId,
+              );
+              const assignee = query.data!.users.find((u) =>
+                task.assigneeIds.includes(u.id),
+              );
+              return (
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleTaskClick(task.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03]"
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        project?.color === "coral"
+                          ? "bg-[#E05C5C]"
+                          : project?.color === "mint"
+                            ? "bg-[#6DAA45]"
+                            : "bg-[#5591C7]"
+                      }`}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-body-sm text-on-surface">
+                      {task.title}
+                    </span>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-on-surface-variant">
+                      {task.status.replace("_", " ")}
+                    </span>
+                    {assignee ? (
+                      <span
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                        style={{ backgroundColor: getUserColor(assignee.id) }}
+                      >
+                        {assignee.initials}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </main>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-surface-container-high p-4">
+      <p className="text-section-header text-on-surface-variant">{label}</p>
+      <p className="mt-1 text-display-lg font-semibold text-on-surface">{value}</p>
+    </div>
   );
 }
