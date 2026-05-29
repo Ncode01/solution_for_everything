@@ -1,33 +1,27 @@
 import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCanvasStore } from "@/stores/canvas.store";
-import { MOCK_TASKS, MOCK_USERS } from "@/lib/seed/mockData";
-import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
+import { restoreDependencyEdgeStyles } from "@/lib/canvas/dependencyEdgeStyles";
+import { getWorkloadStatsFromNodes } from "@/lib/canvas/workloadStats";
+import type { OrgGraphResponse } from "@/lib/api/types";
 
-function getOverloadedTaskIds(): Set<string> {
-  const overloadedUserIds = new Set(
-    MOCK_USERS.filter((u) => u.loadLevel === "overloaded").map((u) => u.id),
-  );
-  const ids = new Set<string>();
-  for (const task of MOCK_TASKS) {
-    if (task.assigneeIds.some((id) => overloadedUserIds.has(id))) {
-      ids.add(task.id);
-    }
-  }
-  return ids;
-}
+const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
 export function useWorkloadLayer() {
+  const queryClient = useQueryClient();
   const activeLayer = useCanvasStore((s) => s.activeLayer);
   const setActiveLayer = useCanvasStore((s) => s.setActiveLayer);
   const setNodes = useCanvasStore((s) => s.setNodes);
   const setEdges = useCanvasStore((s) => s.setEdges);
 
   const activateWorkloadLayer = useCallback(() => {
-    setActiveLayer("workload");
-    const overloadedTaskIds = getOverloadedTaskIds();
+    const nodes = useCanvasStore.getState().nodes;
+    const { overloadedTaskIds } = getWorkloadStatsFromNodes(nodes);
 
-    setNodes((nodes) =>
-      nodes.map((node) => {
+    setActiveLayer("workload");
+
+    setNodes((current) =>
+      current.map((node) => {
         if (node.id.startsWith("person-")) {
           return { ...node, hidden: false };
         }
@@ -78,6 +72,11 @@ export function useWorkloadLayer() {
   const deactivateWorkloadLayer = useCallback(() => {
     setActiveLayer("default");
 
+    const graph = queryClient.getQueryData<OrgGraphResponse>([
+      "org-graph",
+      ORG_ID,
+    ]);
+
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id.startsWith("person-")) {
@@ -87,8 +86,8 @@ export function useWorkloadLayer() {
       }),
     );
 
-    setEdges((edges) => restoreDependencyEdgeStyles(edges));
-  }, [setActiveLayer, setNodes, setEdges]);
+    setEdges((edges) => restoreDependencyEdgeStyles(edges, graph));
+  }, [setActiveLayer, setNodes, setEdges, queryClient]);
 
   const toggleWorkloadLayer = useCallback(() => {
     if (activeLayer === "workload") {

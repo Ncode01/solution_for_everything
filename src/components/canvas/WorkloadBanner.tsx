@@ -1,19 +1,23 @@
 "use client";
 
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, X } from "lucide-react";
 import { useWorkloadLayer } from "@/lib/canvas/useWorkloadLayer";
-import { MOCK_USERS } from "@/lib/seed/mockData";
+import { countByLoadLevel } from "@/lib/canvas/workloadStats";
+import { useCanvasStore } from "@/stores/canvas.store";
 
 export function WorkloadBanner() {
   const { isWorkloadActive, toggleWorkloadLayer } = useWorkloadLayer();
+  const nodes = useCanvasStore((s) => s.nodes);
 
-  const overloadedCount = MOCK_USERS.filter(
-    (u) => u.loadLevel === "overloaded",
-  ).length;
-  const atCapacityCount = MOCK_USERS.filter(
-    (u) => u.loadLevel === "at_capacity",
-  ).length;
+  const { overloadedCount, atCapacityCount } = useMemo(
+    () => ({
+      overloadedCount: countByLoadLevel(nodes, "overloaded"),
+      atCapacityCount: countByLoadLevel(nodes, "at_capacity"),
+    }),
+    [nodes],
+  );
 
   return (
     <AnimatePresence>
@@ -38,6 +42,11 @@ export function WorkloadBanner() {
             {atCapacityCount > 0 && (
               <span className="font-mono-label ml-1 text-[10px] text-[#E8AF34]">
                 {atCapacityCount} at capacity
+              </span>
+            )}
+            {overloadedCount === 0 && atCapacityCount === 0 && (
+              <span className="font-mono-label text-[10px] text-on-surface-variant">
+                No capacity alerts
               </span>
             )}
             <button

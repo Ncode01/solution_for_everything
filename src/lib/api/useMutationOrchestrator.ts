@@ -10,7 +10,9 @@ import {
   useArchiveTaskMutation,
   useAddDependencyMutation,
   useRemoveDependencyMutation,
+  isPositionOnlyBody,
 } from "./useTaskMutations";
+import { logDevOnce } from "@/lib/diagnostics";
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
@@ -46,7 +48,14 @@ export function useMutationOrchestrator() {
       void publishEvent("task_updated", task.id, { task });
     },
     onError: toastError,
-    onSettled: async () => {
+    onSettled: async (_data, _err, vars) => {
+      if (vars && isPositionOnlyBody(vars.body)) {
+        logDevOnce(
+          "mutation-orchestrator-skip-invalidate",
+          "[OrgGraph] position-only update: skipping full graph invalidation",
+        );
+        return;
+      }
       await invalidateAndRecompute();
     },
   });

@@ -143,7 +143,7 @@ export function buildDependencyEdges(): Edge[] {
   return edges;
 }
 
-/** Restore dependency edge styles after workload/cascade overlays */
+/** @deprecated Use dependencyEdgeStyles.restoreDependencyEdgeStyles with API graph in production */
 export function restoreDependencyEdgeStyles(edges: Edge[]): Edge[] {
   const defaults = buildDependencyEdges();
   const defaultById = new Map(defaults.map((e) => [e.id, e]));

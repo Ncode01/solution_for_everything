@@ -12,6 +12,7 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import { getFirestoreDb, isFirebaseConfigured } from "./config";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { logOnce, logDevOnce } from "@/lib/diagnostics";
@@ -240,12 +241,13 @@ export function useCanvasEvents(options: UseCanvasEventsOptions = {}) {
       const db = getFirestoreDb();
       if (!db) return;
 
+      const session = await authClient.getSession();
       await addDoc(collection(db, "orgs", ORG_ID, "events"), {
         type,
         taskId,
         payload,
         timestamp: serverTimestamp(),
-        userId: "local",
+        userId: session?.data?.user?.id ?? "unknown",
       });
     },
     [],

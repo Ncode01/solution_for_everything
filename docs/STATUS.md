@@ -26,14 +26,29 @@
 
 **Login (production):** `owner@flowcanvas.dev` / `demo12345`
 
-## Phase 11B — Stability hardening (in progress)
+## Phase 11B — Stability + production audit
 
 Branch: `fix/phase-11b-stability`
 
-- Canvas: transition-guarded cascade/project effects, stable drag mutation, optimistic position cache
-- Firebase: `onError` on listeners, session-scoped event replay, presence disable on Firestore failure
-- API: no hard reload on 401; viewport persistence non-fatal with diagnostics
-- Docs: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md), expanded [DEPLOY.md](./DEPLOY.md)
+**Production-ready (pilot):**
+- Canvas graph from API (`useOrgGraph` + hash guard + merge)
+- Task CRUD, drag persist, optimistic position cache
+- Project expand/collapse from API cache
+- Workload view from live canvas nodes (not mock seed)
+- Edge restore from API graph snapshot
+- Auth: no hard reload on 401; middleware + inline errors
+- Firebase events/presence: optional, graceful disable
+
+**Intentionally non-critical:**
+- Yjs CRDT sync (PRD vision — see GAP-006)
+- Preview deployment CORS (single `APP_URL` on Railway — use matching env per preview)
+- Workload `loadLevel` heuristic (`taskCount * 12.5` in `buildGraphFromApi`)
+
+**Still risky / watch:**
+- Vercel preview URL vs `BETTER_AUTH_URL` / `APP_URL` mismatch → 401
+- Empty org / zero tasks — canvas empty state exists; dashboard shows "No project data"
+
+Full audit: [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md)
 
 ## Phase history
 

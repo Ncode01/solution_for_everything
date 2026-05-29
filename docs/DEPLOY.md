@@ -158,6 +158,12 @@ Prefixed one-line warnings help identify issues without spamming:
 
 See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for failure modes and debugging steps.
 
+## Production audit
+
+See [PRODUCTION_AUDIT.md](./PRODUCTION_AUDIT.md) for ranked issues, fixes, and remaining risks.
+
+**Pilot blockers resolved:** mock workload data, mock edge restore, drag invalidation churn.
+
 ## Known failure modes (quick)
 
 | Symptom | Likely cause |

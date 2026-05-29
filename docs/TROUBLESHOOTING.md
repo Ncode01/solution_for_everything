@@ -71,6 +71,14 @@ See `.env.local.example` for local development.
 
 **Fix:** Configure Vercel preview env vars for that preview’s URL, or test on production only.
 
+### Workload view shows wrong overload counts
+
+**Symptom:** Workload banner counts do not match your team; wrong tasks highlighted.
+
+**Cause (fixed):** Workload layer previously read `MOCK_USERS` from seed data. Must use live canvas person nodes.
+
+**Check:** No `mockData` imports in `useWorkloadLayer.ts` or `WorkloadBanner.tsx`.
+
 ### Task drag snaps back after drop
 
 **Symptom:** Node jumps back until refresh.

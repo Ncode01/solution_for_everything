@@ -19,7 +19,7 @@ import type {
 
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
-function isPositionOnlyBody(body: UpdateTaskBody): boolean {
+export function isPositionOnlyBody(body: UpdateTaskBody): boolean {
   const keys = Object.keys(body);
   return (
     keys.length > 0 && keys.every((k) => k === "canvasX" || k === "canvasY")

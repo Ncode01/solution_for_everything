@@ -18,7 +18,8 @@ import "@xyflow/react/dist/style.css";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useSemanticZoom } from "@/lib/canvas/useSemanticZoom";
 import { useProjectExpand } from "@/lib/canvas/useProjectExpand";
-import { restoreDependencyEdgeStyles } from "@/lib/canvas/seedToNodes";
+import { restoreDependencyEdgeStyles } from "@/lib/canvas/dependencyEdgeStyles";
+import type { OrgGraphResponse } from "@/lib/api/types";
 import { TaskCardNode } from "./nodes/TaskCardNode";
 import { ProjectClusterNode } from "./nodes/ProjectClusterNode";
 import { PhaseClusterNode } from "./nodes/PhaseClusterNode";
@@ -75,6 +76,14 @@ function FlowCanvasInner() {
   const { screenToFlowPosition } = useReactFlow();
   const { handleToggleExpand } = useProjectExpand();
   const queryClient = useQueryClient();
+  const getGraphSnapshot = useCallback(
+    () =>
+      queryClient.getQueryData<OrgGraphResponse>([
+        "org-graph",
+        process.env.NEXT_PUBLIC_ORG_ID ?? "",
+      ]),
+    [queryClient],
+  );
 
   const updateTaskPosition = useUpdateTaskMutation();
   const updateTaskPositionRef = useRef(updateTaskPosition);
@@ -260,8 +269,10 @@ function FlowCanvasInner() {
     }
     prevCascadeEdgeRef.current = null;
     if (activeLayer === "workload") return;
-    setEdges((current) => restoreDependencyEdgeStyles(current));
-  }, [cascadeChainTaskIds, activeLayer, setEdges]);
+    setEdges((current) =>
+      restoreDependencyEdgeStyles(current, getGraphSnapshot()),
+    );
+  }, [cascadeChainTaskIds, activeLayer, setEdges, getGraphSnapshot]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
