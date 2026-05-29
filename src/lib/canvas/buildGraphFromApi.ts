@@ -621,18 +621,19 @@ export function buildGraphFromApi(data: OrgGraphResponse): {
       }
     }
 
-    const stickySourceTask = projTasks.find((task) => task.note?.trim());
-    if (stickySourceTask?.note) {
+    const noteSourceTask = projTasks.find((task) => task.note?.trim());
+    const trimmedNote = noteSourceTask?.note?.trim();
+    if (noteSourceTask && trimmedNote) {
       widgetNodes.push({
         id: `sticky-${proj.id}`,
         type: "stickyNote",
         position: { x: colG_X, y: colG_Y },
         data: {
-          title: stickySourceTask.title,
-          content: stickySourceTask.note,
+          title: `Note from task: ${noteSourceTask.title}`,
+          content: trimmedNote,
           authorName:
-            stickySourceTask.noteAuthorId != null
-              ? (userMap[stickySourceTask.noteAuthorId]?.name ?? "Collaborator")
+            noteSourceTask.noteAuthorId != null
+              ? (userMap[noteSourceTask.noteAuthorId]?.name ?? "Collaborator")
               : "Collaborator",
           timestamp: "Task note",
           variant: "yellow",

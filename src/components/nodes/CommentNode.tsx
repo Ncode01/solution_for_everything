@@ -21,7 +21,7 @@ const BG: Record<NonNullable<CommentNodeData["variant"]>, string> = {
   blue: "#0D1A2C",
 };
 
-export default function CommentNode({
+export default function StickyNoteNode({
   data,
   selected,
 }: NodeProps<CommentFlowNode>) {

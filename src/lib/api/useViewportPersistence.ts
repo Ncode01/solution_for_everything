@@ -73,6 +73,7 @@ export function useViewportPersistence(graphReady: boolean) {
       try {
         const localSaved = loadCanvasViewport(BOARD_ID);
         if (localSaved) {
+          // Prefer latest local interaction state first; server save sync remains as fallback.
           await applyCanvasViewport(localSaved);
           setSkipInitialFitView(true);
           logOnce(
