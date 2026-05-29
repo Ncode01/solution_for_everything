@@ -86,6 +86,29 @@ export function useOrgGraph() {
   }, [query.error, setCanvasError]);
 
   useEffect(() => {
+    if (!ORG_ID) {
+      logOnce(
+        "missing-org-id",
+        "[Config] NEXT_PUBLIC_ORG_ID is not set in .env.local.\n" +
+          "Run: pnpm db:seed  — then copy the printed ORG_ID into .env.local",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (query.isError && query.error instanceof Error) {
+      if (query.error.message === "Org not found") {
+        logOnce(
+          "org-not-found",
+          `[Config] API returned "Org not found" for ORG_ID="${ORG_ID}".\n` +
+            "This usually means the DB was re-seeded and .env.local has a stale UUID.\n" +
+            "Run: pnpm db:seed  — then update NEXT_PUBLIC_ORG_ID in .env.local",
+        );
+      }
+    }
+  }, [query.isError, query.error]);
+
+  useEffect(() => {
     if (!query.data || !query.isSuccess) return;
 
     logOnce(
