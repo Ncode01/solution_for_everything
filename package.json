@@ -15,6 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env.server server/db/seed.ts",
+    "db:reset": "tsx server/db/reset.ts",
     "auth:seed": "tsx --env-file=.env.server scripts/auth-seed.ts",
     "auth:link-owner": "tsx --env-file=.env.server --env-file=.env.local scripts/link-owner.ts",
     "build:server": "tsc -p server/tsconfig.json",
