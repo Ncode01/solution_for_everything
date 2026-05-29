@@ -1,3 +1,12 @@
+import type {
+  BudgetSummary,
+  CrossProjectLink,
+  Milestone,
+  OrgRole,
+  ProjectHealthScore,
+  ProjectType,
+} from "@/types/project-extensions";
+
 export interface OrgGraphResponse {
   org: { id: string; name: string; slug: string };
   users: ApiUser[];
@@ -5,7 +14,34 @@ export interface OrgGraphResponse {
   phases: ApiPhase[];
   tasks: ApiTask[];
   dependencies: ApiDependency[];
+  milestones?: ApiMilestone[];
+  crossProjectLinks?: ApiCrossProjectLink[];
+  budgetByProject?: Record<
+    string,
+    { entries: ApiBudgetEntry[]; summary: BudgetSummary }
+  >;
+  partnerOrgsByProject?: Record<string, ApiPartnerOrg[]>;
+  orgRoles?: OrgRole[];
+  projectHealth?: Record<string, ProjectHealthScore>;
 }
+
+export interface ApiBudgetEntry {
+  id: string;
+  projectId: string;
+  label: string;
+  type: "income" | "expenditure";
+  amount: number;
+  confirmed: boolean;
+}
+
+export interface ApiPartnerOrg {
+  orgName: string;
+  orgRole: string;
+}
+
+export type ApiMilestone = Milestone;
+
+export interface ApiCrossProjectLink extends CrossProjectLink {}
 
 export interface ApiUser {
   id: string;
@@ -27,6 +63,10 @@ export interface ApiProject {
   completionPercent: number;
   startDate: string | null;
   endDate: string | null;
+  canvasX?: number | null;
+  canvasY?: number | null;
+  projectType?: ProjectType;
+  isCollaborative?: boolean;
 }
 
 export interface ApiPhase {

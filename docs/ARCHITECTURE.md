@@ -244,7 +244,45 @@ Full table: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md), [PRE_RELEASE.md](./PRE_R
 
 ---
 
-## 10. Related documentation
+## 10. Health Score Engine
+
+**Location:** `src/lib/health-score.ts` (client) and `server/lib/health-score.ts` (API; keep in sync)
+
+**Inputs:**
+
+- Project tasks (`status`, `priority`, `dueDate`)
+- Project milestones (`date` for `daysToNextMilestone`)
+- `BudgetSummary | null` (from `budget_entries`)
+
+**Output:** `ProjectHealthScore` — `score` 0–100, `grade` green/amber/red, penalty counts, `budgetBurnPercent`, `daysToNextMilestone`.
+
+**Penalty weights (tunable):**
+
+| Rule | Penalty |
+|------|---------|
+| Each blocked **critical** task | −15 (max −45) |
+| Each overdue non-done task | −8 (max −30) |
+| Expenditure &gt; 90% of income | −15 |
+
+Pure function — no database calls. Computed in `getOrgGraph` per project for API responses and again on the client when building clusters.
+
+---
+
+## 11. Cross-Project Intelligence
+
+**Table:** `cross_project_links` — org-level dependencies between projects (not task edges).
+
+**Canvas:** `CrossProjectEdge` (`crossProject` edge type) connects `project:{sourceId}` → `project:{targetId}` with type-specific color and mid-edge label.
+
+**Semantic zoom:** Cross-project edges are **visible only at Z0** (org overview). `useSemanticZoom` sets `hidden: true` on these edges at Z1–Z3.
+
+**Types:** `launches_at`, `talent_pipeline`, `venue_shared`, `funds_from`, `collaboration`.
+
+**API:** Included in `GET /api/graph/:orgId` and `GET /api/orgs/:orgId/canvas-data`. Dedicated list: `GET /api/orgs/:orgId/projects/cross-links`.
+
+---
+
+## 12. Related documentation
 
 | Doc | Topic |
 |-----|-------|

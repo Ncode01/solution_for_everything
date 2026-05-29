@@ -1,3 +1,5 @@
+import type { ProjectClusterEnhancements } from "./project-extensions";
+
 // ── Status & Priority ──────────────────────────────
 export type TaskStatus =
   | "not_started"
@@ -126,7 +128,7 @@ export interface CPMResult {
 }
 
 // ── ReactFlow Node Data Types ──────────────────────
-export interface ProjectClusterNodeData {
+export interface ProjectClusterNodeData extends Partial<ProjectClusterEnhancements> {
   project: Project;
   isExpanded: boolean;
   onToggleExpand: (projectId: string) => void;
@@ -155,10 +157,13 @@ export interface PersonAvatarNodeData {
   [key: string]: unknown;
 }
 
-export interface MilestoneNodeData {
-  id: string;
-  label: string;
-  targetDate: Date;
-  isAtRisk: boolean;
-  projectColor: ProjectAccentColor;
-}
+export type {
+  BudgetEntry,
+  BudgetSummary,
+  CrossProjectLink,
+  Milestone,
+  MilestoneNodeData,
+  OrgRole,
+  ProjectHealthScore,
+  ProjectType,
+} from "./project-extensions";

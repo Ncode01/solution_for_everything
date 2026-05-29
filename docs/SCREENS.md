@@ -188,3 +188,41 @@ stitch-reference/
 ```
 
 Add Stitch screen ID in HTML comment at top of each file for traceability.
+
+---
+
+## Phase 12 — Canvas intelligence components
+
+### MilestoneNode
+
+| Aspect | Spec |
+|--------|------|
+| Shape | 48×48 CSS diamond (`rotate(45deg)`), label below (not rotated) |
+| Color | Project accent (coral / violet / sky / mint / amber) |
+| Border glow | Red ≤7d, amber ≤30d, green otherwise |
+| Sub-label | `TODAY` / `In Xd` / `Xd ago` (red if overdue) |
+| Hard deadline | Lucide padlock when `isHardDeadline` |
+| Handles | Target left only |
+| Node id | `milestone:{uuid}` |
+| Visibility | Shown at Z0 with projects; hidden at Z2–Z3 |
+
+### ProjectClusterNode enhancements
+
+| Element | Behavior |
+|---------|----------|
+| Type badge | Top-left pill: icon + Event/Product/… label from `projectType` |
+| Health ring | SVG ring colored green/amber/red; % completion inside; hover tooltip with score + penalties |
+| Partner chips | Amber `🤝 {orgName}` when `isCollaborative`; max 2 + overflow |
+| Milestone strip | Bottom strip: `📅 {title} — in {n}d`; red/amber by urgency |
+
+### CrossProjectEdge
+
+| Type | Color | Label |
+|------|-------|-------|
+| launches_at | violet | Launches at |
+| talent_pipeline | emerald | Talent pipeline |
+| venue_shared | blue | Shared venue |
+| funds_from | amber | Funds from |
+| collaboration | pink | Collaboration |
+
+Visible **only at Z0**; dashed 1.5px stroke; mid-edge pill label; optional `note` on hover.

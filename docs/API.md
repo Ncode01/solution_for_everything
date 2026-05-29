@@ -271,6 +271,23 @@ Resolve domain user for signed-in Better Auth user.
 
 ---
 
+## Org intelligence (Phase 12)
+
+Base prefix: `/api/orgs/:orgId`
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/canvas-data` | — | Full graph + milestones, budgets, health, cross-links |
+| GET | `/projects/cross-links` | — | All cross-project links for org |
+| GET | `/projects/:projectId/budget` | — | Entries + `BudgetSummary` |
+| POST | `/projects/:projectId/budget` | Session | Create budget line item |
+| GET | `/projects/:projectId/milestones` | — | Milestones with `daysUntil` |
+| POST | `/projects/:projectId/milestones` | Session | Create milestone |
+
+`GET /api/graph/:orgId` returns the same extended payload as `/canvas-data`.
+
+---
+
 ## Better Auth (Next.js, not Fastify)
 
 Hosted on the Next.js app at `/api/auth/*` (see `src/lib/auth/`). Not duplicated here; session cookies are shared with the API via `credentials: "include"`.
