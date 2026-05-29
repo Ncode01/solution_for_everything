@@ -41,12 +41,24 @@ import {
   useUpdateProjectPositionMutation,
 } from "@/lib/api/usePositionMutations";
 import { logDevOnce } from "@/lib/diagnostics";
+import {
+  ENVELOPE_BODY_TOP_OFFSET,
+  ENVELOPE_HEADER_HEIGHT,
+  ENVELOPE_PADDING_X,
+} from "@/lib/canvas/layout";
 import { useUIStore } from "@/stores/ui.store";
-import type { ProjectClusterNodeData } from "@/types";
+import type { ProjectClusterNodeData, ProjectEnvelopeNodeData } from "@/types";
+import { ProjectEnvelopeNode } from "./nodes/ProjectEnvelopeNode";
+
+const ORG_GRAPH_QUERY_KEY = [
+  "org-graph",
+  process.env.NEXT_PUBLIC_ORG_ID ?? "",
+] as const;
 
 const nodeTypes = {
   taskCard: TaskCardNode,
   projectCluster: ProjectClusterNode,
+  projectEnvelope: ProjectEnvelopeNode,
   phaseCluster: PhaseClusterNode,
   personAvatar: PersonAvatarNode,
   milestoneNode: MilestoneNode,
@@ -86,11 +98,7 @@ function FlowCanvasInner() {
   const { handleToggleExpand } = useProjectExpand();
   const queryClient = useQueryClient();
   const getGraphSnapshot = useCallback(
-    () =>
-      queryClient.getQueryData<OrgGraphResponse>([
-        "org-graph",
-        process.env.NEXT_PUBLIC_ORG_ID ?? "",
-      ]),
+    () => queryClient.getQueryData<OrgGraphResponse>([...ORG_GRAPH_QUERY_KEY]),
     [queryClient],
   );
 
@@ -108,9 +116,167 @@ function FlowCanvasInner() {
   const projectDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const milestoneDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const healthLoggedRef = useRef(false);
+  const envelopeDragStartRef = useRef<{
+    envelopeId: string;
+    projectId: string;
+    startPos: { x: number; y: number };
+    nodeSnapshots: Map<string, { x: number; y: number }>;
+  } | null>(null);
+
+  const onNodeDragStart = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (!node.id.startsWith("envelope-")) return;
+
+      const projectId = node.id.replace("envelope-", "");
+      const graph = queryClient.getQueryData<OrgGraphResponse>([
+        ...ORG_GRAPH_QUERY_KEY,
+      ]);
+      if (!graph) return;
+
+      const projectPhaseIds = new Set(
+        graph.phases
+          .filter((ph) => ph.projectId === projectId)
+          .map((ph) => ph.id),
+      );
+      const projectMilestoneIds = new Set(
+        (graph.milestones ?? [])
+          .filter((m) => m.projectId === projectId)
+          .map((m) => m.id),
+      );
+      const projectTaskIds = new Set(
+        graph.tasks
+          .filter((t) => t.projectId === projectId)
+          .map((t) => t.id),
+      );
+
+      const currentNodes = useCanvasStore.getState().nodes;
+      const snapshots = new Map<string, { x: number; y: number }>();
+
+      for (const n of currentNodes) {
+        if (n.id === `project-${projectId}`) {
+          snapshots.set(n.id, { ...n.position });
+          continue;
+        }
+        if (n.id.startsWith(`phase-${projectId}-`)) {
+          snapshots.set(n.id, { ...n.position });
+          continue;
+        }
+        if (n.id.startsWith("phase-header-")) {
+          const phaseId = n.id.replace("phase-header-", "");
+          if (projectPhaseIds.has(phaseId)) {
+            snapshots.set(n.id, { ...n.position });
+          }
+          continue;
+        }
+        if (n.id.startsWith("milestone-")) {
+          const milestoneId = n.id.replace("milestone-", "");
+          if (projectMilestoneIds.has(milestoneId)) {
+            snapshots.set(n.id, { ...n.position });
+          }
+          continue;
+        }
+        if (n.id.startsWith("task-")) {
+          const taskId = n.id.replace("task-", "");
+          if (projectTaskIds.has(taskId)) {
+            snapshots.set(n.id, { ...n.position });
+          }
+        }
+      }
+
+      envelopeDragStartRef.current = {
+        envelopeId: node.id,
+        projectId,
+        startPos: { ...node.position },
+        nodeSnapshots: snapshots,
+      };
+    },
+    [queryClient],
+  );
+
+  const onNodeDrag = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.id.startsWith("envelope-")) {
+        const drag = envelopeDragStartRef.current;
+        if (!drag || drag.envelopeId !== node.id) return;
+
+        const dx = node.position.x - drag.startPos.x;
+        const dy = node.position.y - drag.startPos.y;
+
+        setNodes((allNodes) =>
+          allNodes.map((n) => {
+            const snap = drag.nodeSnapshots.get(n.id);
+            if (!snap) return n;
+            return {
+              ...n,
+              position: { x: snap.x + dx, y: snap.y + dy },
+            };
+          }),
+        );
+        return;
+      }
+
+      if (node.id.startsWith("project-")) {
+        const projectId = node.id.replace("project-", "");
+        setNodes((allNodes) =>
+          allNodes.map((n) => {
+            if (n.id !== `envelope-${projectId}`) return n;
+            return {
+              ...n,
+              position: {
+                x: node.position.x - ENVELOPE_PADDING_X,
+                y:
+                  node.position.y -
+                  ENVELOPE_HEADER_HEIGHT -
+                  ENVELOPE_BODY_TOP_OFFSET,
+              },
+            };
+          }),
+        );
+      }
+    },
+    [setNodes],
+  );
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      if (node.id.startsWith("envelope-")) {
+        const drag = envelopeDragStartRef.current;
+        envelopeDragStartRef.current = null;
+        if (!drag) return;
+
+        const dx = node.position.x - drag.startPos.x;
+        const dy = node.position.y - drag.startPos.y;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+        for (const [nodeId, snap] of drag.nodeSnapshots) {
+          const newX = Math.round(snap.x + dx);
+          const newY = Math.round(snap.y + dy);
+
+          if (nodeId.startsWith("task-")) {
+            const taskId = nodeId.replace("task-", "");
+            applyOptimisticTaskPosition(queryClient, taskId, newX, newY);
+            void updateTaskPositionRef.current.mutate({
+              taskId,
+              body: { canvasX: newX, canvasY: newY },
+            });
+          }
+          if (nodeId.startsWith("project-")) {
+            const projectId = nodeId.replace("project-", "");
+            applyOptimisticProjectPosition(
+              queryClient,
+              projectId,
+              newX,
+              newY,
+            );
+            void updateProjectPositionRef.current.mutate({
+              projectId,
+              body: { canvasX: newX, canvasY: newY },
+            });
+          }
+        }
+        return;
+      }
+
       const canvasX = Math.round(node.position.x);
       const canvasY = Math.round(node.position.y);
 
@@ -195,6 +361,7 @@ function FlowCanvasInner() {
   useEffect(() => {
     setNodes((current) =>
       current.map((node) => {
+        if (node.id.startsWith("envelope-")) return node;
         const isSelected = node.id === selectedNodeId;
         const wasSelected = node.style?.outline !== undefined;
         if (!isSelected && !wasSelected) return node;
@@ -409,12 +576,29 @@ function FlowCanvasInner() {
 
   useSemanticZoom();
 
+  const miniMapNodeColor = useCallback((node: Node): string => {
+    const COLOR_MAP: Record<string, string> = {
+      coral: "#E57373",
+      amber: "#E8AF34",
+      violet: "#9C7EC7",
+      sky: "#5591C7",
+      mint: "#6DAA45",
+    };
+    if (node.id.startsWith("envelope-")) {
+      const color = (node.data as ProjectEnvelopeNodeData).projectColor;
+      return `${COLOR_MAP[color] ?? "#5591C7"}40`;
+    }
+    return "rgba(137,146,148,0.3)";
+  }, []);
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={onNodeDragStop}
       onPaneClick={onPaneClick}
       onPaneMouseMove={onPaneMouseMove}
@@ -440,7 +624,7 @@ function FlowCanvasInner() {
       <MiniMap
         className="!rounded-lg !border !border-white/5 !bg-surface-container"
         maskColor="rgba(14,13,12,0.6)"
-        nodeColor="rgba(137,146,148,0.3)"
+        nodeColor={miniMapNodeColor}
         position="bottom-right"
       />
     </ReactFlow>
