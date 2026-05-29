@@ -39,7 +39,7 @@ async function linkOwner() {
     "shasvinth.srikanth@rccs.lk",
   ];
 
-  let domainUser = null as (typeof users.$inferSelect) | undefined;
+  let domainUser: (typeof users.$inferSelect) | undefined;
   for (const email of preferredEmails) {
     const rows = await db
       .select()
