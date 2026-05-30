@@ -44,6 +44,24 @@ async function run() {
     ORG_ID ? `PASS — ${ORG_ID}` : "FAIL — NEXT_PUBLIC_ORG_ID not set",
   );
 
+  await check("API: /api/orgs/first returns org", async () => {
+    const res = await fetch(`${API_URL}/api/orgs/first`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 404) {
+      return "FAIL — no org in DB (run ALLOW_PROD_SEED=true pnpm db:seed)";
+    }
+    if (!res.ok) return `FAIL — HTTP ${res.status}`;
+    const json = (await res.json()) as {
+      id?: string;
+      name?: string;
+      slug?: string;
+    };
+    return json.id && json.slug === "rccs-2026"
+      ? `PASS — ${json.name} (${json.id})`
+      : `FAIL — ${JSON.stringify(json)}`;
+  });
+
   await check("API: /health returns ok", async () => {
     const res = await fetch(`${API_URL}/health`, {
       signal: AbortSignal.timeout(8000),

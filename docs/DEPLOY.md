@@ -25,8 +25,8 @@ These must be consistent across Vercel (frontend) and Railway (API) where noted.
 | `DATABASE_URL` | ✓ | ✓ | Same Neon database |
 | `BETTER_AUTH_SECRET` | ✓ | ✓ | **Must match** on both |
 | `BETTER_AUTH_URL` | ✓ | ✓ | Same as `NEXT_PUBLIC_APP_URL` in production |
-| `APP_URL` | — | ✓ | Same as frontend URL (CORS) |
-| `CORS_ORIGIN` | — | ✓ | Same as frontend URL |
+| `APP_URL` | — | ✓ | Frontend URL(s) for CORS — comma-separated for multiple (e.g. production + preview) |
+| `CORS_ORIGIN` | — | ✓ | Legacy alias; API uses `APP_URL` for CORS |
 | `NEXT_PUBLIC_FIREBASE_*` | ✓ | — | All six Firebase web config keys |
 
 **Preview deployments:** Vercel preview URLs differ per branch. Either set preview-specific `NEXT_PUBLIC_APP_URL` / `BETTER_AUTH_URL` / `APP_URL` / `CORS_ORIGIN`, or test auth only on production. Mismatched origins cause 401s and failed viewport persistence — see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md#preview-url-vs-production-url-auth-mismatch).
