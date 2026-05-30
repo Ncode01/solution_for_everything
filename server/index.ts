@@ -20,18 +20,23 @@ async function buildServer() {
   const app = Fastify({ logger: true });
 
   const rawAllowed = process.env.APP_URL ?? "http://localhost:3000";
-  const allowedOrigins = rawAllowed.split(",").map((s) => s.trim());
+  const allowedOrigins = rawAllowed
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   await app.register(cors, {
     origin: (origin, cb) => {
       if (
         !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.startsWith("http://localhost")
+        allowedOrigins.some((allowed) => origin === allowed) ||
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("http://127.0.0.1")
       ) {
         cb(null, true);
       } else {
-        cb(new Error("Not allowed by CORS"), false);
+        app.log.warn(`[CORS] Blocked origin: ${origin}`);
+        cb(new Error(`CORS: origin ${origin} not allowed`), false);
       }
     },
     credentials: true,

@@ -1,14 +1,16 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { apiClient } from "./client";
 import type { OrgGraphResponse } from "./types";
 import {
   ORG_ID,
   getEffectiveOrgId,
   getSessionOrgId,
+  isOrgBootstrapComplete,
   setSessionOrgId,
+  subscribeOrgBootstrap,
 } from "./orgId";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
@@ -52,6 +54,11 @@ export function useOrgGraph() {
   /** Re-render when session org id is discovered (module var alone does not re-render) */
   const [healTick, setHealTick] = useState(0);
 
+  const bootstrapComplete = useSyncExternalStore(
+    subscribeOrgBootstrap,
+    isOrgBootstrapComplete,
+    () => false,
+  );
   const activeOrgId = getEffectiveOrgId();
   void healTick;
 
@@ -60,7 +67,7 @@ export function useOrgGraph() {
     queryFn: () => apiClient.getOrgGraph(activeOrgId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    enabled: ORG_ID.length > 0 || getSessionOrgId().length > 0,
+    enabled: bootstrapComplete && activeOrgId.length > 0,
     retry: 1,
   });
 
@@ -68,12 +75,10 @@ export function useOrgGraph() {
     queryKey: ["orgs-first"],
     queryFn: () => apiClient.getFirstOrg(),
     enabled:
-      !ORG_ID ||
-      (query.isError &&
-        query.error instanceof Error &&
-        (query.error.message === "Org not found" ||
-          query.error.message === "UNAUTHORIZED")) ||
-      (query.fetchStatus === "idle" && query.status === "error"),
+      bootstrapComplete &&
+      (activeOrgId.length === 0 ||
+        (query.isError && query.error instanceof Error) ||
+        query.status === "error"),
     staleTime: Infinity,
     retry: 1,
   });
