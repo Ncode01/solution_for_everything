@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { OrgGraphResponse } from "./types";
-import { ENV_ORG_ID, getEffectiveOrgId } from "./orgId";
+import { ORG_ID, getEffectiveOrgId } from "./orgId";
 
 /**
  * Read-only subscription to the org graph cache.
@@ -35,7 +35,7 @@ export function useOrgGraphData() {
     () => undefined,
   );
 
-  if (!ENV_ORG_ID && !effectiveOrgId) {
+  if (!ORG_ID && !effectiveOrgId) {
     const fallbackState = queryClient.getQueryState(["orgs-first"]);
     if (fallbackState?.status === "pending") {
       return {

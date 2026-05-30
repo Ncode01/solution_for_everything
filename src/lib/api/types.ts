@@ -248,4 +248,4 @@ export interface CreateOrgRoleBody {
   isTeacherInCharge?: boolean;
 }
 
-export type OrgSummary = { id: string; name: string };
+export type OrgSummary = { id: string; name: string; slug: string };

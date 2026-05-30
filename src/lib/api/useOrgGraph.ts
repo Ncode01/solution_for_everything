@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { apiClient } from "./client";
 import type { OrgGraphResponse } from "./types";
 import {
-  ENV_ORG_ID,
+  ORG_ID,
   getEffectiveOrgId,
-  setSessionDiscoveredOrgId,
+  getSessionOrgId,
+  setSessionOrgId,
 } from "./orgId";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUIStore } from "@/stores/ui.store";
@@ -48,23 +49,26 @@ export function useOrgGraph() {
   const setCanvasLoading = useUIStore((s) => s.setCanvasLoading);
   const setCanvasError = useUIStore((s) => s.setCanvasError);
   const graphHashRef = useRef("");
-  const [resolvedOrgId, setResolvedOrgId] = useState("");
-  const effectiveOrgId = ENV_ORG_ID || resolvedOrgId;
+  /** Re-render when session org id is discovered (module var alone does not re-render) */
+  const [healTick, setHealTick] = useState(0);
+
+  const activeOrgId = getEffectiveOrgId();
+  void healTick;
 
   const query = useQuery({
-    queryKey: ["org-graph", effectiveOrgId],
-    queryFn: () => apiClient.getOrgGraph(effectiveOrgId),
+    queryKey: ["org-graph", activeOrgId],
+    queryFn: () => apiClient.getOrgGraph(activeOrgId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    enabled: effectiveOrgId.length > 0,
+    enabled: ORG_ID.length > 0 || getSessionOrgId().length > 0,
     retry: 1,
   });
 
-  const fallbackQuery = useQuery({
+  const fallback = useQuery({
     queryKey: ["orgs-first"],
     queryFn: () => apiClient.getFirstOrg(),
     enabled:
-      !ENV_ORG_ID ||
+      !ORG_ID ||
       (query.isError &&
         query.error instanceof Error &&
         query.error.message === "Org not found"),
@@ -73,20 +77,22 @@ export function useOrgGraph() {
   });
 
   useEffect(() => {
-    if (!fallbackQuery.data) return;
+    if (!fallback.data) return;
+    const discovered = fallback.data.id;
+    if (discovered === getSessionOrgId()) return;
+    setSessionOrgId(discovered);
+    setHealTick((n) => n + 1);
     logOnce(
       "org-id-auto-healed",
-      `[Config] Auto-discovered org: ${fallbackQuery.data.name} (${fallbackQuery.data.id})\n` +
-        `Add to .env.local: NEXT_PUBLIC_ORG_ID=${fallbackQuery.data.id}`,
+      `[Config] Auto-discovered org: "${fallback.data.name}" (${discovered})\n` +
+        `→ Add to .env.local:  NEXT_PUBLIC_ORG_ID=${discovered}`,
     );
-    setSessionDiscoveredOrgId(fallbackQuery.data.id);
-    setResolvedOrgId(fallbackQuery.data.id);
     void queryClient.invalidateQueries({ queryKey: ["org-graph"] });
-  }, [fallbackQuery.data, queryClient]);
+  }, [fallback.data, queryClient]);
 
   useEffect(() => {
-    setCanvasLoading(query.isLoading || fallbackQuery.isFetching);
-  }, [query.isLoading, fallbackQuery.isFetching, setCanvasLoading]);
+    setCanvasLoading(query.isLoading || fallback.isFetching);
+  }, [query.isLoading, fallback.isFetching, setCanvasLoading]);
 
   useEffect(() => {
     if (query.error) {
@@ -110,13 +116,13 @@ export function useOrgGraph() {
         `[OrgGraph] graph query failed: ${message} (check API URL, CORS, or network)`,
       );
       setCanvasError(message);
-    } else if (!query.isLoading && !fallbackQuery.isFetching) {
+    } else if (!query.isLoading && !fallback.isFetching) {
       setCanvasError(null);
     }
-  }, [query.error, query.isLoading, fallbackQuery.isFetching, setCanvasError]);
+  }, [query.error, query.isLoading, fallback.isFetching, setCanvasError]);
 
   useEffect(() => {
-    if (!ENV_ORG_ID && !getEffectiveOrgId()) {
+    if (!ORG_ID && !getSessionOrgId()) {
       logOnce(
         "missing-org-id",
         "[Config] NEXT_PUBLIC_ORG_ID is not set in .env.local.\n" +
@@ -131,7 +137,7 @@ export function useOrgGraph() {
       if (query.error.message === "Org not found") {
         logOnce(
           "org-not-found",
-          `[Config] API returned "Org not found" for ORG_ID="${ENV_ORG_ID || getEffectiveOrgId()}".\n` +
+          `[Config] API returned "Org not found" for ORG_ID="${ORG_ID || getSessionOrgId()}".\n` +
             "This usually means the DB was re-seeded and .env.local has a stale UUID.\n" +
             "Auto-healing via /api/orgs/first…",
         );

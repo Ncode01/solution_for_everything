@@ -145,8 +145,8 @@ export function Sidebar() {
             ) : null}
             <button
               type="button"
-              onClick={() => graph.refetch()}
-              className={`mt-2 w-full rounded-lg py-1 text-center ${typography.scale.xs.class} ${colors.bg.elevated} ${colors.text.secondary} hover:bg-white/5 border ${colors.border.subtle}`}
+              onClick={() => void graph.refetch()}
+              className={`mt-2 w-full rounded-lg border py-1 text-center ${typography.scale.xs.class} ${colors.bg.elevated} ${colors.border.subtle} ${colors.text.secondary} hover:bg-white/5`}
             >
               Retry
             </button>

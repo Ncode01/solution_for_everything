@@ -13,22 +13,6 @@ import { organizations } from "./db/schema";
 
 config({ path: resolve(process.cwd(), ".env.server") });
 
-async function bootCheckOrgs() {
-  const orgRows = await db
-    .select({ id: organizations.id, name: organizations.name })
-    .from(organizations);
-  if (orgRows.length === 0) {
-    console.warn(
-      "[Boot] ⚠️  No orgs found in DB. Run: pnpm db:seed\n" +
-        "       Then copy the printed ORG_ID into .env.local as NEXT_PUBLIC_ORG_ID",
-    );
-  } else {
-    for (const o of orgRows) {
-      console.log(`[Boot] ✅ Org found: ${o.name} (${o.id})`);
-    }
-  }
-}
-
 const PORT = Number(process.env.PORT ?? 3001);
 const HOST = process.env.HOST ?? "0.0.0.0";
 
@@ -69,12 +53,33 @@ async function buildServer() {
   return app;
 }
 
+async function bootCheckOrgs() {
+  const orgRows = await db
+    .select({ id: organizations.id, name: organizations.name })
+    .from(organizations);
+
+  if (orgRows.length === 0) {
+    console.warn(
+      "\n⚠️  [Boot] No orgs in database. Run:  pnpm db:seed\n" +
+        "   Then paste the printed ORG_ID into .env.local as NEXT_PUBLIC_ORG_ID\n",
+    );
+  } else {
+    for (const o of orgRows) {
+      console.log(`✅ [Boot] Org: "${o.name}" → ${o.id}`);
+    }
+    console.log(
+      `\n👉 If your app shows "Org not found", set in .env.local:\n` +
+        `   NEXT_PUBLIC_ORG_ID=${orgRows[0].id}\n`,
+    );
+  }
+}
+
 async function main() {
-  await bootCheckOrgs();
   const app = await buildServer();
   try {
     await app.listen({ port: PORT, host: HOST });
     app.log.info(`FlowCanvas API listening on http://${HOST}:${PORT}`);
+    await bootCheckOrgs();
   } catch (err) {
     app.log.error(err);
     process.exit(1);

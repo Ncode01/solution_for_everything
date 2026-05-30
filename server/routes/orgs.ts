@@ -26,14 +26,20 @@ import { computeDaysUntil } from "../lib/health-score";
 
 export const orgRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/first", async (_request, reply) => {
-    const row = await db
-      .select({ id: organizations.id, name: organizations.name })
+    const rows = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+      })
       .from(organizations)
       .limit(1);
-    if (!row.length) {
-      return reply.code(404).send({ error: "No org found" });
+    if (!rows[0]) {
+      return reply
+        .code(404)
+        .send({ error: "No org found. Run: pnpm db:seed" });
     }
-    return row[0];
+    return rows[0];
   });
 
   fastify.get<{ Params: { orgId: string } }>(

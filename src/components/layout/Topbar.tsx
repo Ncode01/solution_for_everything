@@ -6,7 +6,6 @@ import {
   Copy,
   LogOut,
   Plus,
-  RefreshCw,
   Search,
   UserPlus,
 } from "lucide-react";
@@ -174,18 +173,14 @@ export function Topbar() {
                     ? "ORG_ID unset"
                     : "Org not found"}
               </span>
-              {orgError !== "NEXT_PUBLIC_ORG_ID is not set" ? (
+              {orgError !== "NEXT_PUBLIC_ORG_ID is not set" && !graph.isFetching ? (
                 <button
                   type="button"
-                  onClick={() => graph.refetch()}
-                  className="shrink-0 text-[#E8AF34] hover:text-[#F5C04A]"
-                  aria-label="Retry loading org"
-                  title="Retry"
+                  onClick={() => void graph.refetch()}
+                  title="Retry loading org"
+                  className={`ml-1 shrink-0 rounded px-1 text-xs hover:bg-white/10 ${colors.text.tertiary}`}
                 >
-                  <RefreshCw
-                    size={12}
-                    className={graph.isFetching ? "animate-spin" : undefined}
-                  />
+                  ⟳
                 </button>
               ) : null}
             </>
