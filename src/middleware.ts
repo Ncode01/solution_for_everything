@@ -4,7 +4,10 @@ import { getSessionCookie } from "better-auth/cookies";
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/api/auth")) {
+  if (
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/org-config")
+  ) {
     return NextResponse.next();
   }
 

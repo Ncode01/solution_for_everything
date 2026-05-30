@@ -43,7 +43,8 @@ $pairs = @{
   NEXT_PUBLIC_ORG_ID                        = $deploy['PROD_ORG_ID']
   DATABASE_URL                              = $deploy['PROD_DB_URL']
   BETTER_AUTH_SECRET                        = $deploy['PROD_BETTER_AUTH_SECRET']
-  BETTER_AUTH_URL                           = "https://PLACEHOLDER.vercel.app"
+  NEXT_PUBLIC_APP_URL                       = "https://solutionforeverything.vercel.app"
+  BETTER_AUTH_URL                           = "https://solutionforeverything.vercel.app"
 }
 
 foreach ($k in $pairs.Keys) { Add-VercelEnv $k $pairs[$k] }
