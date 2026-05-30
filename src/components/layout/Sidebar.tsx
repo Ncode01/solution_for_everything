@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronRight,
   Command,
-  Grid3x3,
   HelpCircle,
   Home,
   LayoutList,
@@ -22,7 +21,6 @@ import {
 } from "@/design-system";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import { formatQueryError } from "@/lib/formatQueryError";
-import { focusCanvasNode } from "@/lib/canvas/reactFlowApi";
 import { useUIStore, type AppView } from "@/stores/ui.store";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
 import { skeletonVariants } from "@/design-system/components";
@@ -42,7 +40,6 @@ type WorkspaceItem = {
 };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
-  { id: "canvas", label: "Canvas", icon: Grid3x3 },
   { id: "tasks", label: "All Tasks", icon: LayoutList },
   { id: "team", label: "Team", icon: Users },
   { id: "budget", label: "Budget", icon: Wallet },
@@ -160,12 +157,10 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (collapsed) {
-                      setActiveView("canvas");
-                      void focusCanvasNode(`project-${project.id}`);
-                      return;
+                    setActiveView("tasks");
+                    if (!collapsed) {
+                      toggleProject(project.id);
                     }
-                    toggleProject(project.id);
                   }}
                   className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 ${typography.scale.sm.class} ${colors.text.primary} hover:bg-[#1F1F2E]`}
                   title={collapsed ? project.name : undefined}
@@ -193,13 +188,6 @@ export function Sidebar() {
                 </button>
                 {!collapsed && expanded ? (
                   <ul className="ml-6 border-l border-white/[0.06] pl-2">
-                    <SubNavItem
-                      label="Phases"
-                      onClick={() => {
-                        setActiveView("canvas");
-                        void focusCanvasNode(`project-${project.id}`);
-                      }}
-                    />
                     <SubNavItem
                       label="Tasks"
                       onClick={() => setActiveView("tasks")}

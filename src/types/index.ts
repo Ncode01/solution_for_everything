@@ -153,6 +153,28 @@ export interface TaskCardNodeData {
   [key: string]: unknown;
 }
 
+export interface SparkTaskNodeData {
+  task: Task;
+  assignees: User[];
+  isCriticalPath: boolean;
+  phaseLocked: boolean;
+  upstreamPendingCount: number;
+  isUpstreamHighlighted?: boolean;
+  isSelected?: boolean;
+  showUnlockPulse?: boolean;
+  dimmedNonCritical?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SparkPhaseHeaderNodeData {
+  phaseName: string;
+  taskCount: number;
+  doneCount: number;
+  isLocked: boolean;
+  showCompleteGlow?: boolean;
+  [key: string]: unknown;
+}
+
 export interface PersonAvatarNodeData {
   user: User;
   isVisible: boolean;

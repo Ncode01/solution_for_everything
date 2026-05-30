@@ -17,7 +17,15 @@ import type { CPMTask } from "@/lib/cpm";
 import { useOrgGraphData } from "@/lib/api/useOrgGraphData";
 import { useMutationOrchestrator } from "@/lib/api/useMutationOrchestrator";
 import { DependencyEditSection } from "./DependencyEditSection";
-import type { Task, TaskCardNodeData, ProjectClusterNodeData, TaskStatus } from "@/types";
+import type {
+  Project,
+  ProjectAccentColor,
+  Task,
+  TaskCardNodeData,
+  ProjectClusterNodeData,
+  TaskStatus,
+} from "@/types";
+import { apiTaskToDomain } from "@/lib/spark/sparkTasksGraph";
 import type { UpdateTaskBody } from "@/lib/api/types";
 import type { TaskFormValues } from "./TaskForm";
 import {
@@ -114,32 +122,79 @@ export const TaskDetailPanel = React.memo(function TaskDetailPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
 
+  const graphTasks = useMemo((): Task[] => {
+    if (!graph?.tasks) return [];
+    const cpmTasks: CPMTask[] = graph.tasks.map((t) => ({
+      id: t.id,
+      duration: Math.max(1, t.effortEstimate ?? 8),
+      dependencies: t.dependencies,
+      dependents: t.dependents,
+      status: t.status,
+    }));
+    const cpmResult = computeCPM(cpmTasks);
+    return graph.tasks.map((api) =>
+      apiTaskToDomain(api, cpmResult.nodes[api.id]?.isCriticalPath ?? false),
+    );
+  }, [graph?.tasks]);
+
   const allTasks = useMemo(() => {
-    return nodes
+    const fromNodes = nodes
       .filter((n) => n.id.startsWith("task-"))
       .map((n) => (n.data as TaskCardNodeData).task);
-  }, [nodes]);
+    if (fromNodes.length > 0) return fromNodes;
+    return graphTasks;
+  }, [nodes, graphTasks]);
 
   const task: Task | null = useMemo(() => {
     if (!selectedNodeId || selectedNodeType !== "task") return null;
     const node = nodes.find((n) => n.id === selectedNodeId);
-    if (!node) return null;
-    return (node.data as TaskCardNodeData).task;
-  }, [selectedNodeId, selectedNodeType, nodes]);
+    if (node) return (node.data as TaskCardNodeData).task;
+    const taskId = selectedNodeId.replace("task-", "");
+    return graphTasks.find((t) => t.id === taskId) ?? null;
+  }, [selectedNodeId, selectedNodeType, nodes, graphTasks]);
 
-  const project = useMemo(() => {
+  const project = useMemo((): Project | null => {
     if (!task) return null;
     const projectNode = nodes.find((n) => n.id === `project-${task.projectId}`);
-    if (!projectNode) return null;
-    return (projectNode.data as ProjectClusterNodeData).project;
-  }, [task, nodes]);
+    if (projectNode) {
+      return (projectNode.data as ProjectClusterNodeData).project;
+    }
+    const apiProject = graph?.projects.find((p) => p.id === task.projectId);
+    if (!apiProject) return null;
+    return {
+      id: apiProject.id,
+      orgId: apiProject.orgId,
+      name: apiProject.name,
+      color: (apiProject.color as ProjectAccentColor) ?? "sky",
+      status: apiProject.status as Project["status"],
+      ownerId: apiProject.ownerId ?? "",
+      completionPercent: apiProject.completionPercent,
+      phases: [],
+      members: [],
+    };
+  }, [task, nodes, graph?.projects]);
 
   const assignees = useMemo(() => {
     if (!task) return [];
     const node = nodes.find((n) => n.id === selectedNodeId);
-    if (!node) return [];
-    return (node.data as TaskCardNodeData).assignees;
-  }, [task, nodes, selectedNodeId]);
+    if (node) return (node.data as TaskCardNodeData).assignees;
+    if (!graph) return [];
+    return task.assigneeIds
+      .map((id) => graph.users.find((u) => u.id === id))
+      .filter(Boolean)
+      .map((u) => ({
+        id: u!.id,
+        orgId: u!.orgId,
+        name: u!.name,
+        initials: u!.initials,
+        email: u!.email,
+        role: u!.role,
+        avatarUrl: u!.avatarUrl ?? undefined,
+        loadLevel: "available" as const,
+        taskCount: 0,
+        loadPercent: 0,
+      }));
+  }, [task, nodes, selectedNodeId, graph]);
 
   const dependencyTasks = useMemo(() => {
     if (!task) return [];

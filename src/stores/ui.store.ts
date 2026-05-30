@@ -83,7 +83,7 @@ export const useUIStore = create<UIState>((set) => ({
   rightPanelMode: "closed",
   taskCreateDefaults: null,
   commandQuery: "",
-  activeView: "canvas",
+  activeView: "tasks",
   sidebarCollapsed: false,
   isFocusMode: false,
   isCanvasLoading: false,
