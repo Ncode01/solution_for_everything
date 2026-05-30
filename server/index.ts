@@ -19,12 +19,14 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 async function buildServer() {
   const app = Fastify({ logger: true });
 
+  const rawAllowed = process.env.APP_URL ?? "http://localhost:3000";
+  const allowedOrigins = rawAllowed.split(",").map((s) => s.trim());
+
   await app.register(cors, {
     origin: (origin, cb) => {
-      const allowed = process.env.APP_URL ?? "http://localhost:3000";
       if (
         !origin ||
-        origin === allowed ||
+        allowedOrigins.includes(origin) ||
         origin.startsWith("http://localhost")
       ) {
         cb(null, true);

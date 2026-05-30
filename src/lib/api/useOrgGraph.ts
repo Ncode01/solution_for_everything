@@ -71,7 +71,9 @@ export function useOrgGraph() {
       !ORG_ID ||
       (query.isError &&
         query.error instanceof Error &&
-        query.error.message === "Org not found"),
+        (query.error.message === "Org not found" ||
+          query.error.message === "UNAUTHORIZED")) ||
+      (query.fetchStatus === "idle" && query.status === "error"),
     staleTime: Infinity,
     retry: 1,
   });
