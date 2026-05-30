@@ -8,10 +8,9 @@ import { WorkloadBanner } from "./WorkloadBanner";
 import { CanvasLoadingOverlay } from "./CanvasLoadingOverlay";
 import { useViewportPersistence } from "@/lib/api/useViewportPersistence";
 import type { OrgGraphResponse } from "@/lib/api/types";
+import { getEffectiveOrgId } from "@/lib/api/orgId";
 import { useUIStore } from "@/stores/ui.store";
 import { useCanvasStore } from "@/stores/canvas.store";
-
-const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID ?? "";
 
 function ViewportPersistenceBridge() {
   const isCanvasLoading = useUIStore((s) => s.isCanvasLoading);
@@ -32,10 +31,10 @@ export function CanvasArea() {
     !isCanvasLoading && !canvasError && taskNodeCount === 0;
 
   const handleCreateFirstTask = () => {
-    const graph = queryClient.getQueryData<OrgGraphResponse>([
-      "org-graph",
-      ORG_ID,
-    ]);
+    const orgId = getEffectiveOrgId();
+    const graph = orgId
+      ? queryClient.getQueryData<OrgGraphResponse>(["org-graph", orgId])
+      : undefined;
     const project = graph?.projects[0];
     const phase = graph?.phases.find((p) => p.projectId === project?.id);
     if (!project || !phase) {

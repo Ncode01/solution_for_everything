@@ -40,6 +40,7 @@ import {
   useUpdateMilestonePositionMutation,
   useUpdateProjectPositionMutation,
 } from "@/lib/api/usePositionMutations";
+import { getEffectiveOrgId } from "@/lib/api/orgId";
 import { logDevOnce } from "@/lib/diagnostics";
 import { useUIStore } from "@/stores/ui.store";
 import type { ProjectClusterNodeData } from "@/types";
@@ -90,7 +91,7 @@ function FlowCanvasInner() {
     () =>
       queryClient.getQueryData<OrgGraphResponse>([
         "org-graph",
-        process.env.NEXT_PUBLIC_ORG_ID ?? "",
+        getEffectiveOrgId(),
       ]),
     [queryClient],
   );
