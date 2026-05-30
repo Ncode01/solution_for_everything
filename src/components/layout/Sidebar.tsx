@@ -3,14 +3,12 @@
 import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Building2,
   ChevronDown,
   ChevronRight,
   Command,
   Grid3x3,
   HelpCircle,
   Home,
-  Image,
   LayoutList,
   School,
   Settings,
@@ -46,7 +44,6 @@ type WorkspaceItem = {
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { id: "canvas", label: "Canvas", icon: Grid3x3 },
   { id: "tasks", label: "All Tasks", icon: LayoutList },
-  { id: "posters", label: "Poster Board", icon: Image },
   { id: "team", label: "Team", icon: Users },
   { id: "budget", label: "Budget", icon: Wallet },
   { id: "schools", label: "Network Schools", icon: School },
@@ -207,10 +204,6 @@ export function Sidebar() {
                       label="Tasks"
                       onClick={() => setActiveView("tasks")}
                     />
-                    <SubNavItem
-                      label="Posters"
-                      onClick={() => setActiveView("posters")}
-                    />
                   </ul>
                 ) : null}
               </li>
@@ -236,13 +229,6 @@ export function Sidebar() {
             onClick={() => setActiveView(item.id)}
           />
         ))}
-        <NavItem
-          collapsed={collapsed}
-          icon={Building2}
-          label="Partners"
-          active={activeView === "team"}
-          onClick={() => setActiveView("team")}
-        />
       </nav>
 
       <div className="mt-auto flex flex-col gap-0.5 border-t border-white/[0.06] px-2 pt-3">
