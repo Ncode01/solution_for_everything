@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Download, Upload, RotateCcw, Database, CheckCircle2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Download, Upload, RotateCcw, Database, CheckCircle2, AlertCircle, Wifi, WifiOff, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useAppData } from '../../state/AppDataContext';
+import { useAuth } from '../../state/AuthContext';
 import { exportData, parseImportedData, resetToSeedData, getLastSaved, getDataVersion, DATA_VERSION } from '../../lib/storage';
 import { getConnectionLabel, getConnectionMode } from '../../lib/dataProvider';
+import { logAudit } from '../../lib/audit';
 import { AppData } from '../../types';
 import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
@@ -10,6 +12,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function DataToolsPage() {
   const { data, replaceAll } = useAppData();
+  const { profile, isSupabaseMode } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -72,6 +75,7 @@ export default function DataToolsPage() {
     replaceAll(seeded);
     setConfirmReset(false);
     setMessage({ type: 'ok', text: 'Demo data restored.' });
+    logAudit({ actorProfileId: profile?.id ?? null, action: 'reset', entityType: 'data', summary: 'Reset app data to seed demo data.' }).catch(() => {});
   }
 
   return (
@@ -79,27 +83,64 @@ export default function DataToolsPage() {
       <PageHeader title="Data Tools" description="Back up, restore, or reset your local data." />
 
       {/* Connection mode */}
+      {/* Provider health */}
       <Card className={connectionMode === 'supabase' ? 'border-emerald-700/40' : 'border-amber-900/40'}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {connectionMode === 'supabase'
-            ? <Wifi size={16} className="text-emerald-400 shrink-0" />
-            : <WifiOff size={16} className="text-amber-400 shrink-0" />
+            ? <Wifi size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+            : <WifiOff size={16} className="text-amber-400 shrink-0 mt-0.5" />
           }
-          <div>
+          <div className="flex-1 min-w-0">
             <p className={`text-sm font-semibold ${connectionMode === 'supabase' ? 'text-emerald-300' : 'text-amber-300'}`}>
               {connectionLabel}
             </p>
             {connectionMode === 'local' && (
               <p className="text-xs text-slate-500 mt-0.5">
-                Data lives only in this browser's localStorage. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to switch to Supabase mode.
+                Data lives only in this browser's localStorage. Set <code className="text-slate-400">VITE_SUPABASE_URL</code> and <code className="text-slate-400">VITE_SUPABASE_ANON_KEY</code> to switch to Supabase mode.
               </p>
             )}
             {connectionMode === 'supabase' && (
               <p className="text-xs text-slate-500 mt-0.5">
-                Connected to Supabase. Data is persistent and shared across devices.
+                Connected to Supabase. Data is persistent and shared across devices. RLS policies enforce access control.
               </p>
             )}
           </div>
+        </div>
+
+        {/* Health checks */}
+        <div className="mt-3 pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {[
+            {
+              label: 'Database',
+              ok: connectionMode === 'supabase',
+              detail: connectionMode === 'supabase' ? 'Supabase connected' : 'localStorage (local only)',
+            },
+            {
+              label: 'Authentication',
+              ok: isSupabaseMode ? Boolean(profile) : true,
+              detail: isSupabaseMode
+                ? (profile ? `Logged in as ${profile.displayName}` : 'Not authenticated')
+                : 'Demo auth (local)',
+            },
+            {
+              label: 'Profile Linked',
+              ok: isSupabaseMode ? Boolean(profile?.authUserId) : true,
+              detail: isSupabaseMode
+                ? (profile?.authUserId ? 'auth_user_id linked' : 'Profile not linked to auth user')
+                : 'N/A in local mode',
+            },
+          ].map(({ label, ok, detail }) => (
+            <div key={label} className="flex items-start gap-2">
+              {ok
+                ? <ShieldCheck size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+                : <ShieldAlert size={14} className="text-red-400 shrink-0 mt-0.5" />
+              }
+              <div>
+                <p className="text-xs font-medium text-slate-300">{label}</p>
+                <p className="text-[10px] text-slate-600">{detail}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 

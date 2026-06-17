@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { Sponsor, SponsorStage, PaymentStatus, SponsorDeliverable, DeliverableStatus, Project, Member } from '../../types';
+import { Sponsor, SponsorStage, PaymentStatus, SponsorDeliverable, SponsorDeliverableStatus, Project, Member } from '../../types';
 import { generateId } from '../../lib/dateUtils';
 import { Field, FormActions } from '../../components/Field';
 import MemberSelect from '../../components/MemberSelect';
@@ -16,7 +16,7 @@ interface Props {
 
 const STAGES: SponsorStage[] = ['Lead', 'Contacted', 'Interested', 'Proposal Sent', 'Meeting Scheduled', 'Negotiating', 'Confirmed', 'Rejected', 'Completed'];
 const PAYMENTS: PaymentStatus[] = ['Not Requested', 'Pending', 'Partially Paid', 'Paid', 'Overdue'];
-const DELIVERABLE_STATUSES: DeliverableStatus[] = ['Not Started', 'In Progress', 'Delivered', 'Cancelled'];
+const DELIVERABLE_STATUSES: SponsorDeliverableStatus[] = ['Not Started', 'In Progress', 'Delivered', 'Cancelled'];
 
 export default function SponsorForm({ initial, projects, members, lockedProjectId, onSave, onCancel }: Props) {
   const [form, setForm] = useState({
@@ -145,7 +145,7 @@ export default function SponsorForm({ initial, projects, members, lockedProjectI
             <div key={d.id} className="flex gap-2 flex-wrap">
               <input className="input flex-1 min-w-40" placeholder="Deliverable" value={d.title} onChange={(e) => setDeliverables((arr) => arr.map((x, idx) => idx === i ? { ...x, title: e.target.value } : x))} />
               <input className="input w-36" type="date" value={d.dueDate ?? ''} onChange={(e) => setDeliverables((arr) => arr.map((x, idx) => idx === i ? { ...x, dueDate: e.target.value } : x))} />
-              <select className="select w-32" value={d.status} onChange={(e) => setDeliverables((arr) => arr.map((x, idx) => idx === i ? { ...x, status: e.target.value as DeliverableStatus } : x))}>
+              <select className="select w-32" value={d.status} onChange={(e) => setDeliverables((arr) => arr.map((x, idx) => idx === i ? { ...x, status: e.target.value as SponsorDeliverableStatus } : x))}>
                 {DELIVERABLE_STATUSES.map((s) => <option key={s}>{s}</option>)}
               </select>
               <button type="button" className="btn-ghost p-2 text-red-500" onClick={() => setDeliverables((arr) => arr.filter((_, idx) => idx !== i))}>

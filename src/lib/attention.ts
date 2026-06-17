@@ -69,7 +69,7 @@ export function buildAttention(data: AppData): AttentionGroup[] {
           title: pr.title,
           meta: `${p.name} · ${pr.platform}`,
           badge: pr.approvalStatus,
-          link: '/pr-planner',
+          link: '/launches',
         });
       }
       if (
@@ -84,15 +84,15 @@ export function buildAttention(data: AppData): AttentionGroup[] {
           meta: `${p.name} · ${pr.platform}`,
           date: pr.publishDate,
           badge: pr.publishingStatus,
-          link: '/pr-planner',
+          link: '/launches',
         });
       }
     });
   });
   if (prApproval.length)
-    groups.push({ key: 'pr-approval', label: 'PR items needing approval', tone: 'warning', items: prApproval });
+    groups.push({ key: 'pr-approval', label: 'Launches needing approval', tone: 'warning', items: prApproval });
   if (prSoon.length)
-    groups.push({ key: 'pr-soon', label: 'PR posts scheduled soon', tone: 'info', items: prSoon });
+    groups.push({ key: 'pr-soon', label: 'Launches scheduled soon', tone: 'info', items: prSoon });
 
   // Sponsor follow-ups + unpaid confirmed
   const sponsorFollowUps: AttentionItem[] = [];
@@ -138,7 +138,7 @@ export function buildAttention(data: AppData): AttentionGroup[] {
       title: `Missing receipt: ${t.category}`,
       meta: `${projectName(projects, t.projectId)} · Rs ${t.amount.toLocaleString('en-LK')}`,
       date: t.date,
-      link: '/budget',
+      link: '/money',
     }));
   if (missingReceipts.length > 0)
     groups.push({ key: 'missing-receipts', label: 'Expenses missing receipts', tone: 'info', items: missingReceipts });

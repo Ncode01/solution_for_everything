@@ -231,6 +231,32 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['budgets']['Row'], 'id' | 'created_at' | 'updated_at'> & { id?: string };
         Update: Partial<Database['public']['Tables']['budgets']['Insert']>;
       };
+      project_members: {
+        Row: {
+          id: string;
+          project_id: string;
+          member_id: string;
+          project_role: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['project_members']['Row'], 'id' | 'created_at'> & { id?: string };
+        Update: Partial<Database['public']['Tables']['project_members']['Insert']>;
+      };
+      audit_logs: {
+        Row: {
+          id: string;
+          actor_profile_id: string | null;
+          action: string;
+          entity_type: string;
+          entity_id: string | null;
+          project_id: string | null;
+          summary: string;
+          metadata: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['audit_logs']['Row'], 'id' | 'created_at'> & { id?: string };
+        Update: Partial<Database['public']['Tables']['audit_logs']['Insert']>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

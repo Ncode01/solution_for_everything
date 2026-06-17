@@ -1,5 +1,100 @@
 # Changelog
 
+## Phase Six — June 17, 2026
+
+### Product Transformation: RCCS Command Center → RCCS OS
+
+#### Product Language & Navigation
+- **App renamed to RCCS OS** throughout the UI (sidebar branding, login page context)
+- **Sidebar** simplified to final navigation: Today, Focus, Calendar, Projects (Overview) · Launches, Meetings, Approvals (Operations) · People, Money (People & Money) · Library (Records) · Event Day, System (Admin)
+- **All compatibility redirects** added: `/dashboard→/today`, `/my-work→/focus`, `/pr-planner→/launches`, `/budget→/money`, `/members→/people`, `/reports→/library`, `/files→/library`, `/audit→/library?section=audit`, `/data-tools→/system`, `/settings→/system`, `/sponsors→/money`
+
+#### New Pages
+- **Today** (`/today`) — replaces Dashboard. Sections: Needs Attention, Due Today, This Week, Project Health, Recent Activity. Calmer, more actionable layout.
+- **Focus** (`/focus`) — replaces My Work. Shows only the logged-in user's assigned tasks, launches, meeting actions, approvals, and sponsor follow-ups.
+- **Launches** (`/launches`) — replaces PR Planner. Product language updated to "launch items". Status boards (Needs Approval, Ready to Publish, In Design, Scheduled). Copy caption workflow preserved.
+- **People** (`/people`) — replaces Members. Adds People Balance section (committee distribution, high-workload alerts). Full member detail modal.
+- **Library** (`/library`) — consolidates Reports, Files & Links, Audit Trail, and Archives into tabbed view. Reports: generate/save/copy/print. Files: search/filter/add. Audit: scrollable trail. Archives: completed/archived projects.
+- **System** (`/system`) — consolidates Data Tools, app health, auth info, database record counts, security summary, backup/restore, deployment notes.
+- **Event-Day Mode** (`/event-day`) — RCCS-specific live event checklist. Select project, manage checklist items by category (Agenda, Guest, Registration, AV, Certificates, Refreshments, Stage, Media, Logistics, Emergency). Status updates, priority highlighting, problems section, copy summary, print checklist. MemberSelect for owner assignment.
+
+#### Project Detail Changes
+- **Timeline tab** replaces Milestones tab — shows Phases, Milestones, and Deliverables in one tab
+- **Launches tab** replaces PR Plan tab — same functionality, renamed product language
+- **Deliverables** section added to Timeline tab — create, edit, delete project deliverables with type and status tracking
+
+#### New Components
+- **CommandMenu** — Ctrl/Cmd+K global command palette. Navigate to any page, search projects and people, trigger quick actions. Keyboard navigable (↑↓, Enter, Escape).
+- **Topbar** updated with Ctrl+K button indicator
+
+#### New Types (Phase Six)
+- `Deliverable` — project deliverable with type, status, owner, due date, optional file/approval link
+- `DeliverableType` — 12 types (Poster, Video, Caption, Sponsor Proposal, Registration Form, Agenda, Certificate Set, Report, Website Page, Quiz Set, Resource Pack, Other)
+- `DeliverableStatus` — 8 statuses (Not Started, Drafting, In Review, Changes Requested, Approved, Published, Completed, Archived)
+- `EventDayItem` — event-day checklist item with category, status, priority, scheduled time, owner
+- `ActivityItem` — human-readable activity log entry (append-only, max 200 items locally)
+- `UserRole` extended with Project Admin, Team Lead, Viewer
+
+#### Data Layer
+- `DATA_VERSION` bumped to **4**
+- `AppData` extended with `deliverables`, `eventDayItems`, `activityItems` collections
+- New localStorage keys: `rccs_deliverables`, `rccs_event_day_items`, `rccs_activity_items`
+- `AppDataContext` extended with `saveDeliverable`, `deleteDeliverable`, `saveEventDayItem`, `deleteEventDayItem`, `addActivity`
+- `SponsorDeliverableStatus` renamed from `DeliverableStatus` (was: Not Started/In Progress/Delivered/Cancelled) to avoid conflict
+
+#### Seed Data
+- `src/data/seedPhaseSix.ts` — BTUI and SparkIT deliverables (12 items) and event-day checklists (14 items)
+
+#### Supabase Migrations
+- `supabase/migrations/20260617000006_phase_six_tables.sql` — creates `deliverables`, `event_day_items`, `activity_items` with RLS policies
+
+#### attention.ts
+- Routes updated from `/pr-planner` → `/launches`, `/budget` → `/money`
+- Group labels updated to say "Launches" instead of "PR items"
+
+#### Build
+- `npm run build` passes with zero TypeScript errors
+- All new routes lazy-loaded except Today, Focus, Projects (eagerly loaded)
+
+---
+
+## Phase Five — June 17, 2026
+
+### Added
+- **Supabase Auth integration** (`src/state/AuthContext.tsx`): `AuthProvider` with `useAuth()` hook. Supabase mode uses `supabase.auth.signInWithPassword()` and `onAuthStateChange()`. Local demo mode falls back to hardcoded credentials from `src/lib/auth.ts`. No crash when env vars are missing.
+- **Profile-not-found screen**: If a Supabase user has no linked profile row, a clear "Profile Not Linked" screen is shown with the auth user UUID and admin instructions.
+- **`AuthDataBridge` component**: Keeps audit actor ID in sync between `AuthContext` and `AppDataContext`.
+- **`project_members` table** (`20260617000002_project_members.sql`): Links profiles to projects with project roles (Project Admin, Team Lead, Contributor, Viewer) for RLS.
+- **RLS helper functions** (`20260617000003_rls_helpers.sql`): `current_profile_id()`, `current_user_role()`, `is_super_admin()`, `is_executive_or_above()`, `can_manage_project()`, `is_project_member()`, `can_write_finance()`.
+- **Production RLS policies** (`20260617000004_rls_production.sql`): Drops permissive Phase Four MVP policies. Implements role-aware, project-scoped policies for all 19 tables. No anonymous write access.
+- **`audit_logs` table** (`20260617000005_audit_log.sql`): Append-only audit trail. RLS prevents updates/deletes; insert allowed for authenticated users; admins and project managers can read.
+- **`src/lib/audit.ts`**: `logAudit()` function. In Supabase mode inserts to `audit_logs`; in local mode appends to localStorage (capped at 500). Never throws — audit failures are console-warned.
+- **Audit logging in AppDataContext**: All save/delete operations for projects, members, meetings, sponsors, transactions, approvals, file links, and reports now emit audit log entries.
+- **Audit Log page** (`src/features/audit/AuditLogPage.tsx`): Route `/audit`. Filters by type, project, and search. Shows actor, action, entity type, summary, and timestamp. Skeleton loading states.
+- **`src/components/PageLoader.tsx`**: Full-screen loading placeholder used for route lazy loading and initial auth check.
+- **Code splitting**: All non-critical routes are lazy-loaded via `React.lazy` + `Suspense`. Separate chunks: Calendar, PRPlanner, Members, Meetings, Budget, Approvals, Reports, DataTools, AuditLog.
+- **`docs/13_DEPLOYMENT_RUNBOOK.md`**: Full deployment guide for Cloudflare Pages/Vercel, pre-deployment checklist, admin setup steps, RLS verification SQL.
+- **`supabase/dev_link_profiles_example.sql`**: Local-dev helper to link `profiles.auth_user_id` to auth user UUIDs.
+
+### Changed
+- **`src/App.tsx`**: Uses `useAuth()` instead of local `getSession()`. Shows `PageLoader` during auth initialization. Lazy imports for 9 routes.
+- **`src/main.tsx`**: Wraps with `AuthProvider`; renders `AuthDataBridge`.
+- **`src/features/auth/LoginPage.tsx`**: Uses `useAuth().login()`. Detects Supabase vs local mode and shows appropriate field labels and mode badge. Shows profile-not-found screen. Demo credentials hidden in Supabase mode.
+- **`src/components/Topbar.tsx`**: Added connection mode indicator icon; expanded role icons for all 6 role types.
+- **`src/components/Sidebar.tsx`**: Added Audit Log nav item. Bumped version to v5.0.0.
+- **`src/features/settings/DataToolsPage.tsx`**: Added provider health check panel (Database, Authentication, Profile Linked). Reset action now emits audit log.
+- **`src/state/AppDataContext.tsx`**: All CRUD operations emit audit log entries via `logAudit`. Added `setActorId()` for audit actor tracking.
+- **`src/types/supabase.ts`**: Added `project_members` and `audit_logs` table types.
+- **`supabase/README.md`**: Updated with Phase Five migrations, admin setup steps, RLS policy summary.
+
+### Security
+- All anonymous write access removed via production RLS policies.
+- Finance tables (sponsors, budgets, transactions) require project manager role to write.
+- Audit log is append-only (no update/delete policies).
+- Hardcoded auth remains local demo fallback only.
+
+---
+
 ## Phase Four — June 2026
 
 ### Added

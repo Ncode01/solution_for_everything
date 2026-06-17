@@ -5,12 +5,13 @@ import {
   Target, ListTodo, Megaphone, LayoutGrid, ExternalLink, Check,
   CalendarCheck, Wallet, CheckSquare, FileText, Flag, Layers,
   Handshake, TrendingUp, TrendingDown, MinusCircle, Package,
-  ClipboardList, DollarSign,
+  ClipboardList, DollarSign, Rocket,
 } from 'lucide-react';
 import {
   Project, Phase, Milestone, Task, PRItem, TaskStatus, TaskPriority, PhaseStatus, MilestoneStatus,
   PRApprovalStatus, PRPublishingStatus, Meeting, Sponsor, SponsorStage, PaymentStatus,
   Transaction, ApprovalRequest, FileLink, FileCategory,
+  Deliverable, DeliverableType, DeliverableStatus, Member,
 } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
 import { getProjectHealth, getNextDeadlines, getBudgetSummary, getSponsorTotals } from '../../lib/stats';
@@ -36,7 +37,7 @@ import ApprovalForm from '../approvals/ApprovalForm';
 import FileLinkForm from '../files/FileLinkForm';
 import { generateProjectReport } from '../../lib/report';
 
-type Tab = 'overview' | 'milestones' | 'tasks' | 'pr' | 'meetings' | 'money' | 'approvals';
+type Tab = 'overview' | 'timeline' | 'tasks' | 'launches' | 'meetings' | 'money' | 'approvals';
 
 const TASK_STATUSES: TaskStatus[] = ['To Do', 'Doing', 'Waiting', 'Review', 'Approved', 'Done', 'Blocked'];
 const TASK_PRIORITIES: TaskPriority[] = ['Urgent', 'High', 'Medium', 'Low'];
@@ -171,31 +172,33 @@ export default function ProjectDetailPage() {
 
   const moneyHealthColor = moneyHealthScore === 'Healthy' ? 'text-emerald-400' : moneyHealthScore === 'Needs Attention' ? 'text-amber-400' : 'text-red-400';
 
+  const projectDeliverables = (data.deliverables ?? []).filter((d) => d.projectId === p.id);
+
   const TABS: { id: Tab; label: string; icon: React.ElementType; badge?: number }[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutGrid },
-    { id: 'milestones', label: 'Milestones', icon: Target, badge: p.milestones.length || undefined },
-    { id: 'tasks', label: 'Tasks', icon: ListTodo, badge: p.tasks.length || undefined },
-    { id: 'pr', label: 'PR Plan', icon: Megaphone, badge: p.prItems.length || undefined },
-    { id: 'meetings', label: 'Meetings', icon: CalendarCheck, badge: projectMeetings.length || undefined },
-    { id: 'money', label: 'Money', icon: Wallet },
+    { id: 'overview',  label: 'Overview',  icon: LayoutGrid },
+    { id: 'timeline',  label: 'Timeline',  icon: Layers, badge: (p.phases.length + p.milestones.length + projectDeliverables.length) || undefined },
+    { id: 'tasks',     label: 'Tasks',     icon: ListTodo, badge: p.tasks.length || undefined },
+    { id: 'launches',  label: 'Launches',  icon: Megaphone, badge: p.prItems.length || undefined },
+    { id: 'meetings',  label: 'Meetings',  icon: CalendarCheck, badge: projectMeetings.length || undefined },
+    { id: 'money',     label: 'Money',     icon: Wallet },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare, badge: pendingApprovals.length || undefined },
   ];
 
   const quickActions = [
-    { label: 'Add Task', icon: ListTodo, onClick: () => { setTab('tasks'); setTaskModal({ open: true }); } },
-    { label: 'Add Milestone', icon: Target, onClick: () => { setTab('milestones'); setMilestoneModal({ open: true }); } },
-    { label: 'Add PR Item', icon: Megaphone, onClick: () => { setTab('pr'); setPrModal({ open: true }); } },
-    { label: 'Add Meeting', icon: CalendarCheck, onClick: () => { setTab('meetings'); setMeetingModal({ open: true }); } },
-    { label: 'Add Sponsor', icon: Handshake, onClick: () => { setTab('money'); setSponsorModal({ open: true }); } },
-    { label: 'Add Transaction', icon: Wallet, onClick: () => { setTab('money'); setTxnModal({ open: true }); } },
-    { label: 'Add File Link', icon: FileText, onClick: () => setFileLinkModal({ open: true }) },
-    { label: 'Generate Report', icon: FileText, onClick: generateAndSaveReport },
+    { label: 'Add Task',        icon: ListTodo,     onClick: () => { setTab('tasks');    setTaskModal({ open: true }); } },
+    { label: 'Add Milestone',   icon: Target,       onClick: () => { setTab('timeline'); setMilestoneModal({ open: true }); } },
+    { label: 'Add Launch',      icon: Megaphone,    onClick: () => { setTab('launches'); setPrModal({ open: true }); } },
+    { label: 'Add Meeting',     icon: CalendarCheck,onClick: () => { setTab('meetings'); setMeetingModal({ open: true }); } },
+    { label: 'Add Sponsor',     icon: Handshake,    onClick: () => { setTab('money');    setSponsorModal({ open: true }); } },
+    { label: 'Add Transaction', icon: Wallet,       onClick: () => { setTab('money');    setTxnModal({ open: true }); } },
+    { label: 'Add File Link',   icon: FileText,     onClick: () => setFileLinkModal({ open: true }) },
+    { label: 'Generate Report', icon: FileText,     onClick: generateAndSaveReport },
   ];
 
   function generateAndSaveReport() {
     const r = generateProjectReport(data, p);
     saveReport({ id: generateId(), projectId: p.id, title: r.title, type: 'Project Summary', summary: r.summary, generatedDate: todayISO(), sections: r.sections });
-    navigate('/reports');
+    navigate('/library?section=reports');
   }
 
   return (
@@ -241,9 +244,9 @@ export default function ProjectDetailPage() {
               <p className={`text-lg font-bold ${overdueTasks.length ? 'text-red-400' : 'text-white'}`}>{overdueTasks.length}</p>
               <p className="text-xs text-slate-500">Overdue tasks</p>
             </button>
-            <button onClick={() => setTab('pr')} className="bg-slate-800/50 rounded-lg p-2.5 text-left hover:bg-slate-800 transition-colors">
+            <button onClick={() => setTab('launches')} className="bg-slate-800/50 rounded-lg p-2.5 text-left hover:bg-slate-800 transition-colors">
               <p className={`text-lg font-bold ${pendingPR.length ? 'text-amber-400' : 'text-white'}`}>{pendingPR.length}</p>
-              <p className="text-xs text-slate-500">PR awaiting approval</p>
+              <p className="text-xs text-slate-500">Launches awaiting approval</p>
             </button>
             <button onClick={() => setTab('approvals')} className="bg-slate-800/50 rounded-lg p-2.5 text-left hover:bg-slate-800 transition-colors">
               <p className={`text-lg font-bold ${pendingApprovals.length ? 'text-amber-400' : 'text-white'}`}>{pendingApprovals.length}</p>
@@ -451,43 +454,90 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* ── MILESTONES ── */}
-      {tab === 'milestones' && (
-        <div className="space-y-3">
-          <div className="flex justify-end"><button className="btn-primary" onClick={() => setMilestoneModal({ open: true })}><Plus size={15} /> Add Milestone</button></div>
-          {p.milestones.length === 0 ? (
-            <EmptyState icon={Target} title="No milestones yet" description="Add key milestones to track major deliverables." action={<button className="btn-primary" onClick={() => setMilestoneModal({ open: true })}>Add Milestone</button>} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[600px]">
-                <thead><tr className="border-b border-slate-800">
-                  <th className="table-header text-left py-2 pr-4">Milestone</th>
-                  <th className="table-header text-left py-2 pr-4">Due Date</th>
-                  <th className="table-header text-left py-2 pr-4">Owner</th>
-                  <th className="table-header text-left py-2 pr-4">Status</th>
-                  <th className="table-header text-left py-2"></th>
-                </tr></thead>
-                <tbody>
-                  {p.milestones.map((m) => (
-                    <tr key={m.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                      <td className="py-3 pr-4"><p className="font-medium text-white">{m.name}</p>{m.description && <p className="text-xs text-slate-500 mt-0.5">{m.description}</p>}</td>
-                      <td className="py-3 pr-4 whitespace-nowrap"><span className={isOverdue(m.dueDate) && m.status !== 'Completed' ? 'text-red-400' : 'text-slate-300'}>{formatDate(m.dueDate)}</span></td>
-                      <td className="py-3 pr-4 text-slate-400">{m.owner || '—'}</td>
-                      <td className="py-3 pr-4">
-                        <select className="select text-xs py-1 w-40" value={m.status} onChange={(e) => updateMilestoneStatus(m.id, e.target.value as MilestoneStatus)}>
-                          {(['Not Started', 'In Progress', 'Blocked', 'Pending Approval', 'Completed', 'Delayed', 'Cancelled'] as MilestoneStatus[]).map((s) => <option key={s}>{s}</option>)}
-                        </select>
-                      </td>
-                      <td className="py-3"><div className="flex items-center gap-1">
-                        <button className="btn-ghost p-1.5" onClick={() => setMilestoneModal({ open: true, editing: m })}><Edit2 size={13} /></button>
-                        <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirm({ message: 'Delete this milestone?', onConfirm: () => update({ ...p, milestones: p.milestones.filter((x) => x.id !== m.id) }) })}><Trash2 size={13} /></button>
-                      </div></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* ── TIMELINE ── */}
+      {tab === 'timeline' && (
+        <div className="space-y-5">
+          {/* Phases */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Layers size={14} className="text-slate-400" /> Phases</h3>
+              <button className="btn-secondary text-xs" onClick={() => setPhaseModal({ open: true })}><Plus size={13} /> Add Phase</button>
             </div>
-          )}
+            {p.phases.length === 0 ? (
+              <Card className="py-5 text-center text-slate-500 text-sm">No phases defined.</Card>
+            ) : (
+              <div className="space-y-2">
+                {p.phases.map((phase) => (
+                  <Card key={phase.id} className="py-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-white text-sm">{phase.name}</span>
+                          <StatusBadge status={phase.status} />
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
+                          {phase.owner && <span>Owner: {phase.owner}</span>}
+                          {phase.startDate && phase.endDate && <span>{formatDateShort(phase.startDate)} → {formatDateShort(phase.endDate)}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <select className="select text-xs py-1 w-32" value={phase.status} onChange={(e) => updatePhaseStatus(phase.id, e.target.value as PhaseStatus)}>
+                          {PHASE_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                        </select>
+                        <button className="btn-ghost p-1.5" onClick={() => setPhaseModal({ open: true, editing: phase })}><Edit2 size={13} /></button>
+                        <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirm({ message: 'Delete this phase?', onConfirm: () => deletePhase(phase.id) })}><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                    <div className="mt-2"><ProgressBar value={phase.progress} size="sm" showLabel /></div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Milestones */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Target size={14} className="text-slate-400" /> Milestones</h3>
+              <button className="btn-secondary text-xs" onClick={() => setMilestoneModal({ open: true })}><Plus size={13} /> Add Milestone</button>
+            </div>
+            {p.milestones.length === 0 ? (
+              <Card className="py-5 text-center text-slate-500 text-sm">No milestones yet.</Card>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[600px]">
+                  <thead><tr className="border-b border-slate-800">
+                    <th className="table-header text-left py-2 pr-4">Milestone</th>
+                    <th className="table-header text-left py-2 pr-4">Due Date</th>
+                    <th className="table-header text-left py-2 pr-4">Owner</th>
+                    <th className="table-header text-left py-2 pr-4">Status</th>
+                    <th className="table-header text-left py-2"></th>
+                  </tr></thead>
+                  <tbody>
+                    {p.milestones.map((m) => (
+                      <tr key={m.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                        <td className="py-3 pr-4"><p className="font-medium text-white">{m.name}</p>{m.description && <p className="text-xs text-slate-500 mt-0.5">{m.description}</p>}</td>
+                        <td className="py-3 pr-4 whitespace-nowrap"><span className={isOverdue(m.dueDate) && m.status !== 'Completed' ? 'text-red-400' : 'text-slate-300'}>{formatDate(m.dueDate)}</span></td>
+                        <td className="py-3 pr-4 text-slate-400">{m.owner || '—'}</td>
+                        <td className="py-3 pr-4">
+                          <select className="select text-xs py-1 w-40" value={m.status} onChange={(e) => updateMilestoneStatus(m.id, e.target.value as MilestoneStatus)}>
+                            {(['Not Started', 'In Progress', 'Blocked', 'Pending Approval', 'Completed', 'Delayed', 'Cancelled'] as MilestoneStatus[]).map((s) => <option key={s}>{s}</option>)}
+                          </select>
+                        </td>
+                        <td className="py-3"><div className="flex items-center gap-1">
+                          <button className="btn-ghost p-1.5" onClick={() => setMilestoneModal({ open: true, editing: m })}><Edit2 size={13} /></button>
+                          <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirm({ message: 'Delete this milestone?', onConfirm: () => update({ ...p, milestones: p.milestones.filter((x) => x.id !== m.id) }) })}><Trash2 size={13} /></button>
+                        </div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Deliverables */}
+          <DeliverableSection projectId={p.id} projectDeliverables={projectDeliverables} members={data.members} />
         </div>
       )}
 
@@ -536,12 +586,12 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* ── PR PLAN ── */}
-      {tab === 'pr' && (
+      {/* ── LAUNCHES ── */}
+      {tab === 'launches' && (
         <div className="space-y-3">
-          <div className="flex justify-end"><button className="btn-primary" onClick={() => setPrModal({ open: true })}><Plus size={15} /> Add PR Item</button></div>
+          <div className="flex justify-end"><button className="btn-primary" onClick={() => setPrModal({ open: true })}><Plus size={15} /> Add Launch Item</button></div>
           {p.prItems.length === 0 ? (
-            <EmptyState icon={Megaphone} title="No PR items" description="Plan posts, campaigns, and announcements." action={<button className="btn-primary" onClick={() => setPrModal({ open: true })}>Add PR Item</button>} />
+            <EmptyState icon={Megaphone} title="No launch items" description="Plan posts, campaigns, and announcements for this project." action={<button className="btn-primary" onClick={() => setPrModal({ open: true })}>Add Launch Item</button>} />
           ) : p.prItems.map((pr) => (
             <Card key={pr.id}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -559,15 +609,14 @@ export default function ProjectDetailPage() {
                   <select className="select text-xs py-1 w-36" value={pr.approvalStatus} onChange={(e) => updatePRApproval(pr.id, e.target.value as PRApprovalStatus)}>{(['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'] as PRApprovalStatus[]).map((s) => <option key={s}>{s}</option>)}</select>
                   <select className="select text-xs py-1 w-28" value={pr.publishingStatus} onChange={(e) => updatePRPublishing(pr.id, e.target.value as PRPublishingStatus)}>{(['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'] as PRPublishingStatus[]).map((s) => <option key={s}>{s}</option>)}</select>
                   <button className="btn-ghost p-1.5" onClick={() => setPrModal({ open: true, editing: pr })}><Edit2 size={13} /></button>
-                  <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirm({ message: 'Delete this PR item?', onConfirm: () => update({ ...p, prItems: p.prItems.filter((x) => x.id !== pr.id) }) })}><Trash2 size={13} /></button>
+                  <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirm({ message: 'Delete this launch item?', onConfirm: () => update({ ...p, prItems: p.prItems.filter((x) => x.id !== pr.id) }) })}><Trash2 size={13} /></button>
                 </div>
               </div>
             </Card>
           ))}
-          {/* PR-related file links */}
           {projectFiles.filter((f) => ['PR', 'Designs', 'Videos'].includes(f.category)).length > 0 && (
             <div className="mt-4">
-              <p className="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wide">PR Files & Links</p>
+              <p className="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wide">Launch Files & Links</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {projectFiles.filter((f) => ['PR', 'Designs', 'Videos'].includes(f.category)).map((f) => (
                   <Card key={f.id} className="py-2.5 flex items-center justify-between gap-2">
@@ -934,6 +983,126 @@ export default function ProjectDetailPage() {
 
       <ConfirmDialog open={!!confirm} title="Please confirm" message={confirm?.message ?? ''} confirmLabel="Delete" onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
       <ConfirmDialog open={confirmDeleteProject} title="Delete project?" message={`Delete "${p.name}" and all its data? This cannot be undone.`} confirmLabel="Delete Project" onConfirm={() => { deleteProject(p.id); navigate('/projects'); }} onCancel={() => setConfirmDeleteProject(false)} />
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Deliverable Section (inline in Timeline tab)
+// ──────────────────────────────────────────────────────────────────────────────
+
+type DSProps = {
+  projectId: string;
+  projectDeliverables: Deliverable[];
+  members: Member[];
+};
+
+const DELIVERABLE_TYPES: DeliverableType[] = ['Poster','Video','Caption','Sponsor Proposal','Registration Form','Agenda','Certificate Set','Report','Website Page','Quiz Set','Resource Pack','Other'];
+const DELIVERABLE_STATUSES: DeliverableStatus[] = ['Not Started','Drafting','In Review','Changes Requested','Approved','Published','Completed','Archived'];
+
+const DEL_STATUS_COLOR: Record<string, string> = {
+  'Not Started': 'text-slate-500',
+  Drafting:      'text-blue-400',
+  'In Review':   'text-amber-400',
+  'Changes Requested': 'text-red-400',
+  Approved:      'text-emerald-400',
+  Published:     'text-emerald-300',
+  Completed:     'text-emerald-400',
+  Archived:      'text-slate-600',
+};
+
+function DeliverableSection({ projectId, projectDeliverables, members }: DSProps) {
+  const { saveDeliverable, deleteDeliverable } = useAppData();
+  const [modal, setModal] = React.useState<{ open: boolean; editing?: Deliverable }>({ open: false });
+  const [confirmDel, setConfirmDel] = React.useState<Deliverable | null>(null);
+  const [form, setForm] = React.useState<Partial<Deliverable>>({});
+
+  function openAdd() { setForm({ projectId, type: 'Poster', status: 'Not Started' }); setModal({ open: true }); }
+  function openEdit(d: Deliverable) { setForm(d); setModal({ open: true, editing: d }); }
+
+  function save() {
+    if (!form.title?.trim()) return;
+    const now = new Date().toISOString();
+    const d: Deliverable = modal.editing
+      ? { ...modal.editing, ...form, updatedAt: now } as Deliverable
+      : { id: generateId(), projectId, title: form.title!, type: form.type ?? 'Other', status: form.status ?? 'Not Started', description: form.description, ownerId: form.ownerId, owner: form.owner, dueDate: form.dueDate, createdAt: now, updatedAt: now };
+    const ownerMember = members.find((m) => m.id === d.ownerId);
+    if (ownerMember) d.owner = ownerMember.displayName;
+    saveDeliverable(d);
+    setModal({ open: false });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Package size={14} className="text-slate-400" /> Deliverables</h3>
+        <button className="btn-secondary text-xs" onClick={openAdd}><Plus size={13} /> Add Deliverable</button>
+      </div>
+      {projectDeliverables.length === 0 ? (
+        <Card className="py-5 text-center text-slate-500 text-sm">No deliverables yet. Add posters, videos, forms, and reports.</Card>
+      ) : (
+        <div className="space-y-1.5">
+          {projectDeliverables.map((d) => (
+            <Card key={d.id} className="py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-white">{d.title}</p>
+                    <span className="text-xs text-slate-600">{d.type}</span>
+                    <span className={`text-xs font-medium ${DEL_STATUS_COLOR[d.status] ?? 'text-slate-400'}`}>{d.status}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                    {d.owner && <span>{d.owner}</span>}
+                    {d.dueDate && <span className={isOverdue(d.dueDate) && d.status !== 'Completed' ? 'text-red-400' : ''}>{formatDateShort(d.dueDate)}</span>}
+                    {d.description && <span className="truncate italic">{d.description}</span>}
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <select className="select text-xs py-1 w-32" value={d.status} onChange={(e) => saveDeliverable({ ...d, status: e.target.value as DeliverableStatus, updatedAt: new Date().toISOString() })}>
+                    {DELIVERABLE_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                  <button className="btn-ghost p-1.5" onClick={() => openEdit(d)}><Edit2 size={12} /></button>
+                  <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirmDel(d)}><Trash2 size={12} /></button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {modal.open && (
+        <Modal open={modal.open} onClose={() => setModal({ open: false })} title={modal.editing ? 'Edit Deliverable' : 'Add Deliverable'}>
+          <div className="space-y-4">
+            <div><label className="field-label">Title</label><input className="input" value={form.title ?? ''} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Registration Poster" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="field-label">Type</label>
+                <select className="select" value={form.type ?? 'Poster'} onChange={(e) => setForm({ ...form, type: e.target.value as DeliverableType })}>
+                  {DELIVERABLE_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div><label className="field-label">Status</label>
+                <select className="select" value={form.status ?? 'Not Started'} onChange={(e) => setForm({ ...form, status: e.target.value as DeliverableStatus })}>
+                  {DELIVERABLE_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div><label className="field-label">Owner</label>
+              <select className="select" value={form.ownerId ?? ''} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}>
+                <option value="">— No owner —</option>
+                {members.map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+              </select>
+            </div>
+            <div><label className="field-label">Due Date</label><input type="date" className="input" value={form.dueDate ?? ''} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></div>
+            <div><label className="field-label">Description</label><input className="input" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional description…" /></div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button className="btn-ghost" onClick={() => setModal({ open: false })}>Cancel</button>
+              <button className="btn-primary" onClick={save} disabled={!form.title?.trim()}>Save</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <ConfirmDialog open={!!confirmDel} title="Delete deliverable?" message={`Delete "${confirmDel?.title ?? 'this'}"?`} onConfirm={() => { if (confirmDel) { deleteDeliverable(confirmDel.id); setConfirmDel(null); } }} onCancel={() => setConfirmDel(null)} />
     </div>
   );
 }

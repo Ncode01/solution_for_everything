@@ -1,31 +1,59 @@
 import React, { useState } from 'react';
-import { ChevronRight, AlertCircle } from 'lucide-react';
-import { login } from '../../lib/auth';
-import { User } from '../../types';
+import { ChevronRight, AlertCircle, Wifi, WifiOff, UserX } from 'lucide-react';
+import { useAuth } from '../../state/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 
-interface Props {
-  onLogin: (user: User) => void;
-}
+export default function LoginPage() {
+  const { login, logout, state, session } = useAuth();
+  const isSupabase = isSupabaseConfigured;
 
-export default function LoginPage({ onLogin }: Props) {
-  const [username, setUsername] = useState('');
+  const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  // ── Profile not found ──────────────────────────────────────────────────────
+  if (state === 'no-profile') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-4">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-600/20 border border-amber-600/40 flex items-center justify-center mx-auto mb-4">
+              <UserX size={28} className="text-amber-400" />
+            </div>
+            <h1 className="text-xl font-bold text-white">Profile Not Linked</h1>
+            <p className="text-slate-500 text-sm mt-1">Your account is not linked to an RCCS profile.</p>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 text-sm">
+            <p className="text-slate-300 font-medium">Logged in as:</p>
+            <p className="text-slate-500 font-mono text-xs">{session?.user?.email ?? 'Unknown'}</p>
+            <div className="border-t border-slate-800 pt-3 mt-2 text-slate-500 text-xs space-y-1">
+              <p>An RCCS administrator needs to:</p>
+              <p>1. Create your profile record in Supabase.</p>
+              <p>2. Set <code className="text-slate-400">profiles.auth_user_id</code> to your user ID.</p>
+              <p className="font-mono text-[10px] text-slate-600 break-all">{session?.user?.id}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => logout()}
+            className="btn-secondary w-full justify-center"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const user = login(username, password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError('Invalid username or password.');
-      }
-      setLoading(false);
-    }, 300);
+    const { error: err } = await login(credential, password);
+    if (err) setError(err);
+    setLoading(false);
   }
 
   return (
@@ -37,21 +65,29 @@ export default function LoginPage({ onLogin }: Props) {
             <ChevronRight size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">RCCS Command Center</h1>
-          <p className="text-slate-500 text-sm mt-1">Royal College Computer Society</p>
+          <p className="text-slate-500 text-sm mt-1">Royal College Computing Society</p>
+        </div>
+
+        {/* Mode badge */}
+        <div className={`flex items-center justify-center gap-1.5 text-xs mb-4 ${isSupabase ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {isSupabase ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="label" htmlFor="username">Username</label>
+            <label className="label" htmlFor="credential">
+              {isSupabase ? 'Email' : 'Username'}
+            </label>
             <input
-              id="username"
-              type="text"
+              id="credential"
+              type={isSupabase ? 'email' : 'text'}
               className="input"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
+              placeholder={isSupabase ? 'you@rccs.lk' : 'Enter your username'}
+              value={credential}
+              onChange={(e) => setCredential(e.target.value)}
+              autoComplete={isSupabase ? 'email' : 'username'}
               autoFocus
               required
             />
@@ -78,20 +114,24 @@ export default function LoginPage({ onLogin }: Props) {
           )}
 
           <button type="submit" className="btn-primary w-full justify-center" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
-        {/* Demo credentials */}
-        <div className="mt-4 card text-xs space-y-1">
-          <p className="text-slate-500 font-medium mb-2">Demo Credentials</p>
-          <p className="text-slate-400"><span className="text-slate-300">admin</span> / admin123 — Super Admin</p>
-          <p className="text-slate-400"><span className="text-slate-300">secretary</span> / rccs2026 — Executive Admin</p>
-          <p className="text-slate-400"><span className="text-slate-300">member</span> / member123 — Member</p>
-        </div>
+        {/* Demo credentials — only shown in local mode */}
+        {!isSupabase && (
+          <div className="mt-4 card text-xs space-y-1">
+            <p className="text-slate-500 font-medium mb-2">Demo Credentials</p>
+            <p className="text-slate-400"><span className="text-slate-300">admin</span> / admin123 — Super Admin</p>
+            <p className="text-slate-400"><span className="text-slate-300">secretary</span> / rccs2026 — Executive Admin</p>
+            <p className="text-slate-400"><span className="text-slate-300">member</span> / member123 — Member</p>
+          </div>
+        )}
 
         <p className="text-center text-xs text-slate-700 mt-4">
-          Phase One MVP · Local demo only
+          {isSupabase
+            ? 'Use your RCCS account email and password.'
+            : 'Local Demo Mode — data stored in browser only.'}
         </p>
       </div>
     </div>

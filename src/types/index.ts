@@ -5,7 +5,7 @@
 // display-name field (kept for backward compat / search).
 // ============================================================
 
-export type UserRole = 'Super Admin' | 'Executive Admin' | 'Member';
+export type UserRole = 'Super Admin' | 'Executive Admin' | 'Project Admin' | 'Team Lead' | 'Member' | 'Viewer';
 
 export interface User {
   id: string;
@@ -285,13 +285,13 @@ export type PaymentStatus =
   | 'Paid'
   | 'Overdue';
 
-export type DeliverableStatus = 'Not Started' | 'In Progress' | 'Delivered' | 'Cancelled';
+export type SponsorDeliverableStatus = 'Not Started' | 'In Progress' | 'Delivered' | 'Cancelled';
 
 export interface SponsorDeliverable {
   id: string;
   title: string;
   dueDate?: string;
-  status: DeliverableStatus;
+  status: SponsorDeliverableStatus;
   notes?: string;
 }
 
@@ -432,6 +432,117 @@ export interface FileLink {
 
 export type ReportType = 'Project Summary' | 'Post-Event Review' | 'Handover';
 
+// ============================================================
+// Phase Six — New Entity Types
+// ============================================================
+
+export type DeliverableType =
+  | 'Poster'
+  | 'Video'
+  | 'Caption'
+  | 'Sponsor Proposal'
+  | 'Registration Form'
+  | 'Agenda'
+  | 'Certificate Set'
+  | 'Report'
+  | 'Website Page'
+  | 'Quiz Set'
+  | 'Resource Pack'
+  | 'Other';
+
+export type DeliverableStatus =
+  | 'Not Started'
+  | 'Drafting'
+  | 'In Review'
+  | 'Changes Requested'
+  | 'Approved'
+  | 'Published'
+  | 'Completed'
+  | 'Archived';
+
+export interface Deliverable {
+  id: string;
+  projectId: string;
+  phaseId?: string;
+  milestoneId?: string;
+  title: string;
+  type: DeliverableType;
+  description?: string;
+  /** Member.id */
+  ownerId?: string;
+  owner?: string;
+  dueDate?: string;
+  status: DeliverableStatus;
+  fileLinkId?: string;
+  approvalRequestId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EventDayItemStatus = 'Not Ready' | 'Ready' | 'In Progress' | 'Completed' | 'Problem';
+export type EventDayItemCategory =
+  | 'Agenda'
+  | 'Guest'
+  | 'Registration'
+  | 'AV'
+  | 'Certificates'
+  | 'Refreshments'
+  | 'Stage'
+  | 'Media'
+  | 'Logistics'
+  | 'Emergency'
+  | 'Other';
+export type EventDayItemPriority = 'Normal' | 'High' | 'Critical';
+
+export interface EventDayItem {
+  id: string;
+  projectId: string;
+  title: string;
+  category: EventDayItemCategory;
+  /** Member.id */
+  ownerId?: string;
+  owner?: string;
+  scheduledTime?: string;
+  status: EventDayItemStatus;
+  priority: EventDayItemPriority;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ActivityItemType =
+  | 'task_created'
+  | 'task_done'
+  | 'launch_approved'
+  | 'launch_posted'
+  | 'sponsor_changed'
+  | 'payment_changed'
+  | 'transaction_added'
+  | 'approval_decision'
+  | 'meeting_action_created'
+  | 'deliverable_completed'
+  | 'report_generated'
+  | 'event_day_problem'
+  | 'event_day_completed'
+  | 'project_created'
+  | 'project_updated'
+  | 'general';
+
+export interface ActivityItem {
+  id: string;
+  projectId?: string;
+  actorId?: string;
+  actorName?: string;
+  type: ActivityItemType;
+  summary: string;
+  relatedType?: string;
+  relatedId?: string;
+  createdAt: string;
+
+  // Local-only: link to related entity for navigation
+  link?: string;
+}
+
 export interface Report {
   id: string;
   projectId: string;
@@ -453,6 +564,9 @@ export interface AppData {
   approvals: ApprovalRequest[];
   fileLinks: FileLink[];
   reports: Report[];
+  deliverables: Deliverable[];
+  eventDayItems: EventDayItem[];
+  activityItems: ActivityItem[];
 }
 
 export interface AppState {

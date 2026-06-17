@@ -1,20 +1,21 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  FolderKanban,
+  Sun,
+  Crosshair,
   CalendarDays,
-  Megaphone,
+  FolderKanban,
+  Rocket,
   Users,
   CalendarCheck,
-  Wallet,
   CheckSquare,
-  FileText,
-  Database,
+  Wallet,
+  BookOpen,
+  Settings2,
   Hexagon,
-  Briefcase,
   Wifi,
   WifiOff,
+  PartyPopper,
 } from 'lucide-react';
 import { getConnectionMode } from '../lib/supabaseClient';
 
@@ -27,16 +28,16 @@ const NAV_GROUPS: { heading: string; items: { to: string; icon: React.ElementTyp
   {
     heading: 'Overview',
     items: [
-      { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/my-work',    icon: Briefcase,        label: 'My Work' },
-      { to: '/calendar',   icon: CalendarDays,     label: 'Calendar' },
+      { to: '/today',    icon: Sun,          label: 'Today' },
+      { to: '/focus',    icon: Crosshair,    label: 'Focus' },
+      { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
+      { to: '/projects', icon: FolderKanban, label: 'Projects' },
     ],
   },
   {
     heading: 'Operations',
     items: [
-      { to: '/projects',   icon: FolderKanban, label: 'Projects' },
-      { to: '/pr-planner', icon: Megaphone,    label: 'PR Planner' },
+      { to: '/launches',   icon: Rocket,       label: 'Launches' },
       { to: '/meetings',   icon: CalendarCheck, label: 'Meetings' },
       { to: '/approvals',  icon: CheckSquare,  label: 'Approvals' },
     ],
@@ -44,15 +45,21 @@ const NAV_GROUPS: { heading: string; items: { to: string; icon: React.ElementTyp
   {
     heading: 'People & Money',
     items: [
-      { to: '/members', icon: Users,  label: 'Members' },
-      { to: '/budget',  icon: Wallet, label: 'Money' },
+      { to: '/people', icon: Users,  label: 'People' },
+      { to: '/money',  icon: Wallet, label: 'Money' },
     ],
   },
   {
     heading: 'Records',
     items: [
-      { to: '/reports',    icon: FileText, label: 'Reports' },
-      { to: '/data-tools', icon: Database, label: 'Data Tools' },
+      { to: '/library', icon: BookOpen, label: 'Library' },
+    ],
+  },
+  {
+    heading: 'Admin',
+    items: [
+      { to: '/event-day', icon: PartyPopper, label: 'Event Day' },
+      { to: '/system',    icon: Settings2,   label: 'System' },
     ],
   },
 ];
@@ -62,15 +69,15 @@ export default function Sidebar({ className = '', onNavigate }: SidebarProps) {
   const isSupabase = mode === 'supabase';
 
   return (
-    <aside className={`flex flex-col w-64 bg-slate-900 border-r border-slate-800 shrink-0 h-full ${className}`}>
+    <aside className={`flex flex-col w-64 bg-slate-950 border-r border-slate-800/70 shrink-0 h-full ${className}`}>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-800 shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+      <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-800/70 shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-900/40">
           <Hexagon size={18} className="text-white" />
         </div>
         <div>
-          <div className="text-white font-bold text-sm leading-tight">RCCS</div>
-          <div className="text-slate-500 text-xs">Command Center</div>
+          <div className="text-white font-bold text-sm leading-tight tracking-tight">RCCS OS</div>
+          <div className="text-slate-500 text-xs">Internal Operating System</div>
         </div>
       </div>
 
@@ -90,12 +97,12 @@ export default function Sidebar({ className = '', onNavigate }: SidebarProps) {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-blue-600/15 text-blue-300 border border-blue-600/30'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
+                        ? 'bg-blue-600/15 text-blue-300 border border-blue-600/25'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
                     }`
                   }
                 >
-                  <Icon size={17} className="shrink-0" />
+                  <Icon size={16} className="shrink-0" />
                   <span>{label}</span>
                 </NavLink>
               ))}
@@ -105,12 +112,12 @@ export default function Sidebar({ className = '', onNavigate }: SidebarProps) {
       </nav>
 
       {/* Footer — connection mode */}
-      <div className="px-4 py-3 border-t border-slate-800 shrink-0">
+      <div className="px-4 py-3 border-t border-slate-800/70 shrink-0">
         <div className={`flex items-center gap-1.5 text-xs mb-1 ${isSupabase ? 'text-emerald-400' : 'text-slate-500'}`}>
           {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
           {isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
         </div>
-        <p className="text-[10px] text-slate-700">Phase Four · v4.0.0</p>
+        <p className="text-[10px] text-slate-700">Phase Six · RCCS OS v6.0.0</p>
       </div>
     </aside>
   );

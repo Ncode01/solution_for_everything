@@ -1,28 +1,72 @@
-# AGENTS.md — RCCS Command Center AI Agent Rules
+# AGENTS.md — RCCS OS AI Agent Rules
 
 This file governs how AI coding agents should work on this project.
 
-## Phase Four Rules (current phase)
+## Phase Six Rules (current phase)
 
-The app now supports both Local Demo Mode (localStorage) and Supabase Connected Mode (PostgreSQL).
+The product is now called **RCCS OS**. All UI-facing references should say RCCS OS, not RCCS Command Center. Historical docs may retain the old name for context.
 
-1. **Supabase is now integrated**. Use `src/lib/supabaseClient.ts` and `src/lib/dataProvider.ts` for database access. Do not bypass the data provider.
-2. **Do not add any paid service** (no paid APIs, no paid SDKs, no paid cloud services).
-3. **No real backend REST API** — Supabase handles data directly from the frontend via the JS client.
-4. **localStorage is the fallback** when Supabase env vars are not configured. The app must never crash if env vars are missing.
-5. **Keep components readable** — prefer simple, obvious code over clever abstractions.
-6. **Do not add global state libraries** (Redux, Zustand, etc.). App state lives in `src/state/AppDataContext.tsx` (React Context only).
-7. **Do not build features marked "Out of Scope"** without explicit instruction.
+### Product Language Rules
+- The product name in UI is **RCCS OS**. Sidebar says "RCCS OS · Internal Operating System".
+- **Dashboard → Today** (`/today`)
+- **My Work → Focus** (`/focus`)
+- **PR Planner → Launches** (`/launches`)
+- **Budget/Finance Hub → Money** (`/money`)
+- **Members → People** (`/people`)
+- **Reports/Files/Audit → Library** (`/library`)
+- **Data Tools/Settings → System** (`/system`)
+- PR items are called "launch items" in user-facing UI. Database table `pr_items` is unchanged.
+- Do NOT re-separate Sponsors from Money.
+- Do NOT add a standalone Reports, Files, or Audit main sidebar item. They live inside Library.
+- Do NOT add Phases or Files as separate Project Detail tabs.
+
+### Project Detail Tab Rules (Phase Six)
+Project Detail must stay at exactly 7 tabs: **Overview · Timeline · Tasks · Launches · Meetings · Money · Approvals**. Do NOT re-add Milestones (merged into Timeline), PR Plan (renamed to Launches), Phases, Reports, Files, or Sponsors as separate tabs.
+
+### Navigation Rules
+- Sidebar groups: Overview (Today, Focus, Calendar, Projects), Operations (Launches, Meetings, Approvals), People & Money (People, Money), Records (Library), Admin (Event Day, System)
+- Old routes MUST remain as redirects: `/dashboard→/today`, `/my-work→/focus`, `/pr-planner→/launches`, `/budget→/money`, `/members→/people`, `/reports→/library`, `/audit→/library?section=audit`, `/data-tools→/system`
+
+### New Entity Rules
+- **Deliverables** — project deliverables live in `data.deliverables[]`. Save/delete via `useAppData().saveDeliverable/deleteDeliverable`. Display in Project Detail → Timeline tab.
+- **Event-Day Items** — live in `data.eventDayItems[]`. Save/delete via `saveEventDayItem/deleteEventDayItem`. Managed at `/event-day`.
+- **Activity Items** — append-only activity log. Add via `addActivity`. Never delete activity items.
+
+### Design Rules (Apple-caliber)
+- Prefer calm surfaces, subtle borders, minimal visual noise.
+- Use EmptyState for empty lists — always with a helpful action button.
+- All modals require the `open` prop (boolean). Always pass `open={!!someState}` or `open={modalState.open}`.
+- All ConfirmDialogs require `open`, `title`, `message` props.
+- CommandMenu (Ctrl/Cmd+K) exists in Layout — do not add a separate keyboard shortcut handler in child components.
+- Do NOT add random gradients, heavy shadows, or purely decorative elements.
+
+### DATA_VERSION = 4
+
+## Phase Five Rules (still active)
+
+The app uses Supabase Auth in Supabase mode and hardcoded local demo auth in local mode. Production RLS policies are enforced.
+
+1. **Auth lives in `src/state/AuthContext.tsx`**. All auth operations must go through `useAuth()`. Do not call `supabase.auth.*` directly in components.
+2. **Supabase is now integrated**. Use `src/lib/supabaseClient.ts` and `src/lib/dataProvider.ts`. Do not bypass these layers.
+3. **Do not add any paid service** (no paid APIs, no paid SDKs, no paid cloud services).
+4. **No real backend REST API** — Supabase handles data directly via the JS client.
+5. **localStorage is the fallback** when Supabase env vars are not configured. The app must never crash if env vars are missing.
+6. **Keep components readable** — prefer simple, obvious code over clever abstractions.
+7. **Do not add global state libraries** (Redux, Zustand, etc.). App state lives in `src/state/AppDataContext.tsx`.
 8. **Document changes** in CHANGELOG.md and `docs/09_PROMPT_LOG.md` after significant work.
 9. **No fake/dead pages** — every screen and button must do something real.
 10. **Internal person fields must use MemberSelect** — never use a plain text input for RCCS member assignment, ownership, reviewer, designer, etc. Use `src/components/MemberSelect.tsx` or `src/components/MultiMemberSelect.tsx`.
 11. **Calendar default is 30-day grid** — do not change the default calendar view to agenda without explicit instruction.
 12. **Supabase CLI migrations live in `supabase/migrations/`** — all schema changes must go through migration files, not ad-hoc SQL.
 13. **Supabase types live in `src/types/supabase.ts`** — regenerate with `npm run supabase:types` after schema changes.
+14. **Audit log all important mutations** — use `logAudit()` from `src/lib/audit.ts` for create/update/delete/status change operations. Audit failures must never break the primary action.
+15. **No direct Supabase calls outside approved files** — only `src/lib/supabaseClient.ts`, `src/lib/audit.ts`, `src/state/AuthContext.tsx`, and explicit data-provider files may call supabase directly.
+16. **RLS policies must remain production-safe** — do not add permissive anon or blanket authenticated policies. All new tables must have RLS enabled and proper policies in a migration file.
+17. **Do not run destructive Supabase commands on remote data** — `supabase db reset` is local-only.
 
-## Project Workspace Rules (Phase Three)
+## Project Workspace Rules (Phase Three — superseded by Phase Six where noted)
 
-10. **Project Detail must stay at 7 tabs**: Overview · Milestones · Tasks · PR Plan · Meetings · Money · Approvals. Do NOT re-add Phases, Reports, Files, or Sponsors as separate tabs without explicit request.
+10. ~~**Project Detail must stay at 7 tabs**: Overview · Milestones · Tasks · PR Plan · Meetings · Money · Approvals.~~ **Superseded by Phase Six**: tabs are now Overview · Timeline · Tasks · Launches · Meetings · Money · Approvals.
 11. **Sponsors belong inside the Money workflow**. Do not create a standalone Sponsors page or sidebar link. All sponsor management goes through the Money tab (Project Detail) or the global Money & Sponsors page (`/budget`).
 12. **The `/sponsors` route must redirect to `/budget`**. Do not remove or change this redirect.
 13. **Reports are actions/outputs, not daily tabs**. Report generation is a quick action in Project Overview and available on the global Reports page. Do not re-add a Reports tab to Project Detail.

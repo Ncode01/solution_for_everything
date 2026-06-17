@@ -10,9 +10,13 @@ import {
   SEED_FILE_LINKS,
   SEED_REPORTS,
 } from '../data/seedPhaseTwo';
+import {
+  SEED_DELIVERABLES,
+  SEED_EVENT_DAY_ITEMS,
+} from '../data/seedPhaseSix';
 
 // Data version — bump when making breaking schema changes so migrations can detect old data.
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 const DATA_VERSION_KEY = 'rccs_data_version';
 
 // localStorage keys — one per collection so older data keeps working.
@@ -26,6 +30,9 @@ const KEYS = {
   approvals: 'rccs_approvals',
   fileLinks: 'rccs_file_links',
   reports: 'rccs_reports',
+  deliverables: 'rccs_deliverables',
+  eventDayItems: 'rccs_event_day_items',
+  activityItems: 'rccs_activity_items',
 } as const;
 
 const SEEDED_KEY = 'rccs_seeded';
@@ -42,6 +49,9 @@ function seedData(): AppData {
     approvals: SEED_APPROVALS,
     fileLinks: SEED_FILE_LINKS,
     reports: SEED_REPORTS,
+    deliverables: SEED_DELIVERABLES,
+    eventDayItems: SEED_EVENT_DAY_ITEMS,
+    activityItems: [],
   };
 }
 
@@ -66,6 +76,9 @@ function writeAllCollections(data: AppData): void {
   localStorage.setItem(KEYS.approvals, JSON.stringify(data.approvals));
   localStorage.setItem(KEYS.fileLinks, JSON.stringify(data.fileLinks));
   localStorage.setItem(KEYS.reports, JSON.stringify(data.reports));
+  localStorage.setItem(KEYS.deliverables, JSON.stringify(data.deliverables ?? []));
+  localStorage.setItem(KEYS.eventDayItems, JSON.stringify(data.eventDayItems ?? []));
+  localStorage.setItem(KEYS.activityItems, JSON.stringify(data.activityItems ?? []));
 }
 
 export function loadAppData(): AppData {
@@ -87,6 +100,9 @@ export function loadAppData(): AppData {
       approvals: readCollection(KEYS.approvals, SEED_APPROVALS),
       fileLinks: readCollection(KEYS.fileLinks, SEED_FILE_LINKS),
       reports: readCollection(KEYS.reports, SEED_REPORTS),
+      deliverables: readCollection(KEYS.deliverables, SEED_DELIVERABLES),
+      eventDayItems: readCollection(KEYS.eventDayItems, SEED_EVENT_DAY_ITEMS),
+      activityItems: readCollection(KEYS.activityItems, []),
     };
   } catch {
     return seedData();
@@ -133,6 +149,9 @@ const COLLECTION_KEYS: (keyof AppData)[] = [
   'approvals',
   'fileLinks',
   'reports',
+  'deliverables',
+  'eventDayItems',
+  'activityItems',
 ];
 
 export function parseImportedData(raw: string): AppData {

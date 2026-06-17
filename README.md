@@ -1,14 +1,26 @@
-# RCCS Command Center
+# RCCS OS
 
-The internal operations platform for the Royal College Computing Society. Built for real project tracking, deadline management, and team coordination.
+The internal operating system for the Royal College Computer Society. Built for real project tracking, deadline management, team coordination, launches, money, people, approvals, and event-day operations.
 
-## Phase Four — Current State
+## Phase Six — Current State (RCCS OS)
 
-Phase Four introduced Supabase as the database backend, a 30-day calendar grid, member selectors across all forms, My Work page, UI polish, and several productivity improvements.
+Phase Six transformed RCCS Command Center into **RCCS OS** — a calm, polished, Apple-caliber internal operating system. Navigation has been simplified, product language has been clarified, and major new modules added.
 
-The app now supports:
-- **Local Demo Mode** (default): localStorage, zero configuration required.
-- **Supabase Connected Mode**: full PostgreSQL backend with RLS.
+**Key changes in Phase Six:**
+- Product renamed to **RCCS OS** throughout the UI
+- Simplified sidebar navigation (Today, Focus, Calendar, Projects, Launches, Meetings, Approvals, People, Money, Library, System, Event Day)
+- **Today** replaces Dashboard (Needs Attention, Due Today, This Week, Project Health, Recent Activity)
+- **Focus** replaces My Work (user-specific work, assignments, approvals)
+- **Launches** replaces PR Planner (launch items, copy caption, approval workflow)
+- **People** replaces Members (workload visibility, people balance)
+- **Library** consolidates Reports, Files & Links, Audit Trail, Archives
+- **System** consolidates Data Tools, health, auth, database, deployment
+- **Event-Day Mode** (`/event-day`) — live checklist for BTUI, SparkIT, PROTOX
+- **Command Menu** (Ctrl/Cmd+K) — global search and quick actions
+- **Project Timeline tab** replaces Milestones tab (phases + milestones + deliverables)
+- **Deliverables** as a first-class concept linked to projects
+- **Activity Timeline** — append-only human-readable activity log
+- All old routes redirect: `/dashboard→/today`, `/pr-planner→/launches`, `/budget→/money`, `/members→/people`, `/reports→/library`, `/audit→/library?section=audit`, `/data-tools→/system`
 
 ---
 
@@ -21,11 +33,12 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
-**Demo login**:
+**Demo login (Local Demo Mode only)**:
 - Username: `admin` / Password: `admin123`
-- Username: `secretary` / Password: `sec123`
+- Username: `secretary` / Password: `rccs2026`
+- Username: `member` / Password: `member123`
 
-> **Warning**: This is temporary hardcoded auth. Passwords are plaintext. Do not use in production.
+> **Warning**: Demo auth stores passwords in plaintext and is only active when Supabase env vars are NOT set. In Supabase mode, use your email and password via Supabase Auth.
 
 ---
 
@@ -52,7 +65,7 @@ Copy `.env.example` to `.env.local`:
 cp .env.example .env.local
 ```
 
-Fill in your project values:
+Fill in:
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key_here
@@ -64,18 +77,10 @@ VITE_SUPABASE_ANON_KEY=your_anon_key_here
 npm run supabase:db:push
 ```
 
-### 5. Generate TypeScript types (after linking)
+### 5. Generate TypeScript types
 
 ```bash
 npm run supabase:types
-```
-
-### 6. Local development with Supabase
-
-```bash
-npm run supabase:start    # Start local Supabase
-npm run supabase:db:reset # Reset to seed data (local only)
-npm run supabase:status   # Check local status
 ```
 
 ---
@@ -87,19 +92,80 @@ npm run supabase:status   # Check local status
 | No            | Local Demo Mode | localStorage        |
 | Yes           | Supabase Mode   | Supabase PostgreSQL |
 
-The mode is shown in the sidebar footer and Data Tools page.
+The mode is shown in the sidebar footer and System page.
+
+---
+
+## Navigation (Phase Six)
+
+| Section      | Page          | Route         |
+|--------------|---------------|---------------|
+| Overview     | Today         | /today        |
+| Overview     | Focus         | /focus        |
+| Overview     | Calendar      | /calendar     |
+| Overview     | Projects      | /projects     |
+| Operations   | Launches      | /launches     |
+| Operations   | Meetings      | /meetings     |
+| Operations   | Approvals     | /approvals    |
+| People&Money | People        | /people       |
+| People&Money | Money         | /money        |
+| Records      | Library       | /library      |
+| Admin        | Event Day     | /event-day    |
+| Admin        | System        | /system       |
+
+---
+
+## Event-Day Mode
+
+At `/event-day` — select any project to see its live event checklist. BTUI and SparkIT have pre-seeded checklists. Supports:
+- Status updates (Not Ready → Ready → In Progress → Completed / Problem)
+- Priority highlighting (Critical items shown prominently)
+- Problem items shown in a red alert section
+- Copy event-day summary to clipboard
+- Print checklist for offline use
+- Assign owners using MemberSelect
+
+---
+
+## Project Timeline & Deliverables
+
+Project Detail has been updated to include a **Timeline** tab:
+- Phases — top-level project phases with progress bars
+- Milestones — key checkpoints within phases
+- Deliverables — typed outputs (posters, videos, forms, reports, etc.) with status tracking
+
+Deliverable types: Poster, Video, Caption, Sponsor Proposal, Registration Form, Agenda, Certificate Set, Report, Website Page, Quiz Set, Resource Pack, Other
+
+---
+
+## Library
+
+`/library` consolidates:
+- **Reports** — generate, save, copy, print project reports
+- **Files & Links** — all file links across projects, searchable
+- **Audit Trail** — technical audit log (Supabase or local)
+- **Archives** — completed/archived projects
+
+---
+
+## Command Menu
+
+Press **Ctrl+K** (or **Cmd+K** on Mac) anywhere to open the command palette. Supports:
+- Navigate to any page instantly
+- Quick actions: New Project, New Launch, New Meeting, etc.
+- Search projects and people by name
 
 ---
 
 ## 30-Day Calendar Grid
 
-The default calendar view is a 30-day grid (similar to Google Calendar). Each cell shows tasks, milestones, PR posts, meetings, and sponsor follow-ups. Click a day for full detail. Toggle between Grid and Agenda views.
+Default calendar is a 30-day grid. Each cell shows tasks, milestones, PR/launch posts, meetings, and sponsor follow-ups. Toggle between Grid and Agenda views.
 
 ---
 
 ## Member Selectors
 
-Every internal person assignment field (assignee, reviewer, owner, designer, etc.) uses a searchable `MemberSelect` dropdown backed by the Members list. External contacts (e.g. sponsor company contacts) remain as free text.
+All person assignment fields (assignee, reviewer, owner, designer, etc.) use `MemberSelect` or `MultiMemberSelect` backed by the People list.
 
 ---
 
@@ -112,7 +178,7 @@ npm run preview         # Preview production build
 
 npm run supabase:start  # Start local Supabase
 npm run supabase:types  # Generate TypeScript types
-npm run supabase:db:reset  # Reset local DB to seed (DANGEROUS on remote)
+npm run supabase:db:reset  # Reset local DB (DANGEROUS on remote)
 npm run supabase:db:push   # Push migrations to linked project
 npm run supabase:status    # Show local Supabase status
 ```
@@ -123,37 +189,38 @@ npm run supabase:status    # Show local Supabase status
 
 ```
 src/
-  types/         TypeScript data types
-  data/          Seed data
-  lib/           Utilities (storage, auth, dateUtils, stats, supabaseClient)
-  components/    Shared UI components (MemberSelect, Toast, etc.)
-  features/      Feature pages
-    auth/
-    dashboard/
-    projects/
-    pr/
-    calendar/
-    meetings/
-    budget/
-    members/
-    approvals/
-    reports/
-    settings/
-    my-work/
-  state/         AppDataContext (React Context)
+  types/         TypeScript data types (Phase One–Six)
+  data/          Seed data (seedData, seedPhaseTwo, seedPhaseSix)
+  lib/           Utilities (storage, auth, dateUtils, stats, supabaseClient, attention, audit)
+  components/    Shared UI components
+  features/
+    auth/          Login page
+    today/         Today (was Dashboard)
+    focus/         Focus (was My Work)
+    projects/      Projects list, detail, forms, timeline
+    launches/      Launches (was PR Planner)
+    calendar/      30-day calendar grid
+    meetings/      Meetings
+    budget/        Money (budget, sponsors, transactions)
+    people/        People (was Members)
+    approvals/     Approvals
+    library/       Library (reports, files, audit, archives)
+    system/        System (was Data Tools)
+    event-day/     Event-Day Mode
+  state/         AppDataContext, AuthContext
   styles/        Global CSS
 supabase/
-  migrations/    SQL migration files
+  migrations/    SQL migrations (Phases 1–6)
   seed.sql       Seed data for Supabase
-  config.toml    Supabase project config
 ```
 
 ---
 
 ## Known Limitations
 
-- Auth is hardcoded MVP auth — not production-safe.
-- Supabase Auth (real email/password) is not wired yet.
-- Data sync between localStorage and Supabase is not implemented — the two modes are independent.
-- RLS policies are permissive MVP policies — production will need role-based restrictions.
-- The chunk size warning (>500 kB) is cosmetic and does not affect functionality; code-splitting is a Phase Five task.
+- Hardcoded auth remains as local demo fallback only (Supabase Auth is production).
+- Real-time sync not implemented — page refresh needed to see others' changes.
+- File storage uses URL links; no actual file upload (Supabase Storage not wired).
+- Activity timeline is local only; Supabase `activity_items` table migration exists but adapter not wired.
+- Project templates UI not yet implemented (planned for Phase Seven).
+- Inspector panels exist as modal-based inspectors for most entities.
