@@ -1,6 +1,0 @@
-{
-  "projects": {
-    "default": "flowcanvas-live",
-    "production": "flowcanvas-live"
-  }
-}

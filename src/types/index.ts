@@ -1,194 +1,460 @@
-import type { ProjectClusterEnhancements } from "./project-extensions";
+// ============================================================
+// RCCS Command Center — Data Types (Phase Four)
+// All internal "person" fields now carry an optional *Id
+// pointing to a Member.id, in addition to the legacy string
+// display-name field (kept for backward compat / search).
+// ============================================================
 
-// ── Status & Priority ──────────────────────────────
-export type TaskStatus =
-  | "not_started"
-  | "in_progress"
-  | "blocked"
-  | "in_review"
-  | "done";
-
-export type TaskPriority = "critical" | "high" | "medium" | "low";
-
-export type ProjectStatus = "planning" | "active" | "on_hold" | "completed";
-
-export type DependencyType = "FS" | "FF" | "SS";
-
-export type ZoomLevel = "Z0" | "Z1" | "Z2" | "Z3";
-
-export type ActiveLayer = "default" | "workload" | "criticalPath";
-
-export type LoadLevel = "available" | "at_capacity" | "overloaded";
-
-export type ProjectAccentColor = "coral" | "amber" | "violet" | "sky" | "mint";
-
-// ── Domain Types ───────────────────────────────────
-export interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: Date;
-}
+export type UserRole = 'Super Admin' | 'Executive Admin' | 'Member';
 
 export interface User {
   id: string;
-  orgId: string;
-  name: string;
-  initials: string;
-  email: string;
-  avatarUrl?: string;
-  role: string;
-  loadLevel: LoadLevel;
-  taskCount: number;
-  loadPercent: number;
+  username: string;
+  displayName: string;
+  role: UserRole;
 }
 
-export interface Project {
-  id: string;
-  orgId: string;
-  name: string;
-  color: ProjectAccentColor;
-  status: ProjectStatus;
-  ownerId: string;
-  startDate?: Date;
-  endDate?: Date;
-  completionPercent: number;
-  phases: Phase[];
-  members: string[];
-}
+export type ProjectStatus =
+  | 'Idea'
+  | 'Planning'
+  | 'Active'
+  | 'On Hold'
+  | 'Event Week'
+  | 'Completed'
+  | 'Archived';
+
+export type ProjectPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
+
+export type ProjectType =
+  | 'ICT Day / Competition / Event'
+  | 'Outreach / Workshop / Network Building'
+  | 'Educational Workshop / Seminar Series'
+  | 'Internal System'
+  | 'Publication'
+  | 'Software Product'
+  | 'Hackathon'
+  | 'Mixed Project';
+
+export type PhaseStatus = 'Not Started' | 'In Progress' | 'Blocked' | 'Completed';
+
+export type MilestoneStatus =
+  | 'Not Started'
+  | 'In Progress'
+  | 'Blocked'
+  | 'Pending Approval'
+  | 'Completed'
+  | 'Delayed'
+  | 'Cancelled';
+
+export type TaskStatus =
+  | 'To Do'
+  | 'Doing'
+  | 'Waiting'
+  | 'Review'
+  | 'Approved'
+  | 'Done'
+  | 'Blocked';
+
+export type TaskPriority = 'Urgent' | 'High' | 'Medium' | 'Low';
+
+export type PRApprovalStatus =
+  | 'Draft'
+  | 'Internal Review'
+  | 'Teacher Review'
+  | 'Approved'
+  | 'Changes Requested';
+
+export type PRPublishingStatus =
+  | 'Idea'
+  | 'Designing'
+  | 'Scheduled'
+  | 'Posted'
+  | 'Archived';
+
+export type PRPlatform =
+  | 'Instagram'
+  | 'Facebook'
+  | 'LinkedIn'
+  | 'WhatsApp'
+  | 'Website'
+  | 'YouTube'
+  | 'Email';
 
 export interface Phase {
   id: string;
   projectId: string;
   name: string;
-  orderIndex: number;
-  completionPercent: number;
-  taskCount: number;
-  doneCount: number;
+  description: string;
+  startDate: string;
+  endDate: string;
+  /** Display name (legacy / fallback). Use ownerId when available. */
+  owner: string;
+  /** Member.id — set by MemberSelect */
+  ownerId?: string;
+  status: PhaseStatus;
+  progress: number;
+}
+
+export interface Milestone {
+  id: string;
+  projectId: string;
+  phaseId?: string;
+  name: string;
+  dueDate: string;
+  /** Display name (legacy / fallback). Use ownerId when available. */
+  owner: string;
+  /** Member.id — set by MemberSelect */
+  ownerId?: string;
+  status: MilestoneStatus;
+  description: string;
 }
 
 export interface Task {
   id: string;
-  phaseId: string;
+  projectId: string;
+  phaseId?: string;
+  milestoneId?: string;
+  title: string;
+  description: string;
+  /** Display name (legacy / fallback). Use assigneeId when available. */
+  assignee: string;
+  /** Member.id — set by MemberSelect */
+  assigneeId?: string;
+  /** Display name (legacy / fallback). Use reviewerId when available. */
+  reviewer?: string;
+  /** Member.id — set by MemberSelect */
+  reviewerId?: string;
+  dueDate: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  createdAt: string;
+}
+
+export interface PRItem {
+  id: string;
   projectId: string;
   title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  assigneeIds: string[];
-  effortEstimate?: number;
-  dueDate?: Date;
-  canvasX: number;
-  canvasY: number;
-  isCriticalPath: boolean;
-  slackTime?: number;
-  earlyStart?: number;
-  earlyFinish?: number;
-  lateStart?: number;
-  lateFinish?: number;
-  dependencies: string[];
-  dependents: string[];
+  campaign: string;
+  platform: PRPlatform;
+  publishDate: string;
+  publishTime: string;
+  /** Display name (legacy / fallback). Use designerId when available. */
+  designer: string;
+  designerId?: string;
+  /** Display name (legacy / fallback). Use captionWriterId when available. */
+  captionWriter: string;
+  captionWriterId?: string;
+  /** Display name (legacy / fallback). Use reviewerId when available. */
+  reviewer: string;
+  reviewerId?: string;
+  approvalStatus: PRApprovalStatus;
+  publishingStatus: PRPublishingStatus;
+  caption: string;
+  designLink?: string;
+  notes?: string;
 }
 
-export interface TaskDependency {
-  upstreamTaskId: string;
-  downstreamTaskId: string;
-  type: DependencyType;
-}
-
-export interface Comment {
+export interface Project {
   id: string;
-  taskId: string;
-  userId: string;
-  content: string;
-  createdAt: Date;
-}
-
-export interface CanvasBookmark {
-  id: string;
-  userId: string;
   name: string;
-  viewportX: number;
-  viewportY: number;
-  viewportZoom: number;
+  year: number;
+  type: ProjectType;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  description: string;
+  /** Display name (legacy / fallback). Use ownerId when available. */
+  owner: string;
+  /** Member.id — set by MemberSelect */
+  ownerId?: string;
+  startDate: string;
+  endDate: string;
+  finalEventDate?: string;
+  progress: number;
+  phases: Phase[];
+  milestones: Milestone[];
+  tasks: Task[];
+  prItems: PRItem[];
+  /** Pinned/favourited by user */
+  pinned?: boolean;
+  /** Project-level notes / activity */
+  notes?: string;
 }
 
-export interface CascadeRisk {
-  blockedTaskId: string;
-  estimatedDelay: number;
-  affectedTaskIds: string[];
-  quickestResolution?: string;
+// ============================================================
+// Phase Two — Operational Modules
+// ============================================================
+
+export type Committee =
+  | 'Executive'
+  | 'PR & Media'
+  | 'Development'
+  | 'Sponsorship'
+  | 'Finance'
+  | 'Logistics'
+  | 'Events'
+  | 'Editorial'
+  | 'Education'
+  | 'General';
+
+export type AvailabilityStatus = 'Available' | 'Busy' | 'Away' | 'Unavailable';
+
+export type WorkloadLevel = 'Light' | 'Normal' | 'Heavy' | 'Overloaded';
+
+export interface Member {
+  id: string;
+  name: string;
+  displayName: string;
+  role: string;
+  committee: Committee;
+  gradeOrClass: string;
+  email?: string;
+  phone?: string;
+  skills: string[];
+  availabilityStatus: AvailabilityStatus;
+  workloadLevel: WorkloadLevel;
+  activeProjectIds: string[];
+  notes?: string;
 }
 
-export interface CPMResult {
-  criticalPath: string[];
-  taskFloats: Record<string, number>;
-  projectDuration: number;
-  cascadeRisks: CascadeRisk[];
+export type MeetingType =
+  | 'Executive Meeting'
+  | 'Project Meeting'
+  | 'PR Meeting'
+  | 'Sponsorship Meeting'
+  | 'Logistics Meeting'
+  | 'Teacher Approval Meeting'
+  | 'Post-Project Review';
+
+export type ActionItemStatus = 'Open' | 'In Progress' | 'Done' | 'Cancelled';
+
+export interface MeetingDecision {
+  id: string;
+  decision: string;
+  /** Display name (legacy / fallback). Use ownerId when available. */
+  owner?: string;
+  ownerId?: string;
+  date: string;
 }
 
-// ── ReactFlow Node Data Types ──────────────────────
-export interface ProjectClusterNodeData extends Partial<ProjectClusterEnhancements> {
-  project: Project;
-  isExpanded: boolean;
-  onToggleExpand: (projectId: string) => void;
-  [key: string]: unknown;
+export interface MeetingActionItem {
+  id: string;
+  title: string;
+  /** Display name (legacy / fallback). Use ownerId when available. */
+  owner: string;
+  ownerId?: string;
+  dueDate: string;
+  status: ActionItemStatus;
+  linkedTaskId?: string;
 }
 
-export interface PhaseClusterNodeData {
-  phase: Phase;
-  projectColor: ProjectAccentColor;
-  [key: string]: unknown;
+export interface Meeting {
+  id: string;
+  projectId?: string;
+  title: string;
+  type: MeetingType;
+  date: string;
+  time: string;
+  location?: string;
+  /** Legacy: list of display names. Use attendeeIds when available. */
+  attendees: string[];
+  /** Member.id[] — set by MultiMemberSelect */
+  attendeeIds?: string[];
+  agenda: string;
+  notes: string;
+  decisions: MeetingDecision[];
+  actionItems: MeetingActionItem[];
+  nextMeetingDate?: string;
+  createdAt: string;
 }
 
-export interface TaskCardNodeData {
-  /** Set by semantic zoom when zoom > 1.5 */
-  detailed?: boolean;
-  task: Task;
-  assignees: User[];
-  projectColor: ProjectAccentColor;
-  isCriticalPath: boolean;
-  slackTime?: number;
-  isExpanded?: boolean;
-  [key: string]: unknown;
+export type SponsorStage =
+  | 'Lead'
+  | 'Contacted'
+  | 'Interested'
+  | 'Proposal Sent'
+  | 'Meeting Scheduled'
+  | 'Negotiating'
+  | 'Confirmed'
+  | 'Rejected'
+  | 'Completed';
+
+export type PaymentStatus =
+  | 'Not Requested'
+  | 'Pending'
+  | 'Partially Paid'
+  | 'Paid'
+  | 'Overdue';
+
+export type DeliverableStatus = 'Not Started' | 'In Progress' | 'Delivered' | 'Cancelled';
+
+export interface SponsorDeliverable {
+  id: string;
+  title: string;
+  dueDate?: string;
+  status: DeliverableStatus;
+  notes?: string;
 }
 
-export interface SparkTaskNodeData {
-  task: Task;
-  assignees: User[];
-  isCriticalPath: boolean;
-  phaseLocked: boolean;
-  upstreamPendingCount: number;
-  isUpstreamHighlighted?: boolean;
-  isSelected?: boolean;
-  showUnlockPulse?: boolean;
-  dimmedNonCritical?: boolean;
-  [key: string]: unknown;
+export interface Sponsor {
+  id: string;
+  projectId: string;
+  name: string;
+  /** External contact — stays as free text (not an RCCS member) */
+  contactPerson: string;
+  contactNumber?: string;
+  email?: string;
+  packageName: string;
+  amount: number;
+  stage: SponsorStage;
+  /** Display name (legacy / fallback). Use assignedMemberId when available. */
+  assignedMember: string;
+  /** Member.id — set by MemberSelect */
+  assignedMemberId?: string;
+  lastContactedDate?: string;
+  nextFollowUpDate?: string;
+  proposalLink?: string;
+  agreementLink?: string;
+  paymentStatus: PaymentStatus;
+  deliverables: SponsorDeliverable[];
+  notes?: string;
 }
 
-export interface SparkPhaseHeaderNodeData {
-  phaseName: string;
-  taskCount: number;
-  doneCount: number;
-  isLocked: boolean;
-  showCompleteGlow?: boolean;
-  [key: string]: unknown;
+export interface Budget {
+  id: string;
+  projectId: string;
+  expectedIncome: number;
+  expectedExpense: number;
+  confirmedIncome: number;
+  confirmedExpense: number;
+  notes?: string;
 }
 
-export interface PersonAvatarNodeData {
-  user: User;
-  isVisible: boolean;
-  projectIds: string[];
-  [key: string]: unknown;
+export type TransactionType = 'Income' | 'Expense';
+
+export type TransactionCategory =
+  | 'Venue'
+  | 'Audio/Visual'
+  | 'Lighting'
+  | 'Decorations'
+  | 'Certificates'
+  | 'Medals'
+  | 'Trophies'
+  | 'Refreshments'
+  | 'Transport'
+  | 'Printing'
+  | 'PR'
+  | 'Web/IT'
+  | 'Equipment'
+  | 'Sponsorship'
+  | 'Miscellaneous';
+
+export interface Transaction {
+  id: string;
+  projectId: string;
+  type: TransactionType;
+  category: TransactionCategory;
+  amount: number;
+  date: string;
+  /** Display name (legacy). Use paidById when available. */
+  paidBy?: string;
+  paidById?: string;
+  /** Display name (legacy). Use approvedById when available. */
+  approvedBy?: string;
+  approvedById?: string;
+  receiptLink?: string;
+  notes?: string;
 }
 
-export type {
-  BudgetEntry,
-  BudgetSummary,
-  CrossProjectLink,
-  Milestone,
-  MilestoneNodeData,
-  OrgRole,
-  ProjectHealthScore,
-  ProjectType,
-} from "./project-extensions";
+export type ApprovalRelatedType =
+  | 'PR Item'
+  | 'Budget'
+  | 'Sponsor'
+  | 'Task'
+  | 'File'
+  | 'General';
+
+export type ApprovalStatus =
+  | 'Draft'
+  | 'Submitted'
+  | 'Changes Requested'
+  | 'Approved'
+  | 'Rejected';
+
+export interface ApprovalRequest {
+  id: string;
+  projectId?: string;
+  relatedType: ApprovalRelatedType;
+  relatedId?: string;
+  title: string;
+  description: string;
+  /** Display name (legacy). Use requestedById when available. */
+  requestedBy: string;
+  requestedById?: string;
+  /** Display name (legacy). Use approverId when available. */
+  approver: string;
+  approverId?: string;
+  status: ApprovalStatus;
+  submittedDate: string;
+  decisionDate?: string;
+  comments?: string;
+}
+
+export type FileCategory =
+  | 'Project Proposal'
+  | 'Budget'
+  | 'PR'
+  | 'Sponsorship'
+  | 'Meeting Notes'
+  | 'Invitations'
+  | 'Certificates'
+  | 'Designs'
+  | 'Videos'
+  | 'Event Agenda'
+  | 'Final Report'
+  | 'Receipts'
+  | 'Other';
+
+export type FileStatus = 'Draft' | 'Final' | 'Approved' | 'Archived';
+
+export interface FileLink {
+  id: string;
+  projectId: string;
+  title: string;
+  category: FileCategory;
+  url: string;
+  /** Display name (legacy). Use ownerId when available. */
+  owner: string;
+  ownerId?: string;
+  status: FileStatus;
+  notes?: string;
+  createdAt: string;
+}
+
+export type ReportType = 'Project Summary' | 'Post-Event Review' | 'Handover';
+
+export interface Report {
+  id: string;
+  projectId: string;
+  title: string;
+  type: ReportType;
+  summary: string;
+  generatedDate: string;
+  sections: string;
+  notes?: string;
+}
+
+export interface AppData {
+  projects: Project[];
+  members: Member[];
+  meetings: Meeting[];
+  sponsors: Sponsor[];
+  budgets: Budget[];
+  transactions: Transaction[];
+  approvals: ApprovalRequest[];
+  fileLinks: FileLink[];
+  reports: Report[];
+}
+
+export interface AppState {
+  projects: Project[];
+}

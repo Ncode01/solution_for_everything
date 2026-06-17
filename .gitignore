@@ -1,47 +1,79 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# testing
-/coverage
+# ─── Build outputs ────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+.output/
 
-# next.js
-/.next/
-/out/
+# ─── Environment files — NEVER commit real secrets ────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
 
-# production
-/build
-/server/dist
-src/lib/auth/schema.js
+# ─── Supabase ─────────────────────────────────────────────────────────────────
+# Keep supabase/config.toml and migrations tracked.
+# Do not track local dev state, backups, or generated outputs.
+supabase/.branches/
+supabase/.temp/
+supabase/functions/.deploy/
+.supabase/
 
-# misc
-.DS_Store
-*.pem
-*.bak
+# ─── Vite / TypeScript ────────────────────────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+vite.config.ts.timestamp-*
 
-# debug
+# ─── Testing ──────────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# env files
-.env*.local
-.env
-.env.server
-.env.deploy
+# ─── OS generated ─────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# ─── Editor ───────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+*.code-workspace
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
 
-# vercel
-.vercel
-
-.vercel
+# ─── Temp / misc ──────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.orig
+.cache/
+tmp/
+temp/

@@ -1,121 +1,159 @@
-# FlowCanvas
+# RCCS Command Center
 
-> Org-wide spatial task management. See everything. Know what matters.
+The internal operations platform for the Royal College Computing Society. Built for real project tracking, deadline management, and team coordination.
 
-An infinite canvas (like Figma) where every project, phase, task, and person
-in your organization exists as a node in a live, computed dependency graph.
+## Phase Four — Current State
 
-## Status: Phase 1 — UI Foundation (In Progress)
+Phase Four introduced Supabase as the database backend, a 30-day calendar grid, member selectors across all forms, My Work page, UI polish, and several productivity improvements.
 
-Running Next.js app with App Shell + ReactFlow canvas. See [docs/STATUS.md](docs/STATUS.md) for live progress.
+The app now supports:
+- **Local Demo Mode** (default): localStorage, zero configuration required.
+- **Supabase Connected Mode**: full PostgreSQL backend with RLS.
 
-```bash
-pnpm install
-pnpm dev    # http://localhost:3000
-pnpm build
-```
+---
 
-**Done:** App Shell, ReactFlow, Zustand stores, TypeScript types, Tailwind tokens  
-**Pending:** Fastify server, Drizzle/PostgreSQL, auth, Stitch HTML in `/stitch-reference/`
-
-## Quick Start (after Phase 1 init)
+## Quick Start
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Start dev environment (Next.js + Fastify + PostgreSQL)
-pnpm dev
-
-# Frontend only: localhost:3000
-# Backend only: localhost:3001
+npm install
+npm run dev
 ```
 
-## Environment setup (required after every db:seed)
+Open [http://localhost:5173](http://localhost:5173).
 
-1. Copy the template:
+**Demo login**:
+- Username: `admin` / Password: `admin123`
+- Username: `secretary` / Password: `sec123`
 
-   ```bash
-   cp .env.local.example .env.local
-   ```
+> **Warning**: This is temporary hardcoded auth. Passwords are plaintext. Do not use in production.
 
-2. Set required variables in `.env.local`:
+---
 
-   ```env
-   NEXT_PUBLIC_ORG_ID=<uuid>        # printed by `pnpm db:seed` as "ORG_ID=..."
-   NEXT_PUBLIC_API_URL=http://localhost:3001
-   ```
+## Supabase Setup
 
-3. Run seed (creates org + test data):
+### 1. Install Supabase CLI
 
-   ```bash
-   pnpm db:seed
-   ```
+```bash
+npm install -g supabase
+supabase login
+```
 
-   The last lines of output will be:
+### 2. Link to your project
 
-   ```
-   ORG_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-   Add to .env.local: NEXT_PUBLIC_ORG_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-   ```
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+```
 
-   Copy that UUID into `NEXT_PUBLIC_ORG_ID`.
+### 3. Create environment variables
 
-4. Start both servers:
+Copy `.env.example` to `.env.local`:
 
-   ```bash
-   pnpm dev          # Next.js on :3000
-   pnpm server:dev   # Fastify on :3001
-   ```
+```bash
+cp .env.example .env.local
+```
 
-⚠️ If the topbar shows **Org not found**: the DB was re-seeded and `.env.local` has a stale `ORG_ID`. Re-run `pnpm db:seed` and update `.env.local`.
+Fill in your project values:
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+```
 
-## Architecture
+### 4. Push schema to Supabase
 
-- **Frontend**: Next.js 15 (App Router) + ReactFlow v12 + Tailwind v4
-- **Canvas**: @xyflow/react v12 — the entire app is built around this
-- **Real-time**: Yjs CRDT + y-websocket for collaborative canvas sync
-- **Backend**: Fastify v5 + Drizzle ORM + PostgreSQL 16
-- **Intelligence**: Custom CPM (Critical Path Method) algorithm
+```bash
+npm run supabase:db:push
+```
 
-## Docs
+### 5. Generate TypeScript types (after linking)
 
-| Document | Description |
-|----------|-------------|
-| [PRD](docs/PRD.md) | Full product requirements |
-| [Architecture](docs/ARCHITECTURE.md) | System design |
-| [Design System](docs/DESIGN_SYSTEM.md) | Colors, typography, components |
-| [Screens](docs/SCREENS.md) | Stitch screen references + component mapping |
-| [CPM Engine](docs/CPM_ENGINE.md) | Critical path algorithm |
-| [Data Models](docs/DATA_MODELS.md) | Database schema |
-| [API Contracts](docs/API_CONTRACTS.md) | REST + WebSocket events |
-| [Roadmap](docs/ROADMAP.md) | Development phases |
+```bash
+npm run supabase:types
+```
 
-## Cursor Rules
+### 6. Local development with Supabase
 
-AI assistants read these before every edit:
+```bash
+npm run supabase:start    # Start local Supabase
+npm run supabase:db:reset # Reset to seed data (local only)
+npm run supabase:status   # Check local status
+```
 
-- `.cursor/rules/architecture.mdc` — stack, folder structure, imports
-- `.cursor/rules/design-system.mdc` — tokens, banned Stitch patterns
-- `.cursor/rules/canvas-engine.mdc` — ReactFlow performance + semantic zoom
-- `.cursor/rules/backend.mdc` — Fastify, DB, WS events
-- `.cursor/rules/no-go.mdc` — hard bans (side borders, blur on nodes, etc.)
+---
 
-## Stitch Reference
+## App Behaviour
 
-Original UI designs in Google Stitch:
+| Env vars set? | Mode            | Data source         |
+|---------------|-----------------|---------------------|
+| No            | Local Demo Mode | localStorage        |
+| Yes           | Supabase Mode   | Supabase PostgreSQL |
 
-- **Project:** FlowCanvas Spatial Task Engine
-- **Project ID:** `12965505653231340695`
-- **HTML exports:** `/stitch-reference/` — component extraction only
+The mode is shown in the sidebar footer and Data Tools page.
 
-The **code** source of truth is `.cursor/rules/design-system.mdc` and `tailwind.config.ts`.
+---
 
-### Screen audit highlights (fix in implementation)
+## 30-Day Calendar Grid
 
-| Issue | Fix |
-|-------|-----|
-| `border-r-2 border-primary` on nav | `bg-primary/10` + left pill |
-| `backdrop-filter` on canvas nodes | Remove — kills FPS at scale |
-| Material Symbols icons | Lucide React only |
-| Z2 Build Sprint sidebar | Use S1 App Shell sidebar |
+The default calendar view is a 30-day grid (similar to Google Calendar). Each cell shows tasks, milestones, PR posts, meetings, and sponsor follow-ups. Click a day for full detail. Toggle between Grid and Agenda views.
+
+---
+
+## Member Selectors
+
+Every internal person assignment field (assignee, reviewer, owner, designer, etc.) uses a searchable `MemberSelect` dropdown backed by the Members list. External contacts (e.g. sponsor company contacts) remain as free text.
+
+---
+
+## Scripts
+
+```bash
+npm run dev             # Start dev server
+npm run build           # Production build
+npm run preview         # Preview production build
+
+npm run supabase:start  # Start local Supabase
+npm run supabase:types  # Generate TypeScript types
+npm run supabase:db:reset  # Reset local DB to seed (DANGEROUS on remote)
+npm run supabase:db:push   # Push migrations to linked project
+npm run supabase:status    # Show local Supabase status
+```
+
+---
+
+## Project Structure
+
+```
+src/
+  types/         TypeScript data types
+  data/          Seed data
+  lib/           Utilities (storage, auth, dateUtils, stats, supabaseClient)
+  components/    Shared UI components (MemberSelect, Toast, etc.)
+  features/      Feature pages
+    auth/
+    dashboard/
+    projects/
+    pr/
+    calendar/
+    meetings/
+    budget/
+    members/
+    approvals/
+    reports/
+    settings/
+    my-work/
+  state/         AppDataContext (React Context)
+  styles/        Global CSS
+supabase/
+  migrations/    SQL migration files
+  seed.sql       Seed data for Supabase
+  config.toml    Supabase project config
+```
+
+---
+
+## Known Limitations
+
+- Auth is hardcoded MVP auth — not production-safe.
+- Supabase Auth (real email/password) is not wired yet.
+- Data sync between localStorage and Supabase is not implemented — the two modes are independent.
+- RLS policies are permissive MVP policies — production will need role-based restrictions.
+- The chunk size warning (>500 kB) is cosmetic and does not affect functionality; code-splitting is a Phase Five task.
