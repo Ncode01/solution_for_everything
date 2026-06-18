@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ScrollText, RefreshCw, Search } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
-import { getLocalAuditEntries, type AuditEntry } from '../../lib/audit';
+import { getFirebaseAuditEntries, getLocalAuditEntries, type AuditEntry } from '../../lib/audit';
+import { firebaseConfigured } from '../../lib/firebaseClient';
 import { useAppData } from '../../state/AppDataContext';
 import { useAuth } from '../../state/AuthContext';
 import PageHeader from '../../components/PageHeader';
@@ -62,30 +62,19 @@ export default function AuditLogPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        const query = supabase
-          .from('audit_logs')
-          .select(`
-            id, action, entity_type, summary, project_id, created_at,
-            actor:actor_profile_id ( display_name )
-          `)
-          .order('created_at', { ascending: false })
-          .limit(300);
-
-        const { data: rows, error } = await query;
-        if (error) throw error;
-
-        const mapped: DisplayEntry[] = (rows ?? []).map((r: Record<string, unknown>) => {
-          const actor = r.actor as { display_name: string } | null;
-          const project = data.projects.find((p) => p.id === r.project_id);
+      if (firebaseConfigured) {
+        const rows = await getFirebaseAuditEntries();
+        const mapped: DisplayEntry[] = rows.map((entry) => {
+          const actor = data.members.find((member) => member.id === entry.actorProfileId);
+          const project = data.projects.find((p) => p.id === entry.projectId);
           return {
-            id:          r.id as string,
-            actorName:   actor?.display_name ?? 'Unknown',
-            action:      r.action as string,
-            entityType:  r.entity_type as string,
-            summary:     r.summary as string,
+            id:          entry.id,
+            actorName:   actor?.displayName ?? entry.actorProfileId ?? 'Unknown',
+            action:      entry.action,
+            entityType:  entry.entityType,
+            summary:     entry.summary,
             projectName: project?.name ?? null,
-            createdAt:   r.created_at as string,
+            createdAt:   entry.createdAt,
           };
         });
         setEntries(mapped);
@@ -143,7 +132,7 @@ export default function AuditLogPage() {
     }
   }
 
-  if (!isAdmin && !isSupabaseConfigured) {
+  if (!isAdmin && !firebaseConfigured) {
     return (
       <div className="p-4 md:p-6 max-w-7xl mx-auto">
         <PageHeader title="Audit Log" description="System-wide activity trail" />
@@ -238,7 +227,7 @@ export default function AuditLogPage() {
 
       <p className="text-xs text-slate-700 text-center">
         Showing {filtered.length} of {entries.length} entries
-        {isSupabaseConfigured ? ' (Supabase)' : ' (Local Demo)'}
+        {firebaseConfigured ? ' (Firebase)' : ' (Local Demo)'}
       </p>
     </div>
   );

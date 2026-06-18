@@ -1,13 +1,5 @@
-/**
- * Audit logging utility — Phase Five
- *
- * In Supabase mode: inserts into audit_logs table.
- * In local mode: stores in localStorage (capped at 500 entries).
- *
- * Audit failures never break the primary action — errors are console-warned.
- */
-
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
+import { auth, db, firebaseConfigured } from './firebaseClient';
 
 export type AuditAction =
   | 'created'
@@ -63,8 +55,7 @@ function getLocalAuditLog(): AuditEntry[] {
 
 function appendLocalAuditEntry(entry: AuditEntry): void {
   const existing = getLocalAuditLog();
-  const next = [entry, ...existing].slice(0, LOCAL_AUDIT_MAX);
-  localStorage.setItem(LOCAL_AUDIT_KEY, JSON.stringify(next));
+  localStorage.setItem(LOCAL_AUDIT_KEY, JSON.stringify([entry, ...existing].slice(0, LOCAL_AUDIT_MAX)));
 }
 
 export async function logAudit(params: {
@@ -88,28 +79,27 @@ export async function logAudit(params: {
     createdAt: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured && supabase) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('audit_logs') as any).insert({
-      actor_profile_id: entry.actorProfileId,
-      action:           entry.action,
-      entity_type:      entry.entityType,
-      entity_id:        entry.entityId,
-      project_id:       entry.projectId,
-      summary:          entry.summary,
-      metadata:         entry.metadata,
-    });
-    if (error) {
-      console.warn('[audit] Failed to write audit log:', error.message);
-      // Fallback to local so the log isn't entirely lost
-      appendLocalAuditEntry(entry);
+  if (firebaseConfigured && db && auth?.currentUser) {
+    try {
+      await setDoc(doc(db, 'auditLogs', entry.id), entry);
+      return;
+    } catch (error) {
+      console.warn('[audit] Failed to write Firebase audit log:', error);
     }
-  } else {
-    appendLocalAuditEntry(entry);
   }
+
+  appendLocalAuditEntry(entry);
 }
 
-/** Read audit log entries — local mode only (Supabase queries via UI). */
+export async function getFirebaseAuditEntries(limit = 300): Promise<AuditEntry[]> {
+  if (!firebaseConfigured || !db || !auth?.currentUser) return [];
+  const snapshot = await getDocs(collection(db, 'auditLogs'));
+  return snapshot.docs
+    .map((entry) => entry.data() as AuditEntry)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit);
+}
+
 export function getLocalAuditEntries(): AuditEntry[] {
   return getLocalAuditLog();
 }

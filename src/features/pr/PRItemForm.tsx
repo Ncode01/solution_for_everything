@@ -16,8 +16,6 @@ const WORKFLOW_STATUSES: PRWorkflowStatus[] = [
   'Draft', 'Sent to Designer', 'Designer Accepted', 'Designing', 'Design Submitted',
   'In Approval', 'Changes Requested', 'Ready to Launch', 'Scheduled', 'Posted', 'Archived',
 ];
-const APPROVAL_STATUSES: PRApprovalStatus[] = ['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'];
-const PUBLISH_STATUSES: PRPublishingStatus[] = ['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'];
 const PLATFORMS: PRPlatform[] = ['Instagram', 'Facebook', 'LinkedIn', 'WhatsApp', 'Website', 'YouTube', 'Email'];
 
 export default function PRItemForm({ projectId, members, initial, onSave, onCancel }: Props) {
@@ -106,7 +104,7 @@ export default function PRItemForm({ projectId, members, initial, onSave, onCanc
       )}
 
       <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Basics</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Request</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="col-span-2">
             <label className="label">Title *</label>
@@ -156,7 +154,7 @@ export default function PRItemForm({ projectId, members, initial, onSave, onCanc
       </div>
 
       <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Assignment</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Team</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="label">Caption writer</label>
@@ -190,23 +188,14 @@ export default function PRItemForm({ projectId, members, initial, onSave, onCanc
       <div className="space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Workflow</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
+          <div className="sm:col-span-2">
             <label className="label">Workflow status</label>
             <select className="select" value={form.workflowStatus} onChange={(e) => set('workflowStatus', e.target.value as PRWorkflowStatus)}>
               {WORKFLOW_STATUSES.map((s) => <option key={s}>{s}</option>)}
             </select>
           </div>
-          <div>
-            <label className="label">Approval status</label>
-            <select className="select" value={form.approvalStatus} onChange={(e) => set('approvalStatus', e.target.value as PRApprovalStatus)}>
-              {APPROVAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Publishing status</label>
-            <select className="select" value={form.publishingStatus} onChange={(e) => set('publishingStatus', e.target.value as PRPublishingStatus)}>
-              {PUBLISH_STATUSES.map((s) => <option key={s}>{s}</option>)}
-            </select>
+          <div className="sm:col-span-1 rounded-lg border border-[var(--border-subtle)] bg-white/[0.03] p-3 text-xs text-[var(--text-tertiary)]">
+            Legacy approval and publishing fields are synced automatically from workflow status.
           </div>
         </div>
       </div>

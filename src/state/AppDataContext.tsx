@@ -1,32 +1,74 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
+  ActivityItem,
   AppData,
-  Project,
-  Member,
-  Meeting,
-  Sponsor,
-  Budget,
-  Transaction,
   ApprovalRequest,
-  FileLink,
-  Report,
+  Budget,
   Deliverable,
   EventDayItem,
-  ActivityItem,
+  FileLink,
+  Meeting,
+  Member,
+  Project,
+  Report,
+  Sponsor,
+  Transaction,
 } from '../types';
-import { loadAppData, saveAppData } from '../lib/storage';
-import { logAudit } from '../lib/audit';
+import { auth, firebaseConfigured } from '../lib/firebaseClient';
+import {
+  deleteFirebaseCollectionItem,
+  loadFirebaseAppData,
+  replaceFirebaseAppData,
+  saveFirebaseCollectionItem,
+} from '../lib/firebaseDataProvider';
 import { createActivityItem, logActivityItem } from '../lib/activityLog';
 import { formatCurrency } from '../lib/dateUtils';
+import { logAudit } from '../lib/audit';
+import { loadAppData, saveAppData } from '../lib/storage';
 
 interface Identifiable {
   id: string;
 }
 
+function normalizeTransaction(transaction: Transaction): Transaction {
+  const quantity = Math.max(1, Number(transaction.quantity) || 1);
+  const selectedQuote = transaction.quotations?.find((quote) => quote.selected && quote.amount > 0);
+  const fallbackAmount = Number(transaction.amount) || 0;
+  const calculatedAmount = selectedQuote?.amount && selectedQuote.amount > 0
+    ? selectedQuote.amount
+    : Number(transaction.unitCost || 0) > 0
+      ? Number(transaction.unitCost) * quantity
+      : fallbackAmount;
+
+  return {
+    ...transaction,
+    itemName: transaction.itemName?.trim() || transaction.notes?.trim() || transaction.category,
+    quantity,
+    unitCost: Number(transaction.unitCost) > 0
+      ? Number(transaction.unitCost)
+      : quantity > 0
+        ? calculatedAmount / quantity
+        : calculatedAmount,
+    amount: calculatedAmount,
+    quotations: transaction.quotations?.map((quote, index) => ({
+      ...quote,
+      sellerName: quote.sellerName ?? '',
+      amount: Number(quote.amount) || 0,
+      selected: !!quote.selected || (!transaction.quotations?.some((entry) => entry.selected) && index === 0),
+    })),
+  };
+}
+
+function normalizeAppData(data: AppData): AppData {
+  return {
+    ...data,
+    transactions: (data.transactions ?? []).map(normalizeTransaction),
+  };
+}
+
 function upsert<T extends Identifiable>(arr: T[], item: T): T[] {
-  return arr.some((x) => x.id === item.id)
-    ? arr.map((x) => (x.id === item.id ? item : x))
-    : [...arr, item];
+  return arr.some((x) => x.id === item.id) ? arr.map((x) => (x.id === item.id ? item : x)) : [...arr, item];
 }
 
 function remove<T extends Identifiable>(arr: T[], id: string): T[] {
@@ -35,8 +77,8 @@ function remove<T extends Identifiable>(arr: T[], id: string): T[] {
 
 function getActor(): { id: string | null; name: string } {
   try {
-    const w = window as unknown as { __rccs_actor_id?: string; __rccs_actor_name?: string };
-    return { id: w.__rccs_actor_id ?? null, name: w.__rccs_actor_name ?? 'Someone' };
+    const win = window as unknown as { __rccs_actor_id?: string; __rccs_actor_name?: string };
+    return { id: win.__rccs_actor_id ?? null, name: win.__rccs_actor_name ?? 'Someone' };
   } catch {
     return { id: null, name: 'Someone' };
   }
@@ -47,40 +89,28 @@ interface AppDataContextValue {
   replaceAll: (next: AppData) => void;
   setActorId: (id: string | null) => void;
   setActorName: (name: string | null) => void;
-
   saveProject: (p: Project) => void;
   deleteProject: (id: string) => void;
-
   saveMember: (m: Member) => void;
   deleteMember: (id: string) => void;
-
   saveMeeting: (m: Meeting) => void;
   deleteMeeting: (id: string) => void;
-
   saveSponsor: (s: Sponsor) => void;
   deleteSponsor: (id: string) => void;
-
   saveBudget: (b: Budget) => void;
   deleteBudget: (id: string) => void;
-
   saveTransaction: (t: Transaction) => void;
   deleteTransaction: (id: string) => void;
-
   saveApproval: (a: ApprovalRequest) => void;
   deleteApproval: (id: string) => void;
-
   saveFileLink: (f: FileLink) => void;
   deleteFileLink: (id: string) => void;
-
   saveReport: (r: Report) => void;
   deleteReport: (id: string) => void;
-
   saveDeliverable: (d: Deliverable) => void;
   deleteDeliverable: (id: string) => void;
-
   saveEventDayItem: (e: EventDayItem) => void;
   deleteEventDayItem: (id: string) => void;
-
   addActivity: (a: ActivityItem) => void;
 }
 
@@ -97,19 +127,13 @@ function pushActivity(
     const item = createActivityItem(type, summary, { ...opts, actorId: actor.id ?? undefined, actorName: actor.name });
     addFn(item);
     logActivityItem(item);
-  } catch (e) {
-    console.warn('[activity]', e);
+  } catch (error) {
+    console.warn('[activity]', error);
   }
 }
 
-function logProjectNestedChanges(
-  addFn: (a: ActivityItem) => void,
-  prev: Project | undefined,
-  next: Project,
-) {
-  const actor = getActor();
-  const who = actor.name;
-
+function logProjectNestedChanges(addFn: (a: ActivityItem) => void, prev: Project | undefined, next: Project) {
+  const who = getActor().name;
   if (!prev) {
     pushActivity(addFn, 'project_created', `${who} created project "${next.name}".`, { projectId: next.id, link: `/projects/${next.id}` });
     return;
@@ -119,76 +143,87 @@ function logProjectNestedChanges(
     pushActivity(addFn, 'project_updated', `${who} updated project "${next.name}".`, { projectId: next.id, link: `/projects/${next.id}` });
   }
 
-  // Tasks
-  next.tasks.forEach((t) => {
-    const old = prev.tasks.find((x) => x.id === t.id);
+  next.tasks.forEach((task) => {
+    const old = prev.tasks.find((entry) => entry.id === task.id);
     if (!old) {
-      pushActivity(addFn, 'task_created', `${who} created task "${t.title}" in ${next.name}.`, { projectId: next.id, relatedId: t.id, link: `/projects/${next.id}` });
-    } else if (old.status !== t.status) {
-      if (t.status === 'Done' || t.status === 'Approved') {
-        pushActivity(addFn, 'task_done', `${who} marked "${t.title}" as ${t.status}.`, { projectId: next.id, relatedId: t.id, link: `/projects/${next.id}` });
-      } else {
-        pushActivity(addFn, 'general', `${who} changed task "${t.title}" to ${t.status}.`, { projectId: next.id, relatedId: t.id, link: `/projects/${next.id}` });
-      }
+      pushActivity(addFn, 'task_created', `${who} created task "${task.title}" in ${next.name}.`, { projectId: next.id, relatedId: task.id, link: `/projects/${next.id}` });
+    } else if (old.status !== task.status) {
+      pushActivity(addFn, task.status === 'Done' || task.status === 'Approved' ? 'task_done' : 'general', `${who} changed task "${task.title}" to ${task.status}.`, { projectId: next.id, relatedId: task.id, link: `/projects/${next.id}` });
     }
   });
 
-  // Milestones
-  next.milestones.forEach((m) => {
-    const old = prev.milestones.find((x) => x.id === m.id);
-    if (old && old.status !== m.status) {
-      const verb = m.status === 'Completed' ? 'completed' : m.status === 'Delayed' ? 'marked as delayed' : `changed to ${m.status}`;
-      pushActivity(addFn, 'general', `${who} ${verb} milestone "${m.name}".`, { projectId: next.id, relatedId: m.id, link: `/projects/${next.id}` });
-    }
-  });
-
-  // Launch items
-  next.prItems.forEach((pr) => {
-    const old = prev.prItems.find((x) => x.id === pr.id);
+  next.prItems.forEach((launch) => {
+    const old = prev.prItems.find((entry) => entry.id === launch.id);
     if (!old) {
-      pushActivity(addFn, 'general', `${who} created launch item "${pr.title}".`, { projectId: next.id, relatedId: pr.id, link: '/launches' });
-    } else {
-      if (old.approvalStatus !== pr.approvalStatus && pr.approvalStatus === 'Approved') {
-        pushActivity(addFn, 'launch_approved', `${who} marked "${pr.title}" as Approved.`, { projectId: next.id, relatedId: pr.id, link: '/launches' });
-      }
-      if (old.publishingStatus !== pr.publishingStatus) {
-        if (pr.publishingStatus === 'Scheduled') {
-          pushActivity(addFn, 'general', `${who} scheduled "${pr.title}".`, { projectId: next.id, relatedId: pr.id, link: '/launches' });
-        } else if (pr.publishingStatus === 'Posted') {
-          pushActivity(addFn, 'launch_posted', `${who} marked "${pr.title}" as Posted.`, { projectId: next.id, relatedId: pr.id, link: '/launches' });
-        }
-      }
+      pushActivity(addFn, 'general', `${who} created launch item "${launch.title}".`, { projectId: next.id, relatedId: launch.id, link: '/launches' });
+    } else if (old.publishingStatus !== launch.publishingStatus && launch.publishingStatus === 'Posted') {
+      pushActivity(addFn, 'launch_posted', `${who} marked "${launch.title}" as Posted.`, { projectId: next.id, relatedId: launch.id, link: '/launches' });
     }
   });
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<AppData>(loadAppData);
+  const [data, setData] = useState<AppData>(() => normalizeAppData(loadAppData()));
+  const [ready, setReady] = useState(!firebaseConfigured);
   const dataRef = useRef(data);
   dataRef.current = data;
 
-  // Expose members for activity actor resolution
+  useEffect(() => {
+    if (!firebaseConfigured || !auth) {
+      setReady(true);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setData(loadAppData());
+        setReady(true);
+        return;
+      }
+      try {
+        setData(normalizeAppData(await loadFirebaseAppData()));
+      } catch (error) {
+        console.warn('[firebase load]', error);
+        setData(normalizeAppData(loadAppData()));
+      } finally {
+        setReady(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     (window as unknown as { __rccs_members?: Member[] }).__rccs_members = data.members;
   }, [data.members]);
 
   const persist = useCallback((next: AppData) => {
-    setData(next);
-    saveAppData(next);
+    const normalized = normalizeAppData(next);
+    setData(normalized);
+    saveAppData(normalized);
   }, []);
 
-  const patch = useCallback(
-    (partial: Partial<AppData>) => {
-      persist({ ...dataRef.current, ...partial });
-    },
-    [persist]
-  );
+  const patch = useCallback((partial: Partial<AppData>) => {
+    persist({ ...dataRef.current, ...partial });
+  }, [persist]);
+
+  const saveRemoteItem = useCallback(async <K extends keyof AppData>(key: K, item: AppData[K][number]) => {
+    if (!firebaseConfigured || !auth?.currentUser) return;
+    await saveFirebaseCollectionItem(key, item);
+  }, []);
+
+  const deleteRemoteItem = useCallback(async <K extends keyof AppData>(key: K, id: string) => {
+    if (!firebaseConfigured || !auth?.currentUser) return;
+    await deleteFirebaseCollectionItem(key, id);
+  }, []);
 
   const addActivityInternal = useCallback((a: ActivityItem) => {
     const items = dataRef.current.activityItems ?? [];
     const trimmed = items.length >= 200 ? items.slice(-199) : items;
-    patch({ activityItems: [...trimmed, a] });
-  }, [patch]);
+    const next = [...trimmed, a];
+    patch({ activityItems: next });
+    saveRemoteItem('activityItems', a).catch((error) => console.warn('[firebase activity save]', error));
+  }, [patch, saveRemoteItem]);
 
   const audit = useCallback((
     action: Parameters<typeof logAudit>[0]['action'],
@@ -203,202 +238,146 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       summary,
       entityId: extra?.entityId,
       projectId: extra?.projectId,
-    }).catch((e) => console.warn('[audit]', e));
+    }).catch((error) => console.warn('[audit]', error));
   }, []);
 
-  const value = useMemo<AppDataContextValue>(
-    () => ({
-      data,
-      replaceAll: (next) => persist(next),
-      setActorId: (id) => {
-        (window as unknown as { __rccs_actor_id?: string | null }).__rccs_actor_id = id;
-      },
-      setActorName: (name) => {
-        (window as unknown as { __rccs_actor_name?: string | null }).__rccs_actor_name = name;
-      },
+  const value = useMemo<AppDataContextValue>(() => ({
+    data,
+    replaceAll: (next) => {
+      persist(next);
+      if (firebaseConfigured && auth?.currentUser) {
+        replaceFirebaseAppData(next).catch((error) => console.warn('[firebase replace]', error));
+      }
+    },
+    setActorId: (id) => {
+      (window as unknown as { __rccs_actor_id?: string | null }).__rccs_actor_id = id;
+    },
+    setActorName: (name) => {
+      (window as unknown as { __rccs_actor_name?: string | null }).__rccs_actor_name = name;
+    },
+    saveProject: (project) => {
+      const prev = dataRef.current.projects.find((entry) => entry.id === project.id);
+      logProjectNestedChanges(addActivityInternal, prev, project);
+      patch({ projects: upsert(dataRef.current.projects, project) });
+      saveRemoteItem('projects', project).catch((error) => console.warn('[firebase project save]', error));
+      audit(prev ? 'updated' : 'created', 'project', `${prev ? 'Updated' : 'Created'} project: ${project.name}`, { entityId: project.id });
+    },
+    deleteProject: (id) => {
+      patch({ projects: remove(dataRef.current.projects, id) });
+      deleteRemoteItem('projects', id).catch((error) => console.warn('[firebase project delete]', error));
+      audit('deleted', 'project', `Deleted project: ${id}`, { entityId: id });
+    },
+    saveMember: (member) => {
+      patch({ members: upsert(dataRef.current.members, member) });
+      saveRemoteItem('members', member).catch((error) => console.warn('[firebase member save]', error));
+      audit(dataRef.current.members.some((entry) => entry.id === member.id) ? 'updated' : 'created', 'member', `Saved member: ${member.displayName}`, { entityId: member.id });
+    },
+    deleteMember: (id) => {
+      patch({ members: remove(dataRef.current.members, id) });
+      deleteRemoteItem('members', id).catch((error) => console.warn('[firebase member delete]', error));
+      audit('deleted', 'member', `Removed member: ${id}`, { entityId: id });
+    },
+    saveMeeting: (meeting) => {
+      patch({ meetings: upsert(dataRef.current.meetings, meeting) });
+      saveRemoteItem('meetings', meeting).catch((error) => console.warn('[firebase meeting save]', error));
+      audit(dataRef.current.meetings.some((entry) => entry.id === meeting.id) ? 'updated' : 'created', 'meeting', `Saved meeting: ${meeting.title}`, { entityId: meeting.id, projectId: meeting.projectId });
+    },
+    deleteMeeting: (id) => {
+      patch({ meetings: remove(dataRef.current.meetings, id) });
+      deleteRemoteItem('meetings', id).catch((error) => console.warn('[firebase meeting delete]', error));
+      audit('deleted', 'meeting', `Deleted meeting: ${id}`, { entityId: id });
+    },
+    saveSponsor: (sponsor) => {
+      patch({ sponsors: upsert(dataRef.current.sponsors, sponsor) });
+      saveRemoteItem('sponsors', sponsor).catch((error) => console.warn('[firebase sponsor save]', error));
+      audit(dataRef.current.sponsors.some((entry) => entry.id === sponsor.id) ? 'updated' : 'created', 'sponsor', `Saved sponsor: ${sponsor.name}`, { entityId: sponsor.id, projectId: sponsor.projectId });
+    },
+    deleteSponsor: (id) => {
+      patch({ sponsors: remove(dataRef.current.sponsors, id) });
+      deleteRemoteItem('sponsors', id).catch((error) => console.warn('[firebase sponsor delete]', error));
+      audit('deleted', 'sponsor', `Deleted sponsor: ${id}`, { entityId: id });
+    },
+    saveBudget: (budget) => {
+      patch({ budgets: upsert(dataRef.current.budgets, budget) });
+      saveRemoteItem('budgets', budget).catch((error) => console.warn('[firebase budget save]', error));
+      audit('updated', 'data', 'Updated budget settings', { entityId: budget.id, projectId: budget.projectId });
+    },
+    deleteBudget: (id) => {
+      patch({ budgets: remove(dataRef.current.budgets, id) });
+      deleteRemoteItem('budgets', id).catch((error) => console.warn('[firebase budget delete]', error));
+    },
+    saveTransaction: (transaction) => {
+      const normalizedTransaction = normalizeTransaction(transaction);
+      const isNew = !dataRef.current.transactions.some((entry) => entry.id === transaction.id);
+      if (isNew) {
+        const project = dataRef.current.projects.find((entry) => entry.id === transaction.projectId);
+        pushActivity(addActivityInternal, 'transaction_added', `${getActor().name} added ${formatCurrency(normalizedTransaction.amount)} ${normalizedTransaction.type.toLowerCase()} to ${project?.name ?? 'project'}.`, { projectId: normalizedTransaction.projectId, relatedId: normalizedTransaction.id, link: '/money' });
+      }
+      patch({ transactions: upsert(dataRef.current.transactions, normalizedTransaction) });
+      saveRemoteItem('transactions', normalizedTransaction).catch((error) => console.warn('[firebase transaction save]', error));
+      audit(isNew ? 'created' : 'updated', 'transaction', `Saved transaction: ${normalizedTransaction.category} (${normalizedTransaction.type})`, { entityId: normalizedTransaction.id, projectId: normalizedTransaction.projectId });
+    },
+    deleteTransaction: (id) => {
+      patch({ transactions: remove(dataRef.current.transactions, id) });
+      deleteRemoteItem('transactions', id).catch((error) => console.warn('[firebase transaction delete]', error));
+      audit('deleted', 'transaction', `Deleted transaction: ${id}`, { entityId: id });
+    },
+    saveApproval: (approval) => {
+      patch({ approvals: upsert(dataRef.current.approvals, approval) });
+      saveRemoteItem('approvals', approval).catch((error) => console.warn('[firebase approval save]', error));
+      audit(dataRef.current.approvals.some((entry) => entry.id === approval.id) ? 'updated' : 'created', 'approval', `Saved approval: ${approval.title}`, { entityId: approval.id, projectId: approval.projectId ?? undefined });
+    },
+    deleteApproval: (id) => {
+      patch({ approvals: remove(dataRef.current.approvals, id) });
+      deleteRemoteItem('approvals', id).catch((error) => console.warn('[firebase approval delete]', error));
+      audit('deleted', 'approval', `Deleted approval request: ${id}`, { entityId: id });
+    },
+    saveFileLink: (fileLink) => {
+      patch({ fileLinks: upsert(dataRef.current.fileLinks, fileLink) });
+      saveRemoteItem('fileLinks', fileLink).catch((error) => console.warn('[firebase file link save]', error));
+      audit(dataRef.current.fileLinks.some((entry) => entry.id === fileLink.id) ? 'updated' : 'created', 'file_link', `Saved file link: ${fileLink.title}`, { entityId: fileLink.id, projectId: fileLink.projectId });
+    },
+    deleteFileLink: (id) => {
+      patch({ fileLinks: remove(dataRef.current.fileLinks, id) });
+      deleteRemoteItem('fileLinks', id).catch((error) => console.warn('[firebase file link delete]', error));
+      audit('deleted', 'file_link', `Deleted file link: ${id}`, { entityId: id });
+    },
+    saveReport: (report) => {
+      patch({ reports: upsert(dataRef.current.reports, report) });
+      saveRemoteItem('reports', report).catch((error) => console.warn('[firebase report save]', error));
+      audit(dataRef.current.reports.some((entry) => entry.id === report.id) ? 'updated' : 'generated', 'report', `Saved report: ${report.title}`, { entityId: report.id, projectId: report.projectId });
+    },
+    deleteReport: (id) => {
+      patch({ reports: remove(dataRef.current.reports, id) });
+      deleteRemoteItem('reports', id).catch((error) => console.warn('[firebase report delete]', error));
+      audit('deleted', 'report', `Deleted report: ${id}`, { entityId: id });
+    },
+    saveDeliverable: (deliverable) => {
+      patch({ deliverables: upsert(dataRef.current.deliverables ?? [], deliverable) });
+      saveRemoteItem('deliverables', deliverable).catch((error) => console.warn('[firebase deliverable save]', error));
+      audit(dataRef.current.deliverables.some((entry) => entry.id === deliverable.id) ? 'updated' : 'created', 'data', `Saved deliverable: ${deliverable.title}`, { entityId: deliverable.id, projectId: deliverable.projectId });
+    },
+    deleteDeliverable: (id) => {
+      patch({ deliverables: remove(dataRef.current.deliverables ?? [], id) });
+      deleteRemoteItem('deliverables', id).catch((error) => console.warn('[firebase deliverable delete]', error));
+      audit('deleted', 'data', `Deleted deliverable: ${id}`, { entityId: id });
+    },
+    saveEventDayItem: (eventDayItem) => {
+      patch({ eventDayItems: upsert(dataRef.current.eventDayItems ?? [], eventDayItem) });
+      saveRemoteItem('eventDayItems', eventDayItem).catch((error) => console.warn('[firebase event-day save]', error));
+      audit(dataRef.current.eventDayItems.some((entry) => entry.id === eventDayItem.id) ? 'updated' : 'created', 'data', `Saved event-day item: ${eventDayItem.title}`, { entityId: eventDayItem.id, projectId: eventDayItem.projectId });
+    },
+    deleteEventDayItem: (id) => {
+      patch({ eventDayItems: remove(dataRef.current.eventDayItems ?? [], id) });
+      deleteRemoteItem('eventDayItems', id).catch((error) => console.warn('[firebase event-day delete]', error));
+    },
+    addActivity: (activity) => {
+      addActivityInternal(activity);
+      logActivityItem(activity);
+    },
+  }), [addActivityInternal, audit, data, deleteRemoteItem, patch, persist, saveRemoteItem]);
 
-      saveProject: (p) => {
-        const prev = dataRef.current.projects.find((x) => x.id === p.id);
-        const isNew = !prev;
-        logProjectNestedChanges(addActivityInternal, prev, p);
-        patch({ projects: upsert(dataRef.current.projects, p) });
-        audit(isNew ? 'created' : 'updated', 'project', `${isNew ? 'Created' : 'Updated'} project: ${p.name}`, { entityId: p.id });
-      },
-      deleteProject: (id) => {
-        const p = dataRef.current.projects.find((x) => x.id === id);
-        patch({ projects: remove(dataRef.current.projects, id) });
-        audit('deleted', 'project', `Deleted project: ${p?.name ?? id}`, { entityId: id });
-      },
-
-      saveMember: (m) => {
-        const isNew = !dataRef.current.members.some((x) => x.id === m.id);
-        patch({ members: upsert(dataRef.current.members, m) });
-        audit(isNew ? 'created' : 'updated', 'member', `${isNew ? 'Added' : 'Updated'} member: ${m.displayName}`, { entityId: m.id });
-      },
-      deleteMember: (id) => {
-        const m = dataRef.current.members.find((x) => x.id === id);
-        patch({ members: remove(dataRef.current.members, id) });
-        audit('deleted', 'member', `Removed member: ${m?.displayName ?? id}`, { entityId: id });
-      },
-
-      saveMeeting: (m) => {
-        const prev = dataRef.current.meetings.find((x) => x.id === m.id);
-        const isNew = !prev;
-        const actor = getActor();
-        if (isNew) {
-          pushActivity(addActivityInternal, 'general', `${actor.name} scheduled meeting "${m.title}".`, { projectId: m.projectId, relatedId: m.id, link: '/meetings' });
-        }
-        if (prev) {
-          m.actionItems.forEach((a) => {
-            if (!prev.actionItems.some((x) => x.id === a.id)) {
-              pushActivity(addActivityInternal, 'meeting_action_created', `${actor.name} added action item "${a.title}" in ${m.title}.`, { projectId: m.projectId, relatedId: a.id, link: '/meetings' });
-            }
-          });
-        }
-        patch({ meetings: upsert(dataRef.current.meetings, m) });
-        audit(isNew ? 'created' : 'updated', 'meeting', `${isNew ? 'Scheduled' : 'Updated'} meeting: ${m.title}`, { entityId: m.id, projectId: m.projectId });
-      },
-      deleteMeeting: (id) => {
-        const m = dataRef.current.meetings.find((x) => x.id === id);
-        patch({ meetings: remove(dataRef.current.meetings, id) });
-        audit('deleted', 'meeting', `Deleted meeting: ${m?.title ?? id}`, { entityId: id });
-      },
-
-      saveSponsor: (s) => {
-        const prev = dataRef.current.sponsors.find((x) => x.id === s.id);
-        const isNew = !prev;
-        const actor = getActor();
-        const proj = dataRef.current.projects.find((p) => p.id === s.projectId);
-        if (isNew) {
-          pushActivity(addActivityInternal, 'sponsor_changed', `${actor.name} added sponsor "${s.name}".`, { projectId: s.projectId, relatedId: s.id, link: '/money' });
-        } else {
-          if (prev.stage !== s.stage) {
-            pushActivity(addActivityInternal, 'sponsor_changed', `${actor.name} moved "${s.name}" to ${s.stage}.`, { projectId: s.projectId, relatedId: s.id, link: '/money' });
-          }
-          if (prev.paymentStatus !== s.paymentStatus) {
-            pushActivity(addActivityInternal, 'payment_changed', `${actor.name} updated "${s.name}" payment to ${s.paymentStatus}.`, { projectId: s.projectId, relatedId: s.id, link: '/money' });
-          }
-        }
-        patch({ sponsors: upsert(dataRef.current.sponsors, s) });
-        audit(isNew ? 'created' : 'updated', 'sponsor', `${isNew ? 'Added' : 'Updated'} sponsor: ${s.name}`, { entityId: s.id, projectId: s.projectId });
-      },
-      deleteSponsor: (id) => {
-        const s = dataRef.current.sponsors.find((x) => x.id === id);
-        patch({ sponsors: remove(dataRef.current.sponsors, id) });
-        audit('deleted', 'sponsor', `Removed sponsor: ${s?.name ?? id}`, { entityId: id });
-      },
-
-      saveBudget: (b) => {
-        patch({ budgets: upsert(dataRef.current.budgets, b) });
-        audit('updated', 'data', 'Updated budget settings', { entityId: b.id, projectId: b.projectId });
-      },
-      deleteBudget: (id) => {
-        patch({ budgets: remove(dataRef.current.budgets, id) });
-      },
-
-      saveTransaction: (t) => {
-        const isNew = !dataRef.current.transactions.some((x) => x.id === t.id);
-        const actor = getActor();
-        const proj = dataRef.current.projects.find((p) => p.id === t.projectId);
-        if (isNew) {
-          pushActivity(addActivityInternal, 'transaction_added', `${actor.name} added ${formatCurrency(t.amount)} ${t.type.toLowerCase()} to ${proj?.name ?? 'project'}.`, { projectId: t.projectId, relatedId: t.id, link: '/money' });
-        }
-        patch({ transactions: upsert(dataRef.current.transactions, t) });
-        audit(isNew ? 'created' : 'updated', 'transaction', `${isNew ? 'Recorded' : 'Updated'} transaction: ${t.category} (${t.type})`, { entityId: t.id, projectId: t.projectId });
-      },
-      deleteTransaction: (id) => {
-        const t = dataRef.current.transactions.find((x) => x.id === id);
-        patch({ transactions: remove(dataRef.current.transactions, id) });
-        audit('deleted', 'transaction', `Deleted transaction: ${t?.category ?? id}`, { entityId: id });
-      },
-
-      saveApproval: (a) => {
-        const prev = dataRef.current.approvals.find((x) => x.id === a.id);
-        const isNew = !prev;
-        const actor = getActor();
-        if (isNew) {
-          pushActivity(addActivityInternal, 'general', `${actor.name} submitted approval request "${a.title}".`, { projectId: a.projectId ?? undefined, relatedId: a.id, link: '/approvals' });
-        } else if (prev.status !== a.status) {
-          const verb = a.status === 'Approved' ? 'approved' : a.status === 'Rejected' ? 'rejected' : 'requested changes on';
-          pushActivity(addActivityInternal, 'approval_decision', `${actor.name} ${verb} "${a.title}".`, { projectId: a.projectId ?? undefined, relatedId: a.id, link: '/approvals' });
-        }
-        patch({ approvals: upsert(dataRef.current.approvals, a) });
-        const action = a.status === 'Approved' ? 'approved' : a.status === 'Rejected' ? 'rejected' : isNew ? 'created' : 'updated';
-        audit(action, 'approval', `${action.charAt(0).toUpperCase() + action.slice(1)} approval: ${a.title}`, { entityId: a.id, projectId: a.projectId ?? undefined });
-      },
-      deleteApproval: (id) => {
-        patch({ approvals: remove(dataRef.current.approvals, id) });
-        audit('deleted', 'approval', `Deleted approval request`, { entityId: id });
-      },
-
-      saveFileLink: (f) => {
-        const isNew = !dataRef.current.fileLinks.some((x) => x.id === f.id);
-        const actor = getActor();
-        if (isNew) {
-          pushActivity(addActivityInternal, 'general', `${actor.name} added file link "${f.title}".`, { projectId: f.projectId, relatedId: f.id, link: '/library?section=files' });
-        }
-        patch({ fileLinks: upsert(dataRef.current.fileLinks, f) });
-        audit(isNew ? 'created' : 'updated', 'file_link', `${isNew ? 'Added' : 'Updated'} file link: ${f.title}`, { entityId: f.id, projectId: f.projectId });
-      },
-      deleteFileLink: (id) => {
-        patch({ fileLinks: remove(dataRef.current.fileLinks, id) });
-        audit('deleted', 'file_link', `Removed file link`, { entityId: id });
-      },
-
-      saveReport: (r) => {
-        const isNew = !dataRef.current.reports.some((x) => x.id === r.id);
-        const actor = getActor();
-        if (isNew) {
-          const typeLabel = r.type === 'Handover' ? 'handover report' : 'report';
-          pushActivity(addActivityInternal, 'report_generated', `${actor.name} generated ${typeLabel} "${r.title}".`, { projectId: r.projectId, relatedId: r.id, link: '/library?section=reports' });
-        }
-        patch({ reports: upsert(dataRef.current.reports, r) });
-        audit(isNew ? 'generated' : 'updated', 'report', `${isNew ? 'Generated' : 'Updated'} report: ${r.title}`, { entityId: r.id, projectId: r.projectId });
-      },
-      deleteReport: (id) => {
-        patch({ reports: remove(dataRef.current.reports, id) });
-        audit('deleted', 'report', `Deleted report`, { entityId: id });
-      },
-
-      saveDeliverable: (d) => {
-        const prev = dataRef.current.deliverables?.find((x) => x.id === d.id);
-        const isNew = !prev;
-        const actor = getActor();
-        if (isNew) {
-          pushActivity(addActivityInternal, 'general', `${actor.name} created deliverable "${d.title}".`, { projectId: d.projectId, relatedId: d.id, link: `/projects/${d.projectId}` });
-        } else if (prev && prev.status !== d.status) {
-          pushActivity(addActivityInternal, 'deliverable_completed', `${actor.name} changed "${d.title}" to ${d.status}.`, { projectId: d.projectId, relatedId: d.id, link: `/projects/${d.projectId}` });
-        }
-        patch({ deliverables: upsert(dataRef.current.deliverables ?? [], d) });
-        audit(isNew ? 'created' : 'updated', 'data', `${isNew ? 'Created' : 'Updated'} deliverable: ${d.title}`, { entityId: d.id, projectId: d.projectId });
-      },
-      deleteDeliverable: (id) => {
-        patch({ deliverables: remove(dataRef.current.deliverables ?? [], id) });
-        audit('deleted', 'data', `Deleted deliverable`, { entityId: id });
-      },
-
-      saveEventDayItem: (e) => {
-        const prev = dataRef.current.eventDayItems?.find((x) => x.id === e.id);
-        const isNew = !prev;
-        const actor = getActor();
-        if (!isNew && prev && prev.status !== e.status) {
-          const type = e.status === 'Problem' ? 'event_day_problem' as const : e.status === 'Completed' ? 'event_day_completed' as const : 'general' as const;
-          pushActivity(addActivityInternal, type, `${actor.name} marked "${e.title}" as ${e.status}.`, { projectId: e.projectId, relatedId: e.id, link: '/event-day' });
-        }
-        patch({ eventDayItems: upsert(dataRef.current.eventDayItems ?? [], e) });
-        if (!isNew) audit('updated', 'data', `Event-day item updated: ${e.title}`, { entityId: e.id, projectId: e.projectId });
-      },
-      deleteEventDayItem: (id) => {
-        patch({ eventDayItems: remove(dataRef.current.eventDayItems ?? [], id) });
-      },
-
-      addActivity: (a) => {
-        addActivityInternal(a);
-        logActivityItem(a);
-      },
-    }),
-    [data, patch, persist, audit, addActivityInternal]
-  );
+  if (!ready) return null;
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }

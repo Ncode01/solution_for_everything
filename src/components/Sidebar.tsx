@@ -17,7 +17,7 @@ import {
   WifiOff,
   PartyPopper,
 } from 'lucide-react';
-import { getConnectionMode } from '../lib/supabaseClient';
+import { getConnectionMode } from '../lib/firebaseClient';
 import { canAccessRoute, type NavRoute } from '../lib/navigationAccess';
 import { UserRole } from '../types';
 
@@ -67,7 +67,7 @@ const NAV_GROUPS: { heading: string; items: { to: NavRoute; icon: React.ElementT
 
 export default function Sidebar({ className = '', onNavigate, role = 'Member' }: SidebarProps) {
   const mode = getConnectionMode();
-  const isSupabase = mode === 'supabase';
+  const isFirebase = mode === 'firebase';
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -120,10 +120,10 @@ export default function Sidebar({ className = '', onNavigate, role = 'Member' }:
       </nav>
 
       <div className="shrink-0 border-t border-[var(--border-hairline)] px-4 py-3">
-        <div className={`mb-2 inline-flex min-h-0 items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2.5 py-1 text-[11px] ${isSupabase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}>
-          <span className={`h-2 w-2 rounded-full ${isSupabase ? 'bg-[var(--success)]' : 'bg-[var(--text-faint)]'}`} />
-          {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
-          {isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
+        <div className={`mb-2 inline-flex min-h-0 items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2.5 py-1 text-[11px] ${isFirebase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}>
+          <span className={`h-2 w-2 rounded-full ${isFirebase ? 'bg-[var(--success)]' : 'bg-[var(--text-faint)]'}`} />
+          {isFirebase ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {isFirebase ? 'Firebase Connected' : 'Local Demo Mode'}
         </div>
         <p className="text-[10px] text-[var(--text-faint)]">RCCS OS · Final Phase</p>
       </div>

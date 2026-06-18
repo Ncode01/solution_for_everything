@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Search, Users } from 'lucide-react';
 import { Committee, Member, WorkloadLevel } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
@@ -25,17 +25,36 @@ export default function PeoplePage() {
   const [search, setSearch] = useState('');
   const [committeeFilter, setCommitteeFilter] = useState<Committee | 'All'>('All');
   const [workloadFilter, setWorkloadFilter] = useState<WorkloadLevel | 'All'>('All');
+  const [sourceFilter, setSourceFilter] = useState<'All' | 'RCCS' | 'External'>('All');
+  const [orgFilter, setOrgFilter] = useState('All');
   const [formModal, setFormModal] = useState<{ open: boolean; editing?: Member }>({ open: false });
   const [confirmDel, setConfirmDel] = useState<Member | null>(null);
 
   useAutoNew(() => setFormModal({ open: true }));
 
   const filtered = members.filter((member) => {
-    const matchSearch = member.displayName.toLowerCase().includes(search.toLowerCase()) || member.role.toLowerCase().includes(search.toLowerCase()) || member.skills.some((skill) => skill.toLowerCase().includes(search.toLowerCase()));
+    const matchSearch =
+      member.displayName.toLowerCase().includes(search.toLowerCase()) ||
+      member.role.toLowerCase().includes(search.toLowerCase()) ||
+      (member.organization ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (member.organizationRole ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      member.skills.some((skill) => skill.toLowerCase().includes(search.toLowerCase()));
     const matchCommittee = committeeFilter === 'All' || member.committee === committeeFilter;
     const matchWorkload = workloadFilter === 'All' || member.workloadLevel === workloadFilter;
-    return matchSearch && matchCommittee && matchWorkload;
+    const matchSource = sourceFilter === 'All' || (member.source ?? 'RCCS') === sourceFilter;
+    const organization = member.organization ?? 'Royal College Computer Society';
+    const matchOrg = orgFilter === 'All' || organization === orgFilter;
+    return matchSearch && matchCommittee && matchWorkload && matchSource && matchOrg;
   });
+  const organizations = ['All', ...Array.from(new Set(members.map((member) => member.organization ?? 'Royal College Computer Society')))];
+  const rosterGroups = useMemo(() => {
+    const grouped = new Map<string, Member[]>();
+    filtered.forEach((member) => {
+      const key = member.organization ?? 'Royal College Computer Society';
+      grouped.set(key, [...(grouped.get(key) ?? []), member]);
+    });
+    return Array.from(grouped.entries());
+  }, [filtered]);
 
   const activePeople = members.length;
   const overloaded = members.filter((member) => member.workloadLevel === 'Overloaded').length;
@@ -76,6 +95,14 @@ export default function PeoplePage() {
           <option value="All">All workloads</option>
           {WORKLOADS.map((workload) => <option key={workload}>{workload}</option>)}
         </select>
+        <select className="select w-32" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value as 'All' | 'RCCS' | 'External')}>
+          <option value="All">All sources</option>
+          <option value="RCCS">RCCS</option>
+          <option value="External">External</option>
+        </select>
+        <select className="select w-52" value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)}>
+          {organizations.map((organization) => <option key={organization}>{organization}</option>)}
+        </select>
       </ContextActionBar>
 
       {filtered.length === 0 ? (
@@ -84,22 +111,28 @@ export default function PeoplePage() {
         <>
           <Card className="p-4">
             <div className="text-[15px] font-semibold text-[var(--text-primary)]">Team roster</div>
-            <div className="mt-3 space-y-2">
-              {filtered.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => setFormModal({ open: true, editing: member })}
-                  className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-3 text-left transition-colors hover:bg-white/[0.03]"
-                >
-                  <PersonToken member={member} />
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <span className="text-xs text-[var(--text-tertiary)]">{member.committee} · {member.role}</span>
-                    <StatusBadge status={member.availabilityStatus} subtle />
-                    <StatusDot label={member.workloadLevel} tone={member.workloadLevel === 'Overloaded' ? 'red' : member.workloadLevel === 'Heavy' ? 'amber' : member.workloadLevel === 'Normal' ? 'emerald' : 'blue'} lozenge />
+            <div className="mt-3 space-y-4">
+              {rosterGroups.map(([organization, group]) => {
+                return (
+                  <div key={organization} className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{organization}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {group.map((member) => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          title={`${member.displayName} · ${member.role}${member.organizationRole ? ` · ${member.organizationRole}` : ''}`}
+                          onClick={() => setFormModal({ open: true, editing: member })}
+                          className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-white/[0.03] px-3 py-1.5 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-white/[0.05]"
+                        >
+                          <span>{member.displayName}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)]">{member.source ?? 'RCCS'}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </Card>
 

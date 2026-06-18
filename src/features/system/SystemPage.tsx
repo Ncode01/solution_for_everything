@@ -3,7 +3,7 @@ import { Activity, AlertCircle, CheckCircle2, Database, Download, FileJson, Lock
 import { useAppData } from '../../state/AppDataContext';
 import { useAuth } from '../../state/AuthContext';
 import { exportData, parseImportedData, resetToSeedData, getLastSaved, getDataVersion, DATA_VERSION } from '../../lib/storage';
-import { getConnectionLabel, getConnectionMode } from '../../lib/dataProvider';
+import { getConnectionLabel, getConnectionMode } from '../../lib/firebaseClient';
 import { logAudit } from '../../lib/audit';
 import { AppData } from '../../types';
 import ScreenCanvas from '../../components/layout/ScreenCanvas';
@@ -15,7 +15,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function SystemPage() {
   const { data, replaceAll } = useAppData();
-  const { profile, isSupabaseMode } = useAuth();
+  const { profile, isFirebaseMode } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -87,15 +87,15 @@ export default function SystemPage() {
         description="Database, auth, backups, deployment, and RCCS OS health."
         tone="system"
         metrics={[
-          { label: 'Connection', value: connectionLabel, tone: connectionMode === 'supabase' ? 'success' : 'default' },
-          { label: 'Auth mode', value: isSupabaseMode ? 'Supabase' : 'Local demo' },
+          { label: 'Connection', value: connectionLabel, tone: connectionMode === 'firebase' ? 'success' : 'default' },
+          { label: 'Auth mode', value: isFirebaseMode ? 'Firebase' : 'Local demo' },
           { label: 'Profile', value: profileLinked ? 'Linked' : 'Not linked', tone: profileLinked ? 'success' : 'warning' },
         ]}
       />
 
       <SettingsList title="App Health">
-        <SettingsRow icon={<Activity size={16} />} label="Connection" value={connectionLabel} status={<StatusDot label={connectionMode === 'supabase' ? 'Healthy' : 'Local'} tone={connectionMode === 'supabase' ? 'emerald' : 'amber'} lozenge />} />
-        <SettingsRow icon={isSupabaseMode ? <Lock size={16} /> : <ShieldAlert size={16} />} label="Auth mode" value={isSupabaseMode ? 'Supabase Auth' : 'Local Demo Auth'} />
+        <SettingsRow icon={<Activity size={16} />} label="Connection" value={connectionLabel} status={<StatusDot label={connectionMode === 'firebase' ? 'Healthy' : 'Local'} tone={connectionMode === 'firebase' ? 'emerald' : 'amber'} lozenge />} />
+        <SettingsRow icon={isFirebaseMode ? <Lock size={16} /> : <ShieldAlert size={16} />} label="Auth mode" value={isFirebaseMode ? 'Firebase Auth' : 'Local Demo Auth'} />
         <SettingsRow icon={profileLinked ? <ShieldCheck size={16} /> : <AlertCircle size={16} />} label="Profile" value={profileLinked ? profile?.role ?? 'Linked' : 'Not linked'} />
       </SettingsList>
 
@@ -107,9 +107,9 @@ export default function SystemPage() {
       </SettingsList>
 
       <SettingsList title="Security">
-        <SettingsRow icon={<ShieldCheck size={16} />} label="RLS policies" value={connectionMode === 'supabase' ? 'Production' : 'N/A'} status={<StatusDot label={connectionMode === 'supabase' ? 'Protected' : 'Demo'} tone={connectionMode === 'supabase' ? 'emerald' : 'amber'} lozenge />} />
+        <SettingsRow icon={<ShieldCheck size={16} />} label="Firestore rules" value={connectionMode === 'firebase' ? 'Authenticated only' : 'N/A'} status={<StatusDot label={connectionMode === 'firebase' ? 'Protected' : 'Demo'} tone={connectionMode === 'firebase' ? 'emerald' : 'amber'} lozenge />} />
         <SettingsRow icon={<ShieldCheck size={16} />} label="Audit logging" value="Enabled" />
-        <SettingsRow icon={<Lock size={16} />} label="Anonymous write access" value={connectionMode === 'supabase' ? 'Blocked' : 'N/A'} />
+        <SettingsRow icon={<Lock size={16} />} label="Anonymous write access" value={connectionMode === 'firebase' ? 'Blocked' : 'N/A'} />
       </SettingsList>
 
       <SettingsList title="Backups">
@@ -121,8 +121,8 @@ export default function SystemPage() {
 
       <SettingsList title="Deployment">
         <SettingsRow icon={<Wifi size={16} />} label="Connection mode" value={connectionLabel} />
-        <SettingsRow icon={<Server size={16} />} label="Runtime" value="Vite + React + TypeScript" detail="Deploy to Vercel or Cloudflare Pages with Supabase env vars when needed." />
-        <SettingsRow icon={<WifiOff size={16} />} label="Local demo fallback" value="Enabled" detail="The app remains usable without Supabase configuration." />
+        <SettingsRow icon={<Server size={16} />} label="Runtime" value="Vite + React + TypeScript" detail="Deploy with Firebase Hosting using the FlowCanvas project." />
+        <SettingsRow icon={<WifiOff size={16} />} label="Local demo fallback" value="Enabled" detail="The app remains usable without Firebase configuration." />
       </SettingsList>
 
       {pendingImport && <ConfirmDialog open={!!pendingImport} title="Import backup?" message={`Import backup? This will replace all current data (${pendingImport.projects.length} projects, ${pendingImport.members.length} members, etc.).`} onConfirm={confirmImport} onCancel={() => setPendingImport(null)} />}

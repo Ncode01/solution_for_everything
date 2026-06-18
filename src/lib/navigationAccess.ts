@@ -1,6 +1,6 @@
 /**
  * Role-aware navigation — UX only, not security.
- * RLS handles actual data access in Supabase mode.
+ * Firestore rules handle actual data access in Firebase mode.
  */
 
 import { UserRole } from '../types';

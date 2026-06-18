@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronRight, AlertCircle, Wifi, WifiOff, UserX } from 'lucide-react';
 import { useAuth } from '../../state/AuthContext';
-import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { firebaseConfigured } from '../../lib/firebaseClient';
 
 export default function LoginPage() {
   const { login, logout, state, session } = useAuth();
-  const isSupabase = isSupabaseConfigured;
+  const isFirebase = firebaseConfigured;
 
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
@@ -30,9 +30,9 @@ export default function LoginPage() {
             <p className="text-slate-500 font-mono text-xs">{session?.user?.email ?? 'Unknown'}</p>
             <div className="border-t border-slate-800 pt-3 mt-2 text-slate-500 text-xs space-y-1">
               <p>An RCCS administrator needs to:</p>
-              <p>1. Create your profile record in Supabase.</p>
-              <p>2. Set <code className="text-slate-400">profiles.auth_user_id</code> to your user ID.</p>
-              <p className="font-mono text-[10px] text-slate-600 break-all">{session?.user?.id}</p>
+              <p>1. Create your People profile in RCCS OS.</p>
+              <p>2. Set <code className="text-slate-400">authUserId</code> or matching email on that person.</p>
+              <p className="font-mono text-[10px] text-slate-600 break-all">{session?.user?.uid}</p>
             </div>
           </div>
 
@@ -70,25 +70,25 @@ export default function LoginPage() {
         </div>
 
         {/* Mode badge */}
-        <div className={`flex items-center justify-center gap-1.5 text-xs mb-4 ${isSupabase ? 'text-emerald-400' : 'text-amber-400'}`}>
-          {isSupabase ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
+        <div className={`flex items-center justify-center gap-1.5 text-xs mb-4 ${isFirebase ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {isFirebase ? <Wifi size={12} /> : <WifiOff size={12} />}
+          {isFirebase ? 'Firebase Connected' : 'Local Demo Mode'}
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="glass-panel-strong rounded-[var(--radius-xl)] p-4 space-y-4">
           <div>
             <label className="label" htmlFor="credential">
-              {isSupabase ? 'Email' : 'Username'}
+              {isFirebase ? 'Email' : 'Username'}
             </label>
             <input
               id="credential"
-              type={isSupabase ? 'email' : 'text'}
+              type={isFirebase ? 'email' : 'text'}
               className="input"
-              placeholder={isSupabase ? 'you@rccs.lk' : 'Enter your username'}
+              placeholder={isFirebase ? 'you@rccs.lk' : 'Enter your username'}
               value={credential}
               onChange={(e) => setCredential(e.target.value)}
-              autoComplete={isSupabase ? 'email' : 'username'}
+              autoComplete={isFirebase ? 'email' : 'username'}
               autoFocus
               required
             />
@@ -120,7 +120,7 @@ export default function LoginPage() {
         </form>
 
         {/* Demo credentials — only shown in local mode */}
-        {!isSupabase && (
+        {!isFirebase && (
           <div className="mt-4 solid-panel p-4 text-xs space-y-1">
             <p className="text-slate-500 font-medium mb-2">Demo Credentials</p>
             <p className="text-slate-400"><span className="text-slate-300">admin</span> / admin123 — Super Admin</p>
@@ -130,8 +130,8 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-xs text-slate-700 mt-4">
-          {isSupabase
-            ? 'Use your RCCS account email and password.'
+          {isFirebase
+            ? 'Use your Firebase Auth email and password.'
             : 'Local Demo Mode — data stored in browser only.'}
         </p>
       </div>

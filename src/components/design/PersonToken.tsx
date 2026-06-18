@@ -2,7 +2,7 @@ import React from 'react';
 import { Member } from '../../types';
 
 interface Props {
-  member?: Pick<Member, 'displayName' | 'role' | 'committee'> | null;
+  member?: Pick<Member, 'displayName' | 'role' | 'committee' | 'organization' | 'organizationRole' | 'source'> | null;
   name?: string;
   detail?: string;
   compact?: boolean;
@@ -11,7 +11,7 @@ interface Props {
 
 export default function PersonToken({ member, name, detail, compact = false, className = '' }: Props) {
   const label = member?.displayName ?? name ?? 'Unassigned';
-  const meta = detail ?? member?.role ?? member?.committee;
+  const meta = detail ?? member?.organizationRole ?? member?.role ?? member?.organization ?? member?.committee;
   const initials = label
     .split(' ')
     .filter(Boolean)

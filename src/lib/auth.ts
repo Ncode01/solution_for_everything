@@ -1,7 +1,7 @@
 // ============================================================
 // TEMPORARY MVP AUTH — NOT PRODUCTION SECURITY
 // This is hardcoded username/password auth for Phase One demo.
-// MUST be replaced with proper auth (Supabase Auth or similar)
+// MUST be replaced with proper auth (Firebase Auth or similar)
 // before any real deployment or when storing sensitive data.
 // Passwords are stored in plaintext here intentionally for MVP.
 // ============================================================

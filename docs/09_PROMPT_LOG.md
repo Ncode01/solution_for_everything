@@ -1,5 +1,33 @@
 # Prompt Log
 
+## Workflow Cleanup & Firebase Finish - June 18, 2026
+
+### Summary
+
+Tightened the RCCS OS workflow screens around real operator usage instead of decorative containers. Focus now shows one unified personal queue, Launches is reduced to the three meaningful stages the team actually manages, Money was rebuilt into a cleaner finance workspace with quotation accountability and direct source links, People always shows the full roster, Event Day uses calmer priority treatment, and leftover Supabase runtime files were removed so Firebase is the only active backend path in the app code.
+
+### Key Files Changed
+- `src/features/focus/FocusPage.tsx`
+- `src/features/launches/LaunchesPage.tsx`
+- `src/lib/prWorkflow.ts`
+- `src/features/people/PeoplePage.tsx`
+- `src/features/budget/BudgetPage.tsx`
+- `src/features/budget/TransactionForm.tsx`
+- `src/features/event-day/EventDayPage.tsx`
+- `src/types/index.ts`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/14_KNOWN_ISSUES.md`
+
+### Key Files Removed
+- `src/lib/supabaseClient.ts`
+- `src/lib/supabaseActivity.ts`
+- `src/types/supabase.ts`
+
+### Checks Run
+- `npm run build` - pass
+- Playwright in-app browser QA on `/focus`, `/launches`, `/money`, `/people`, `/event-day` - pass
+
 ## Midnight Graphite Royal Redesign - June 18, 2026
 
 ### Summary

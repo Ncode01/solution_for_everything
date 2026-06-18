@@ -232,6 +232,11 @@ export interface Member {
   gradeOrClass: string;
   email?: string;
   phone?: string;
+  authUserId?: string;
+  username?: string;
+  source?: 'RCCS' | 'External';
+  organization?: string;
+  organizationRole?: string;
   skills: string[];
   availabilityStatus: AvailabilityStatus;
   workloadLevel: WorkloadLevel;
@@ -386,6 +391,9 @@ export interface Transaction {
   projectId: string;
   type: TransactionType;
   category: TransactionCategory;
+  itemName?: string;
+  quantity?: number;
+  unitCost?: number;
   amount: number;
   date: string;
   /** Display name (legacy). Use paidById when available. */
@@ -398,6 +406,8 @@ export interface Transaction {
   notes?: string;
   assignedMember?: string;
   assignedMemberId?: string;
+  quotationManager?: string;
+  quotationManagerId?: string;
   quotations?: ExpenseQuotation[];
 }
 

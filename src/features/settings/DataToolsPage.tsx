@@ -3,7 +3,7 @@ import { Download, Upload, RotateCcw, Database, CheckCircle2, AlertCircle, Wifi,
 import { useAppData } from '../../state/AppDataContext';
 import { useAuth } from '../../state/AuthContext';
 import { exportData, parseImportedData, resetToSeedData, getLastSaved, getDataVersion, DATA_VERSION } from '../../lib/storage';
-import { getConnectionLabel, getConnectionMode } from '../../lib/dataProvider';
+import { getConnectionLabel, getConnectionMode } from '../../lib/firebaseClient';
 import { logAudit } from '../../lib/audit';
 import { AppData } from '../../types';
 import PageHeader from '../../components/PageHeader';
@@ -12,7 +12,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function DataToolsPage() {
   const { data, replaceAll } = useAppData();
-  const { profile, isSupabaseMode } = useAuth();
+  const { profile, isFirebaseMode } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<AppData | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -84,24 +84,24 @@ export default function DataToolsPage() {
 
       {/* Connection mode */}
       {/* Provider health */}
-      <Card className={connectionMode === 'supabase' ? 'border-emerald-700/40' : 'border-amber-900/40'}>
+      <Card className={connectionMode === 'firebase' ? 'border-emerald-700/40' : 'border-amber-900/40'}>
         <div className="flex items-start gap-3">
-          {connectionMode === 'supabase'
+          {connectionMode === 'firebase'
             ? <Wifi size={16} className="text-emerald-400 shrink-0 mt-0.5" />
             : <WifiOff size={16} className="text-amber-400 shrink-0 mt-0.5" />
           }
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-semibold ${connectionMode === 'supabase' ? 'text-emerald-300' : 'text-amber-300'}`}>
+            <p className={`text-sm font-semibold ${connectionMode === 'firebase' ? 'text-emerald-300' : 'text-amber-300'}`}>
               {connectionLabel}
             </p>
             {connectionMode === 'local' && (
               <p className="text-xs text-slate-500 mt-0.5">
-                Data lives only in this browser's localStorage. Set <code className="text-slate-400">VITE_SUPABASE_URL</code> and <code className="text-slate-400">VITE_SUPABASE_ANON_KEY</code> to switch to Supabase mode.
+                Data lives only in this browser's localStorage. Set the Firebase env vars in <code className="text-slate-400">.env.local</code> to switch to Firebase mode.
               </p>
             )}
-            {connectionMode === 'supabase' && (
+            {connectionMode === 'firebase' && (
               <p className="text-xs text-slate-500 mt-0.5">
-                Connected to Supabase. Data is persistent and shared across devices. RLS policies enforce access control.
+                Connected to Firebase. Data is persistent and shared across devices. Firestore rules block unauthenticated access.
               </p>
             )}
           </div>
@@ -112,21 +112,21 @@ export default function DataToolsPage() {
           {[
             {
               label: 'Database',
-              ok: connectionMode === 'supabase',
-              detail: connectionMode === 'supabase' ? 'Supabase connected' : 'localStorage (local only)',
+              ok: connectionMode === 'firebase',
+              detail: connectionMode === 'firebase' ? 'Firestore connected' : 'localStorage (local only)',
             },
             {
               label: 'Authentication',
-              ok: isSupabaseMode ? Boolean(profile) : true,
-              detail: isSupabaseMode
+              ok: isFirebaseMode ? Boolean(profile) : true,
+              detail: isFirebaseMode
                 ? (profile ? `Logged in as ${profile.displayName}` : 'Not authenticated')
                 : 'Demo auth (local)',
             },
             {
               label: 'Profile Linked',
-              ok: isSupabaseMode ? Boolean(profile?.authUserId) : true,
-              detail: isSupabaseMode
-                ? (profile?.authUserId ? 'auth_user_id linked' : 'Profile not linked to auth user')
+              ok: isFirebaseMode ? Boolean(profile?.authUserId || profile?.email) : true,
+              detail: isFirebaseMode
+                ? (profile?.authUserId ? 'authUserId linked' : 'Using linked email match')
                 : 'N/A in local mode',
             },
           ].map(({ label, ok, detail }) => (

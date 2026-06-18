@@ -1,0 +1,24 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e8]
+    - heading "RCCS OS" [level=1] [ref=e10]
+    - paragraph [ref=e11]: Internal Operating System
+  - generic [ref=e12]:
+    - img [ref=e13]
+    - text: Local Demo Mode
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]: Username
+      - textbox "Username" [active] [ref=e23]:
+        - /placeholder: Enter your username
+    - generic [ref=e24]:
+      - generic [ref=e25]: Password
+      - textbox "Password" [ref=e26]:
+        - /placeholder: Enter your password
+    - button "Sign In" [ref=e27] [cursor=pointer]
+  - generic [ref=e28]:
+    - paragraph [ref=e29]: Demo Credentials
+    - paragraph [ref=e30]: admin / admin123 — Super Admin
+    - paragraph [ref=e31]: secretary / rccs2026 — Executive Admin
+    - paragraph [ref=e32]: member / member123 — Member
+  - paragraph [ref=e33]: Local Demo Mode — data stored in browser only.

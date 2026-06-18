@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, CheckSquare, Edit2, Trash2 } from 'lucide-react';
+import { Plus, CheckSquare, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { ApprovalRequest, ApprovalStageStatus, ApprovalStatus } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
 import {
@@ -23,6 +23,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import ApprovalForm from './ApprovalForm';
 import { formatDate } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
+import ViewAllButton from '../../components/layout/ViewAllButton';
 
 const STATUSES: ApprovalStatus[] = ['Draft', 'Submitted', 'Changes Requested', 'Approved', 'Rejected'];
 
@@ -55,8 +56,10 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | 'All'>('All');
   const [projectFilter, setProjectFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [expanded, setExpanded] = useState(false);
   const [formModal, setFormModal] = useState<{ open: boolean; editing?: ApprovalRequest }>({ open: false });
   const [confirmDel, setConfirmDel] = useState<ApprovalRequest | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useAutoNew(() => setFormModal({ open: true }));
 
@@ -124,7 +127,7 @@ export default function ApprovalsPage() {
           <EmptyMoment icon={<CheckSquare size={20} />} title="No approval requests" description="Create a request when something needs sign-off." action={<button onClick={() => setFormModal({ open: true })} className="btn-primary">New Request</button>} />
         ) : (
           <div className="space-y-3">
-            {filtered.map((a) => (
+            {(expanded ? filtered : filtered.slice(0, 6)).map((a) => (
               <Card key={a.id} className="p-4 space-y-2">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -147,20 +150,28 @@ export default function ApprovalsPage() {
                       {a.decisionDate && <span>Decided {formatDate(a.decisionDate)}</span>}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <button className="btn-ghost text-xs" onClick={() => setFormModal({ open: true, editing: a })}><Edit2 size={13} /> Open</button>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
                     {a.current && a.status !== 'Approved' && a.status !== 'Rejected' && (
                       <div className="flex flex-wrap gap-1">
-                        <button className="btn-primary text-xs px-2 py-1" onClick={() => quickCurrentStage(a, 'Approved')}>Mark Approved</button>
+                        <button className="btn-primary text-xs px-2 py-1" onClick={() => quickCurrentStage(a, 'Approved')}>Approve current stage</button>
                         <button className="btn-secondary text-xs px-2 py-1" onClick={() => quickCurrentStage(a, 'Changes Requested')}>Changes</button>
                         <button className="btn-ghost text-xs px-2 py-1 text-[var(--danger)]" onClick={() => quickCurrentStage(a, 'Rejected')}>Reject</button>
                       </div>
                     )}
-                    <button className="btn-ghost text-xs text-[var(--danger)]" onClick={() => setConfirmDel(a)}><Trash2 size={13} /></button>
+                    <div className="relative">
+                      <button className="btn-ghost p-2" onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}><MoreHorizontal size={15} /></button>
+                      {openMenuId === a.id && (
+                        <div className="absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] py-1 shadow-lg">
+                          <button className="block w-full px-3 py-2 text-left text-xs hover:bg-white/5" onClick={() => { setFormModal({ open: true, editing: a }); setOpenMenuId(null); }}><Edit2 size={12} className="inline mr-2" />Edit process</button>
+                          <button className="block w-full px-3 py-2 text-left text-xs text-[var(--danger)] hover:bg-white/5" onClick={() => { setConfirmDel(a); setOpenMenuId(null); }}><Trash2 size={12} className="inline mr-2" />Delete process</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Card>
             ))}
+            {filtered.length > 6 && <ViewAllButton count={filtered.length} label={expanded ? 'Collapse' : `+${filtered.length - 6} more`} compact onClick={() => setExpanded((current) => !current)} />}
           </div>
         )}
       </section>

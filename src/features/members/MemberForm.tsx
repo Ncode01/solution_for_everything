@@ -26,6 +26,11 @@ export default function MemberForm({ initial, projects, onSave, onCancel }: Prop
     gradeOrClass: initial?.gradeOrClass ?? '',
     email: initial?.email ?? '',
     phone: initial?.phone ?? '',
+    username: initial?.username ?? '',
+    authUserId: initial?.authUserId ?? '',
+    source: initial?.source ?? 'RCCS' as const,
+    organization: initial?.organization ?? 'Royal College Computer Society',
+    organizationRole: initial?.organizationRole ?? '',
     skills: (initial?.skills ?? []).join(', '),
     availabilityStatus: initial?.availabilityStatus ?? 'Available' as AvailabilityStatus,
     workloadLevel: initial?.workloadLevel ?? 'Normal' as WorkloadLevel,
@@ -57,6 +62,11 @@ export default function MemberForm({ initial, projects, onSave, onCancel }: Prop
       gradeOrClass: form.gradeOrClass,
       email: form.email || undefined,
       phone: form.phone || undefined,
+      username: form.username || undefined,
+      authUserId: form.authUserId || undefined,
+      source: form.source,
+      organization: form.organization || undefined,
+      organizationRole: form.organizationRole || undefined,
       skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
       availabilityStatus: form.availabilityStatus,
       workloadLevel: form.workloadLevel,
@@ -100,6 +110,31 @@ export default function MemberForm({ initial, projects, onSave, onCancel }: Prop
         </Field>
         <Field label="Phone (optional)">
           <input className="input" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+        </Field>
+        <Field label="Source">
+          <select className="select" value={form.source} onChange={(e) => {
+            const next = e.target.value as 'RCCS' | 'External';
+            setForm((current) => ({
+              ...current,
+              source: next,
+              organization: next === 'RCCS' ? 'Royal College Computer Society' : current.organization,
+            }));
+          }}>
+            <option value="RCCS">RCCS</option>
+            <option value="External">External</option>
+          </select>
+        </Field>
+        <Field label="Organization">
+          <input className="input" value={form.organization} onChange={(e) => set('organization', e.target.value)} />
+        </Field>
+        <Field label="Organization Role">
+          <input className="input" value={form.organizationRole} onChange={(e) => set('organizationRole', e.target.value)} placeholder="Coordinator, Collaborator..." />
+        </Field>
+        <Field label="Username">
+          <input className="input" value={form.username} onChange={(e) => set('username', e.target.value)} placeholder="Login username for local/demo mapping" />
+        </Field>
+        <Field label="Auth User ID" className="col-span-2">
+          <input className="input" value={form.authUserId} onChange={(e) => set('authUserId', e.target.value)} placeholder="Firebase Auth UID" />
         </Field>
         <Field label="Skills (comma separated)" className="col-span-2">
           <input className="input" value={form.skills} onChange={(e) => set('skills', e.target.value)} placeholder="e.g. Design, Copywriting, Logistics" />

@@ -1,5 +1,15 @@
 # Changelog
 
+## Workflow Cleanup & Firebase Finish - June 18, 2026
+
+- Collapsed Focus into one general personal queue so tasks, launches, approvals, meetings, and sponsor follow-ups appear in one container with relevant tags instead of repeated empty panels.
+- Rebuilt Launches into exactly three operational lanes: Sent to Designer, Under Approval, and Ready to Share.
+- Reworked Money from the ground up with overview, expense, and income views; expense ownership; a dedicated quotation and seller owner field; and direct quotation / receipt links that open the source document.
+- Updated People roster groups to always show every person without hidden overflow.
+- Softened Event Day checklist styling so critical items use calmer badges instead of loud full-row color blocks.
+- Removed leftover Supabase runtime artifacts from `src/` so Firebase is the only active backend path in the app code.
+- Verified with `npm run build` and in-browser QA for Focus, Launches, Money, People, and Event Day.
+
 ## Midnight Graphite Royal Redesign - June 18, 2026
 
 - Replaced the app palette with a midnight graphite and royal-blue Liquid Glass system in `src/styles/global.css`, including calmer surfaces, restrained glow, and updated controls.
@@ -192,3 +202,18 @@
 - Local MVP with hardcoded auth.
 - Dashboard, projects, phases, milestones, tasks, PR planner, calendar agenda.
 - Seed data for RCCS projects.
+# 2026-06-18
+
+## Firebase migration + workflow pass
+
+- Migrated the active backend path to Firebase Auth + Firestore + Firebase Hosting
+- Added `src/lib/firebaseClient.ts`, `src/lib/firebaseDataProvider.ts`, `src/lib/firebaseSeed.ts`, `firebase.json`, `.firebaserc`, `firestore.rules`, and `firestore.indexes.json`
+- Preserved local demo fallback while wiring `AppDataContext` save/load flows to Firestore when authenticated
+- Fixed Focus member resolution so it no longer guesses or falls back to the first person
+- Added reusable list limiting with `src/components/layout/ViewAllButton.tsx`
+- Reshaped Launches into a clearer workflow board and action queue
+- Moved Approvals edit/delete actions behind a quieter more-actions menu
+- Added external organization metadata for People and grouped roster chips by organization
+- Improved Money sheets and quotation clarity
+- Streamlined Event-Day problem visibility and one-tap status handling
+- Updated environment, runtime labels, and deploy scripts for Firebase / FlowCanvas

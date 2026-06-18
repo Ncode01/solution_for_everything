@@ -5,7 +5,8 @@
 
 import { ActivityItem, ActivityItemType } from '../types';
 import { generateId } from './dateUtils';
-import { syncActivityToSupabase } from './supabaseActivity';
+import { saveFirebaseCollectionItem } from './firebaseDataProvider';
+import { firebaseConfigured, auth } from './firebaseClient';
 
 export function createActivityItem(
   type: ActivityItemType,
@@ -34,5 +35,6 @@ export function createActivityItem(
 }
 
 export function logActivityItem(item: ActivityItem): void {
-  syncActivityToSupabase(item).catch((e) => console.warn('[activity supabase]', e));
+  if (!firebaseConfigured || !auth?.currentUser) return;
+  saveFirebaseCollectionItem('activityItems', item).catch((e) => console.warn('[activity firebase]', e));
 }

@@ -3,20 +3,20 @@
  *
  * Selects between:
  *   - localProvider: reads/writes localStorage (Local Demo Mode)
- *   - supabaseProvider: reads/writes Supabase (Supabase Connected)
+ *   - firebaseProvider: reads/writes Firestore (Firebase Connected)
  *
- * The active provider is chosen based on whether VITE_SUPABASE_URL and
- * VITE_SUPABASE_ANON_KEY are set. The app never crashes if Supabase is
+ * The active provider is chosen based on whether Firebase env vars are set.
+ * The app never crashes if Firebase is
  * not configured — it falls back to localStorage silently.
  *
  * Usage:
- *   import { getConnectionMode } from './supabaseClient';
- *   // The AppDataContext already uses localStorage. Supabase reads are
- *   // performed per-page as needed via the supabase client directly.
+ *   import { getConnectionMode } from './firebaseClient';
+ *   // The AppDataContext already uses localStorage. Firebase reads are
+ *   // performed via the shared Firestore provider when available.
  *   // This file provides the mode indicator and helper utilities.
  */
 
-import { getConnectionMode, type ConnectionMode } from './supabaseClient';
+import { getConnectionMode, type ConnectionMode } from './firebaseClient';
 
 export { getConnectionMode, type ConnectionMode };
 
@@ -24,7 +24,7 @@ export { getConnectionMode, type ConnectionMode };
  * Returns a human-readable label for the current connection mode.
  */
 export function getConnectionLabel(): string {
-  return getConnectionMode() === 'supabase' ? 'Supabase Connected' : 'Local Demo Mode';
+  return getConnectionMode() === 'firebase' ? 'Firebase Connected' : 'Local Demo Mode';
 }
 
 /**
@@ -35,8 +35,8 @@ export function isLocalMode(): boolean {
 }
 
 /**
- * Returns whether the app is connected to Supabase.
+ * Returns whether the app is connected to Firebase.
  */
-export function isSupabaseMode(): boolean {
-  return getConnectionMode() === 'supabase';
+export function isFirebaseMode(): boolean {
+  return getConnectionMode() === 'firebase';
 }

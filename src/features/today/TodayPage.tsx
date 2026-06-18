@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -33,6 +33,7 @@ import WorkQueue from '../../components/layout/WorkQueue';
 import WorkQueueRow from '../../components/layout/WorkQueueRow';
 import EmptyMoment from '../../components/layout/EmptyMoment';
 import Card from '../../components/Card';
+import ViewAllButton from '../../components/layout/ViewAllButton';
 
 interface Props {
   user: User;
@@ -41,6 +42,7 @@ interface Props {
 export default function TodayPage({ user }: Props) {
   const navigate = useNavigate();
   const { data } = useAppData();
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const { projects, sponsors, meetings, approvals, transactions, members, activityItems } = data;
   const attentionGroups = useMemo(() => buildAttention(data), [data]);
   const totalAttention = attentionGroups.reduce((sum, group) => sum + group.items.length, 0);
@@ -142,6 +144,7 @@ export default function TodayPage({ user }: Props) {
     { label: 'New Approval', icon: CheckSquare, onClick: () => navigate('/approvals?new=1') },
     { label: 'Open Event Day', icon: Sparkles, onClick: () => navigate('/event-day') },
   ];
+  const visibleItems = <T,>(items: T[], key: string, limit = 6) => expandedSections[key] ? items : items.slice(0, limit);
 
   return (
     <ScreenCanvas variant="cockpit">
@@ -172,26 +175,27 @@ export default function TodayPage({ user }: Props) {
                 description="Nothing is currently flagged as urgent."
               />
             ) : (
-              attentionGroups.flatMap((group) => group.items.map((item) => (
+              visibleItems(attentionGroups.flatMap((group) => group.items.map((item) => ({ ...item, group }))), 'attention').map((entry) => (
                 <WorkQueueRow
-                  key={`${group.key}-${item.id}`}
-                  title={item.title}
-                  meta={`${group.label} · ${item.meta}`}
+                  key={`${entry.group.key}-${entry.id}`}
+                  title={entry.title}
+                  meta={`${entry.group.label} · ${entry.meta}`}
                   owner={<span>Queue</span>}
-                  due={item.date ? formatDateShort(item.date) : 'No date'}
-                  status={item.badge ? <StatusBadge status={item.badge} /> : <StatusDot label={group.label} tone={group.tone === 'danger' ? 'red' : group.tone === 'warning' ? 'amber' : 'blue'} />}
-                  action={<button className="btn-ghost text-xs" onClick={() => navigate(item.link)}>Open</button>}
-                  tone={group.tone === 'danger' ? 'critical' : group.tone === 'warning' ? 'warning' : 'accent'}
+                  due={entry.date ? formatDateShort(entry.date) : 'No date'}
+                  status={entry.badge ? <StatusBadge status={entry.badge} /> : <StatusDot label={entry.group.label} tone={entry.group.tone === 'danger' ? 'red' : entry.group.tone === 'warning' ? 'amber' : 'blue'} />}
+                  action={<button className="btn-ghost text-xs" onClick={() => navigate(entry.link)}>Open</button>}
+                  tone={entry.group.tone === 'danger' ? 'critical' : entry.group.tone === 'warning' ? 'warning' : 'accent'}
                 />
-              )))
+              ))
             )}
+            {totalAttention > 6 && <ViewAllButton count={totalAttention} label={expandedSections.attention ? 'Collapse' : `+${totalAttention - 6} more`} compact onClick={() => setExpandedSections((current) => ({ ...current, attention: !current.attention }))} />}
           </WorkQueue>
 
           <WorkQueue title="Due today">
             {dueToday.length === 0 ? (
               <EmptyMoment title="Nothing is due today" description="Today has room for follow-through and preparation." />
             ) : (
-              dueToday.map((item) => (
+              visibleItems(dueToday, 'due').map((item) => (
                 <WorkQueueRow
                   key={item.id}
                   title={item.title}
@@ -202,13 +206,14 @@ export default function TodayPage({ user }: Props) {
                 />
               ))
             )}
+            {dueToday.length > 6 && <ViewAllButton count={dueToday.length} label={expandedSections.due ? 'Collapse' : `+${dueToday.length - 6} more`} compact onClick={() => setExpandedSections((current) => ({ ...current, due: !current.due }))} />}
           </WorkQueue>
 
           <WorkQueue title="Recent activity">
             {(activityItems ?? []).length === 0 ? (
               <EmptyMoment title="No activity yet" description="New work updates will appear here as the team moves." />
             ) : (
-              [...(activityItems ?? [])].slice(-8).reverse().map((item) => (
+              visibleItems([...(activityItems ?? [])].slice(-12).reverse(), 'activity').map((item) => (
                 <WorkQueueRow
                   key={item.id}
                   title={item.summary}
@@ -218,6 +223,7 @@ export default function TodayPage({ user }: Props) {
                 />
               ))
             )}
+            {(activityItems ?? []).length > 6 && <ViewAllButton count={(activityItems ?? []).length} label={expandedSections.activity ? 'Collapse' : `+${Math.max((activityItems ?? []).length - 6, 0)} more`} compact onClick={() => setExpandedSections((current) => ({ ...current, activity: !current.activity }))} />}
           </WorkQueue>
         </div>
 

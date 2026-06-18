@@ -1,10 +1,8 @@
 import { PRItem, PRWorkflowStatus } from '../types';
 
-/** Three pipeline tabs shown on Launches page */
-export const DISPLAY_LANES = ['Sent to Designer', 'In Approval', 'Ready to Post'] as const;
+export const DISPLAY_LANES = ['Sent to Designer', 'Under Approval', 'Ready to Share'] as const;
 export type DisplayLane = typeof DISPLAY_LANES[number];
 
-/** @deprecated use DISPLAY_LANES */
 export const WORKFLOW_LANES = DISPLAY_LANES;
 
 export function getPRWorkflowStatus(item: PRItem): PRWorkflowStatus {
@@ -128,11 +126,6 @@ export function validateWorkflowTransition(item: PRItem, next: PRWorkflowStatus)
     case 'Designing':
       if (!hasSource && !finalLink.trim()) return 'Add a design link before submitting.';
       break;
-    case 'Ready to Launch':
-      if (item.approvalStatus !== 'Approved' && getPRWorkflowStatus(item) !== 'In Approval') {
-        // allow transition from In Approval when marking approved
-      }
-      break;
     case 'Posted':
       if (!item.publishDate) return 'Set a publish date or confirm posting.';
       break;
@@ -142,10 +135,9 @@ export function validateWorkflowTransition(item: PRItem, next: PRWorkflowStatus)
   return null;
 }
 
-export function laneForStatus(status: PRWorkflowStatus): DisplayLane | 'Archived' {
-  if (status === 'Posted' || status === 'Archived') return 'Archived';
-  if (['In Approval', 'Design Submitted'].includes(status)) return 'In Approval';
-  if (['Ready to Launch', 'Scheduled'].includes(status)) return 'Ready to Post';
+export function laneForStatus(status: PRWorkflowStatus): DisplayLane {
+  if (['In Approval', 'Changes Requested'].includes(status)) return 'Under Approval';
+  if (['Ready to Launch', 'Scheduled'].includes(status)) return 'Ready to Share';
   return 'Sent to Designer';
 }
 

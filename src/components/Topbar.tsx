@@ -1,7 +1,7 @@
 import React from 'react';
 import { LogOut, Menu, Search, Shield, User as UserIcon, Wifi, WifiOff } from 'lucide-react';
 import { User } from '../types';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { firebaseConfigured } from '../lib/firebaseClient';
 import GlobalSearch from './GlobalSearch';
 import AttentionBell from './AttentionBell';
 
@@ -22,7 +22,7 @@ const ROLE_ICON: Record<string, React.ReactNode> = {
 };
 
 export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }: TopbarProps) {
-  const isSupabase = isSupabaseConfigured;
+  const isFirebase = firebaseConfigured;
 
   return (
     <header className="relative z-[var(--z-topbar)] flex h-20 shrink-0 items-center gap-3 px-3 sm:px-6">
@@ -52,10 +52,10 @@ export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }:
       <AttentionBell />
 
       <div
-        className={`hidden md:flex control-pill min-h-0 py-1 px-2 text-[11px] ${isSupabase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}
-        title={isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
+        className={`hidden md:flex control-pill min-h-0 py-1 px-2 text-[11px] ${isFirebase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}
+        title={isFirebase ? 'Firebase Connected' : 'Local Demo Mode'}
       >
-        {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
+        {isFirebase ? <Wifi size={11} /> : <WifiOff size={11} />}
       </div>
 
       <div className="control-pill">

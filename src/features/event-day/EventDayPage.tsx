@@ -13,6 +13,7 @@ import WorkQueueRow from '../../components/layout/WorkQueueRow';
 import EmptyMoment from '../../components/layout/EmptyMoment';
 import PersonToken from '../../components/design/PersonToken';
 import Card from '../../components/Card';
+import ViewAllButton from '../../components/layout/ViewAllButton';
 
 const STATUSES: EventDayItemStatus[] = ['Not Ready', 'Ready', 'In Progress', 'Completed', 'Problem'];
 const QUICK_STATUSES: EventDayItemStatus[] = ['Not Ready', 'Ready', 'In Progress', 'Completed', 'Problem'];
@@ -50,11 +51,11 @@ function StatusQuickButtons({
     <div className="flex flex-wrap gap-1.5 justify-end">
       {QUICK_STATUSES.map((status) => {
         const active = current === status;
-        const tone = status === 'Problem' ? 'bg-red-500/20 text-red-200 ring-red-500/40'
-          : status === 'Completed' ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/40'
-          : status === 'In Progress' ? 'bg-blue-500/20 text-blue-200 ring-blue-500/40'
-          : status === 'Ready' ? 'bg-cyan-500/20 text-cyan-200 ring-cyan-500/40'
-          : 'bg-white/5 text-[var(--text-secondary)] ring-white/10';
+        const tone = status === 'Problem' ? 'bg-red-500/12 text-red-100 ring-red-500/20'
+          : status === 'Completed' ? 'bg-emerald-500/12 text-emerald-100 ring-emerald-500/20'
+          : status === 'In Progress' ? 'bg-blue-500/12 text-blue-100 ring-blue-500/20'
+          : status === 'Ready' ? 'bg-cyan-500/12 text-cyan-100 ring-cyan-500/20'
+          : 'bg-white/[0.04] text-[var(--text-secondary)] ring-white/10';
         return (
           <button
             key={status}
@@ -82,6 +83,7 @@ export default function EventDayPage() {
   const [moreMenu, setMoreMenu] = useState<string | null>(null);
   const [form, setForm] = useState<ItemFormData>(defaultForm());
   const [copied, setCopied] = useState(false);
+  const [showAllProblems, setShowAllProblems] = useState(false);
 
   const project = projects.find((item) => item.id === selectedProjectId);
   const items = eventDayItems.filter((item) => item.projectId === selectedProjectId);
@@ -148,7 +150,7 @@ export default function EventDayPage() {
 
   return (
     <ScreenCanvas variant="cockpit">
-      <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-[var(--border-subtle)] bg-[var(--surface-base)]/95 px-4 py-3 backdrop-blur-md md:-mx-6 md:px-6">
+      <div className="-mx-4 mb-4 border-b border-[var(--border-subtle)] bg-[var(--surface-base)] px-4 py-3 md:-mx-6 md:px-6">
         <div className="grid gap-3 md:grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,0.5fr))]">
           <div className="space-y-2">
             <select className="select" value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
@@ -194,11 +196,14 @@ export default function EventDayPage() {
         {problems.length === 0 ? (
           <EmptyMoment title="No live problems" description="The current event-day board is clear." />
         ) : (
-          problems.map((item) => (
-            <div key={item.id} className="border-b border-[var(--border-hairline)] px-4 py-4 md:px-5 bg-red-500/5">
+          (showAllProblems ? problems : problems.slice(0, 5)).map((item) => (
+            <div key={item.id} className="border-b border-[var(--border-hairline)] px-4 py-4 md:px-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-red-200">{item.title}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</div>
+                    <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-red-100">Problem</span>
+                  </div>
                   <div className="mt-1 text-xs text-[var(--text-tertiary)]">{item.category} · {item.scheduledTime || 'No time'}</div>
                   {item.notes && <div className="mt-1 text-xs text-[var(--text-secondary)]">{item.notes}</div>}
                   <div className="mt-2">{item.owner ? <PersonToken name={item.owner} detail="Owner" compact /> : <span className="text-xs text-[var(--warning)]">Unassigned</span>}</div>
@@ -212,6 +217,7 @@ export default function EventDayPage() {
             </div>
           ))
         )}
+        {problems.length > 5 && <div className="px-4 py-3 md:px-5"><ViewAllButton count={problems.length} label={showAllProblems ? 'Collapse' : `+${problems.length - 5} more`} compact onClick={() => setShowAllProblems((current) => !current)} /></div>}
       </WorkQueue>
 
       <WorkQueue title="Checklist">
@@ -223,16 +229,26 @@ export default function EventDayPage() {
             ...group.items.map((item) => (
               <div
                 key={item.id}
-                className={`border-b border-[var(--border-hairline)] px-4 py-3 md:px-5 ${item.status === 'Completed' ? 'opacity-60' : ''} ${item.priority === 'Critical' ? 'bg-amber-500/5' : ''}`}
+                className={`border-b border-[var(--border-hairline)] px-4 py-3 md:px-5 ${item.status === 'Completed' ? 'opacity-60' : ''}`}
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0 flex-1">
-                    <div className={`text-sm font-medium ${item.priority === 'Critical' ? 'text-amber-200' : 'text-[var(--text-primary)]'}`}>{item.title}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-medium text-[var(--text-primary)]">{item.title}</div>
+                      {item.priority !== 'Normal' && (
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                          item.priority === 'Critical'
+                            ? 'border-amber-500/20 bg-amber-500/10 text-amber-100'
+                            : 'border-blue-500/20 bg-blue-500/10 text-blue-100'
+                        }`}>
+                          {item.priority}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
                       <span>{item.category}</span>
                       <span>·</span>
                       <span>{item.scheduledTime || 'No time'}</span>
-                      {item.priority !== 'Normal' && <span className="text-[var(--warning)]">· {item.priority}</span>}
                     </div>
                     <div className="mt-1.5">{item.owner ? <PersonToken name={item.owner} compact /> : <span className="text-xs text-[var(--text-tertiary)]">Unassigned</span>}</div>
                   </div>
