@@ -23,7 +23,7 @@ function projectName(projects: Project[], id?: string): string {
 }
 
 export function buildAttention(data: AppData): AttentionGroup[] {
-  const { projects, sponsors, transactions, meetings, approvals } = data;
+  const { projects, sponsors, transactions, meetings, approvals, deliverables = [] } = data;
   const groups: AttentionGroup[] = [];
 
   // Overdue tasks
@@ -111,7 +111,7 @@ export function buildAttention(data: AppData): AttentionGroup[] {
         meta: `${projectName(projects, s.projectId)} · ${s.assignedMember || 'Unassigned'}`,
         date: s.nextFollowUpDate,
         badge: s.stage,
-        link: '/budget',
+        link: '/money',
       });
     }
     const unpaid = s.paymentStatus !== 'Paid' && s.paymentStatus !== 'Not Requested';
@@ -121,7 +121,7 @@ export function buildAttention(data: AppData): AttentionGroup[] {
         title: `${s.name} — payment ${s.paymentStatus}`,
         meta: `${projectName(projects, s.projectId)} · Rs ${s.amount.toLocaleString('en-LK')}`,
         badge: s.paymentStatus,
-        link: '/budget',
+        link: '/money',
       });
     }
   });
@@ -176,6 +176,20 @@ export function buildAttention(data: AppData): AttentionGroup[] {
     }));
   if (pendingApprovals.length)
     groups.push({ key: 'approvals', label: 'Approval requests pending', tone: 'info', items: pendingApprovals });
+
+  // Overdue deliverables (not completed/approved/published)
+  const overdueDeliverables: AttentionItem[] = deliverables
+    .filter((d) => d.dueDate && isOverdue(d.dueDate) && !['Completed', 'Approved', 'Published', 'Archived'].includes(d.status))
+    .map((d) => ({
+      id: d.id,
+      title: d.title,
+      meta: `${projectName(projects, d.projectId)} · ${d.type}`,
+      date: d.dueDate,
+      badge: d.status,
+      link: `/projects/${d.projectId}`,
+    }));
+  if (overdueDeliverables.length)
+    groups.push({ key: 'overdue-deliverables', label: 'Overdue deliverables', tone: 'warning', items: overdueDeliverables });
 
   return groups;
 }

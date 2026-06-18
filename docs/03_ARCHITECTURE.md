@@ -100,3 +100,22 @@ Pages support `?new=1` to auto-open their create form (used by dashboard / proje
 ## Auth Flow
 
 Unchanged from Phase One. `getSession()` reads localStorage; `LoginPage` calls `login()`; logout clears the session. Still temporary hardcoded MVP auth.
+
+## RCCS OS Design System Architecture
+
+The current UI layer is token-driven and lives primarily in `src/styles/global.css` plus reusable primitives in `src/components/design/`.
+
+Core material rules:
+- `app-background` owns the spatial deep-navy background.
+- Glass materials are reserved for app chrome, command/search surfaces, filter bars, inspectors, modals, and high-level controls.
+- `Card`, `SolidPanel`, and strong surfaces are used for dense operational data, tables, finance rows, event-day checklists, and attention lists.
+- Accessibility fallbacks are defined for reduced transparency, reduced motion, and increased contrast.
+
+Design primitives:
+- `GlassPanel`, `SolidPanel`, `FloatingBar`
+- `SegmentedControl`
+- `LiquidButton`, `LiquidInput`
+- `StatCapsule`, `AttentionRow`
+- `PersonToken`, `StatusDot`
+
+The app shell is composed from `Layout`, `Sidebar`, `Topbar`, `GlobalSearch`, `AttentionBell`, and `CommandMenu`. Sidebar and topbar should remain the primary chrome surfaces; child routes should not add their own global keyboard handlers or duplicate navigation.

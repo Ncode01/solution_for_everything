@@ -37,8 +37,9 @@ export default function AttentionBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+        className="relative apple-button-glass p-2"
         title="Attention Center"
+        aria-label="Attention Center"
       >
         <Bell size={19} />
         {total > 0 && (
@@ -49,8 +50,8 @@ export default function AttentionBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 max-h-[70vh] overflow-y-auto">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 glass-panel-strong rounded-[var(--radius-lg)] shadow-2xl z-40 max-h-[70vh] overflow-y-auto motion-safe-pop">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between sticky top-0 glass-panel-strong">
             <h3 className="text-sm font-semibold text-white">Attention Center</h3>
             <span className="text-xs text-slate-500">{total} item{total !== 1 ? 's' : ''}</span>
           </div>
@@ -73,7 +74,7 @@ export default function AttentionBell() {
                     <button
                       key={item.id}
                       onClick={() => go(item.link)}
-                      className="w-full text-left px-4 py-1.5 hover:bg-slate-800 transition-colors"
+                      className="w-full text-left px-4 py-1.5 hover:bg-white/8 transition-colors"
                     >
                       <p className="text-sm text-slate-200 truncate">{item.title}</p>
                       <p className="text-xs text-slate-500 truncate">

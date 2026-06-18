@@ -1,6 +1,31 @@
 # RCCS OS
 
+## Apple-Caliber UI System Pass
+
+RCCS OS now includes a Liquid Glass-inspired interface system built with local CSS and React components. Glass is used selectively for app chrome, navigation, command surfaces, inspectors, modals, and filter bars; data-heavy operational content stays on solid or strong surfaces for readability.
+
+**Design-system additions:**
+- CSS tokens for app background, glass/solid surfaces, borders, semantic colors, radii, shadows, motion, and z-index
+- Reduced transparency, reduced motion, and higher contrast fallbacks
+- Shared primitives: GlassPanel, SolidPanel, FloatingBar, SegmentedControl, LiquidButton, LiquidInput, StatCapsule, AttentionRow, PersonToken, and StatusDot
+- Polished RCCS OS glass rail sidebar and floating command topbar
+- Rolling 60-day Calendar grid: previous 30 days, today, next 30 days
+- Studio-style Launches pipeline and Event-Day Now / Next / Problems cockpit strip
+
 The internal operating system for the Royal College Computer Society. Built for real project tracking, deadline management, team coordination, launches, money, people, approvals, and event-day operations.
+
+## Final Phase — RCCS OS Complete
+
+RCCS OS is ready for real internal RCCS testing. This phase completed remaining gaps: project templates, activity auto-logging, deliverables in calendar, slide-over inspectors, role-aware navigation, handover reports, and Event-Day Mode from Project Overview.
+
+**Final phase additions:**
+- **Project Templates** — 8 templates (Blank, ICT Day, Workshop, Outreach, Software, Publication, Hackathon, Internal System) prefill phases, milestones, deliverables, tasks, launches, and event-day checklists
+- **Activity Timeline** — auto-logged on mutations (tasks, launches, sponsors, approvals, deliverables, event-day, reports, etc.)
+- **Handover Reports** — Library → Handover and Project Overview → Generate Handover (17-section comprehensive report)
+- **Slide-over Inspectors** — Task, Deliverable, Launch, Sponsor, Person, Approval, Meeting, Calendar Day
+- **Role-aware navigation** — sidebar and route guards by role (Super Admin sees all; Member simplified; Viewer limited)
+- **Calendar** — deliverables, approvals, payments, event-day items; Deliverable filter; owner filter
+- **Supabase activity_items** — sync on insert when Supabase mode is configured (local fallback unchanged)
 
 ## Phase Six — Current State (RCCS OS)
 

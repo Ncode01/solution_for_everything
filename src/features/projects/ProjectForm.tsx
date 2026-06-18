@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { Project, ProjectStatus, ProjectPriority, ProjectType } from '../../types';
 import { generateId } from '../../lib/dateUtils';
+import { PROJECT_TEMPLATES, ProjectTemplateId } from '../../lib/projectTemplates';
+import MemberSelect from '../../components/MemberSelect';
+import { Member } from '../../types';
 
 interface Props {
   initial?: Partial<Project>;
+  members?: Member[];
   onSave: (project: Project) => void;
   onCancel: () => void;
 }
@@ -21,7 +25,9 @@ const TYPES: ProjectType[] = [
   'Mixed Project',
 ];
 
-export default function ProjectForm({ initial, onSave, onCancel }: Props) {
+export default function ProjectForm({ initial, members = [], onSave, onCancel }: Props) {
+  const isEdit = !!initial?.id;
+  const [templateId, setTemplateId] = useState<ProjectTemplateId>('blank');
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     type: initial?.type ?? 'Mixed Project' as ProjectType,
@@ -29,6 +35,7 @@ export default function ProjectForm({ initial, onSave, onCancel }: Props) {
     priority: initial?.priority ?? 'Medium' as ProjectPriority,
     description: initial?.description ?? '',
     owner: initial?.owner ?? '',
+    ownerId: initial?.ownerId ?? '',
     year: initial?.year ?? new Date().getFullYear(),
     startDate: initial?.startDate ?? '',
     endDate: initial?.endDate ?? '',
@@ -40,21 +47,65 @@ export default function ProjectForm({ initial, onSave, onCancel }: Props) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function onTemplateChange(id: ProjectTemplateId) {
+    setTemplateId(id);
+    const tpl = PROJECT_TEMPLATES.find((t) => t.id === id);
+    if (tpl && !isEdit) {
+      set('type', tpl.projectType);
+      set('status', tpl.suggestedStatus);
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const project: Project = {
       id: initial?.id ?? generateId(),
-      ...form,
+      name: form.name,
+      type: form.type,
+      status: form.status,
+      priority: form.priority,
+      description: form.description,
+      owner: form.owner,
+      ownerId: form.ownerId || undefined,
+      year: form.year,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      finalEventDate: form.finalEventDate || undefined,
+      progress: form.progress,
       phases: initial?.phases ?? [],
       milestones: initial?.milestones ?? [],
       tasks: initial?.tasks ?? [],
       prItems: initial?.prItems ?? [],
-    };
+      _templateId: !isEdit ? templateId : undefined,
+    } as Project & { _templateId?: ProjectTemplateId };
     onSave(project);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {!isEdit && (
+        <div>
+          <label className="label">Project Template</label>
+          <div className="grid sm:grid-cols-2 gap-2 mt-1">
+            {PROJECT_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => onTemplateChange(tpl.id)}
+                className={`text-left p-3 rounded-xl border transition-colors ${
+                  templateId === tpl.id
+                    ? 'border-blue-500 bg-blue-600/10'
+                    : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                }`}
+              >
+                <p className="text-sm font-medium text-white">{tpl.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{tpl.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="label">Project Name *</label>
@@ -84,7 +135,16 @@ export default function ProjectForm({ initial, onSave, onCancel }: Props) {
         </div>
         <div className="col-span-2">
           <label className="label">Owner / Project Head</label>
-          <input className="input" value={form.owner} onChange={(e) => set('owner', e.target.value)} placeholder="e.g. RCCS Admin" />
+          {members.length > 0 ? (
+            <MemberSelect
+              members={members}
+              value={form.ownerId || form.owner}
+              onChange={(id, name) => { set('ownerId', id); set('owner', name); }}
+              placeholder="Select project owner…"
+            />
+          ) : (
+            <input className="input" value={form.owner} onChange={(e) => set('owner', e.target.value)} placeholder="e.g. RCCS Admin" />
+          )}
         </div>
         <div className="col-span-2">
           <label className="label">Description</label>
@@ -110,7 +170,7 @@ export default function ProjectForm({ initial, onSave, onCancel }: Props) {
 
       <div className="flex gap-3 pt-2">
         <button type="submit" className="btn-primary flex-1 justify-center">
-          {initial?.id ? 'Save Changes' : 'Create Project'}
+          {initial?.id ? 'Save Changes' : templateId === 'blank' ? 'Create Project' : 'Create from Template'}
         </button>
         <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
       </div>

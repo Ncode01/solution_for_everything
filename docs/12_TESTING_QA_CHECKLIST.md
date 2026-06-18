@@ -32,3 +32,32 @@ No automated tests in this MVP. Use this manual checklist before considering cha
 - [ ] Import an invalid file → error message, no crash
 - [ ] Mobile width: sidebar drawer, stacked cards, tappable buttons, forms/modals fit
 - [ ] Login as a member account; app still usable
+# RCCS OS Visual QA Additions
+
+## Visual System
+
+- Confirm sidebar renders as RCCS OS glass rail on desktop.
+- Confirm mobile opens sidebar through the top-left menu and does not horizontally overflow.
+- Confirm topbar search, command hint, attention button, connection chip, profile pill, and logout fit on desktop and mobile.
+- Confirm glass is limited to chrome/control/overlay surfaces; dense rows remain readable.
+- Confirm reduced motion and reduced transparency fallbacks are defined in CSS.
+
+## Screen Checks
+
+- Today: hero command strip, stat capsules, attention rows, project health, and mobile row behavior.
+- Focus: personal workload sections remain readable.
+- Calendar: rolling previous-30/today/next-30 range aligns to weekday columns; day inspector still opens.
+- Project Detail: exactly seven tabs remain: Overview, Timeline, Tasks, Launches, Meetings, Money, Approvals.
+- Launches: five-lane publishing pipeline and full work list both render.
+- Money: numeric hierarchy stays aligned and readable.
+- People: overloaded/available rails and member cards render without badge clutter.
+- Library: segmented sections switch correctly.
+- System: health/backups/security panels remain readable.
+- Event-Day: Now / Next / Problems strip, readiness, problem section, and checklist actions work on mobile.
+
+## Commands
+
+- Run `npm run build`.
+- Run `npm run lint` or `npm run test` if scripts are added later.
+- Capture desktop screenshots for login, Today, Calendar, Launches, Money, People, Library, System, Event-Day.
+- Capture at least one mobile screenshot for Today or Event-Day.

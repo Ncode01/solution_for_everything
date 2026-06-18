@@ -5,7 +5,7 @@ import {
   Target, ListTodo, Megaphone, LayoutGrid, ExternalLink, Check,
   CalendarCheck, Wallet, CheckSquare, FileText, Flag, Layers,
   Handshake, TrendingUp, TrendingDown, MinusCircle, Package,
-  ClipboardList, DollarSign, Rocket,
+  ClipboardList, DollarSign, Rocket, PartyPopper,
 } from 'lucide-react';
 import {
   Project, Phase, Milestone, Task, PRItem, TaskStatus, TaskPriority, PhaseStatus, MilestoneStatus,
@@ -35,7 +35,12 @@ import TransactionForm from '../budget/TransactionForm';
 import BudgetForm from '../budget/BudgetForm';
 import ApprovalForm from '../approvals/ApprovalForm';
 import FileLinkForm from '../files/FileLinkForm';
-import { generateProjectReport } from '../../lib/report';
+import { generateProjectReport, generateHandoverReport } from '../../lib/report';
+import { isEventLikeProjectType } from '../../lib/projectTemplates';
+import {
+  TaskInspector, DeliverableInspector, LaunchInspector, SponsorInspector, ApprovalInspector, MeetingInspector,
+} from '../../components/inspectors/EntityInspectors';
+import SegmentedControl from '../../components/design/SegmentedControl';
 
 type Tab = 'overview' | 'timeline' | 'tasks' | 'launches' | 'meetings' | 'money' | 'approvals';
 
@@ -53,7 +58,7 @@ export default function ProjectDetailPage() {
     data, saveProject, deleteProject, saveMeeting, deleteMeeting,
     saveSponsor, deleteSponsor, saveTransaction, deleteTransaction,
     saveBudget, saveApproval, deleteApproval, saveReport,
-    saveFileLink, deleteFileLink,
+    saveFileLink, deleteFileLink, saveDeliverable,
   } = useAppData();
   const project = data.projects.find((p) => p.id === id);
 
@@ -80,6 +85,12 @@ export default function ProjectDetailPage() {
   const [taskFilter, setTaskFilter] = useState<TaskStatus | 'All'>('All');
   const [txnTypeFilter, setTxnTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [inspectTask, setInspectTask] = useState<Task | null>(null);
+  const [inspectDeliverable, setInspectDeliverable] = useState<Deliverable | null>(null);
+  const [inspectLaunch, setInspectLaunch] = useState<PRItem | null>(null);
+  const [inspectSponsor, setInspectSponsor] = useState<Sponsor | null>(null);
+  const [inspectApproval, setInspectApproval] = useState<ApprovalRequest | null>(null);
+  const [inspectMeeting, setInspectMeeting] = useState<Meeting | null>(null);
 
   if (!project) {
     return (
@@ -173,6 +184,18 @@ export default function ProjectDetailPage() {
   const moneyHealthColor = moneyHealthScore === 'Healthy' ? 'text-emerald-400' : moneyHealthScore === 'Needs Attention' ? 'text-amber-400' : 'text-red-400';
 
   const projectDeliverables = (data.deliverables ?? []).filter((d) => d.projectId === p.id);
+  const projectEventDayItems = (data.eventDayItems ?? []).filter((e) => e.projectId === p.id);
+  const showEventDay = isEventLikeProjectType(p.type) || projectEventDayItems.length > 0;
+  const recentActivity = (data.activityItems ?? []).filter((a) => a.projectId === p.id).slice(-8).reverse();
+  const recentDecisions = projectMeetings.flatMap((m) => m.decisions.map((d) => ({ ...d, meetingTitle: m.title, meetingDate: m.date }))).slice(-5).reverse();
+
+  const nextAction = (() => {
+    if (overdueTasks.length > 0) return { label: overdueTasks[0].title, detail: 'Overdue task', tab: 'tasks' as Tab };
+    if (pendingPR.length > 0) return { label: pendingPR[0].title, detail: 'Launch awaiting approval', tab: 'launches' as Tab };
+    if (pendingApprovals.length > 0) return { label: pendingApprovals[0].title, detail: 'Pending approval', tab: 'approvals' as Tab };
+    if (nextDeadlines[0]) return { label: nextDeadlines[0].label, detail: `Due ${formatDateShort(nextDeadlines[0].date)}`, tab: 'timeline' as Tab };
+    return null;
+  })();
 
   const TABS: { id: Tab; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: 'overview',  label: 'Overview',  icon: LayoutGrid },
@@ -186,14 +209,20 @@ export default function ProjectDetailPage() {
 
   const quickActions = [
     { label: 'Add Task',        icon: ListTodo,     onClick: () => { setTab('tasks');    setTaskModal({ open: true }); } },
-    { label: 'Add Milestone',   icon: Target,       onClick: () => { setTab('timeline'); setMilestoneModal({ open: true }); } },
+    { label: 'Add Deliverable', icon: Package,      onClick: () => { setTab('timeline'); } },
     { label: 'Add Launch',      icon: Megaphone,    onClick: () => { setTab('launches'); setPrModal({ open: true }); } },
     { label: 'Add Meeting',     icon: CalendarCheck,onClick: () => { setTab('meetings'); setMeetingModal({ open: true }); } },
-    { label: 'Add Sponsor',     icon: Handshake,    onClick: () => { setTab('money');    setSponsorModal({ open: true }); } },
-    { label: 'Add Transaction', icon: Wallet,       onClick: () => { setTab('money');    setTxnModal({ open: true }); } },
-    { label: 'Add File Link',   icon: FileText,     onClick: () => setFileLinkModal({ open: true }) },
+    { label: 'Open Money',      icon: Wallet,       onClick: () => setTab('money') },
+    ...(showEventDay ? [{ label: projectEventDayItems.length ? 'Open Event-Day Mode' : 'Start Event-Day Mode', icon: PartyPopper, onClick: () => navigate(`/event-day?project=${p.id}`) }] : []),
+    { label: 'Generate Handover', icon: ClipboardList, onClick: generateAndSaveHandover },
     { label: 'Generate Report', icon: FileText,     onClick: generateAndSaveReport },
   ];
+
+  function generateAndSaveHandover() {
+    const r = generateHandoverReport(data, p);
+    saveReport({ id: generateId(), projectId: p.id, title: r.title, type: 'Handover', summary: r.summary, generatedDate: todayISO(), sections: r.sections });
+    navigate('/library?section=handover');
+  }
 
   function generateAndSaveReport() {
     const r = generateProjectReport(data, p);
@@ -239,6 +268,22 @@ export default function ProjectDetailPage() {
 
         <Card className="lg:col-span-2">
           <SectionHeader title="Command Summary" tone={health.label === 'At Risk' ? 'danger' : 'default'} />
+          {nextAction && (
+            <div className="mb-3 p-3 rounded-lg bg-blue-950/20 border border-blue-800/30">
+              <p className="text-xs text-blue-400 font-semibold mb-0.5">Next action</p>
+              <button className="text-sm text-white font-medium hover:text-blue-300 text-left" onClick={() => setTab(nextAction.tab)}>
+                {nextAction.label}
+              </button>
+              <p className="text-xs text-slate-500">{nextAction.detail}</p>
+            </div>
+          )}
+          <p className="text-xs text-slate-500 mb-2">
+            {[
+              overdueTasks.length ? `${overdueTasks.length} overdue task(s)` : null,
+              pendingPR.length ? `${pendingPR.length} launch(s) awaiting approval` : null,
+              pendingApprovals.length ? `${pendingApprovals.length} pending approval(s)` : null,
+            ].filter(Boolean).join(' · ') || 'Project is on track.'}
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             <button onClick={() => setTab('tasks')} className="bg-slate-800/50 rounded-lg p-2.5 text-left hover:bg-slate-800 transition-colors">
               <p className={`text-lg font-bold ${overdueTasks.length ? 'text-red-400' : 'text-white'}`}>{overdueTasks.length}</p>
@@ -282,21 +327,17 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 overflow-x-auto">
-        {TABS.map(({ id: tabId, label, icon: Icon, badge }) => (
-          <button
-            key={tabId}
-            onClick={() => setTab(tabId)}
-            className={`flex items-center gap-1.5 px-3.5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              tab === tabId ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Icon size={15} /> {label}
-            {badge !== undefined && badge > 0 && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${tab === tabId ? 'bg-blue-600/30 text-blue-300' : 'bg-slate-800 text-slate-500'}`}>{badge}</span>
-            )}
-          </button>
-        ))}
+      <div className="floating-control p-2 overflow-x-auto sticky top-0 z-10">
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          options={TABS.map(({ id: value, label, icon: Icon, badge }) => ({
+            value,
+            label,
+            icon: <Icon size={15} />,
+            count: badge,
+          }))}
+        />
       </div>
 
       {/* ── OVERVIEW ── */}
@@ -443,14 +484,67 @@ export default function ProjectDetailPage() {
             )}
           </div>
 
-          {/* Generate Report */}
-          <Card className="flex items-center justify-between flex-wrap gap-3">
+          {/* Generate Report & Handover */}
+          <div className="grid md:grid-cols-2 gap-3">
+            <Card className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="font-semibold text-white text-sm flex items-center gap-2"><ClipboardList size={15} /> Generate Project Report</p>
+                <p className="text-xs text-slate-500 mt-0.5">Summary for review or team records.</p>
+              </div>
+              <button className="btn-primary text-sm" onClick={generateAndSaveReport}><FileText size={14} /> Generate & Save</button>
+            </Card>
+            <Card className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="font-semibold text-white text-sm flex items-center gap-2"><ClipboardList size={15} /> Generate Handover</p>
+                <p className="text-xs text-slate-500 mt-0.5">Full handover for the next RCCS batch.</p>
+              </div>
+              <button className="btn-secondary text-sm" onClick={generateAndSaveHandover}><Rocket size={14} /> Handover</button>
+            </Card>
+          </div>
+
+          {showEventDay && (
+            <Card className="flex items-center justify-between flex-wrap gap-3 border-violet-800/30">
+              <div>
+                <p className="font-semibold text-white text-sm flex items-center gap-2"><PartyPopper size={15} /> Event-Day Mode</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {projectEventDayItems.length > 0
+                    ? `${projectEventDayItems.length} checklist items · open live event-day view`
+                    : 'No checklist yet — open Event-Day Mode to add items or use a template'}
+                </p>
+              </div>
+              <button className="btn-primary text-sm" onClick={() => navigate(`/event-day?project=${p.id}`)}>
+                <PartyPopper size={14} /> {projectEventDayItems.length ? 'Open Event-Day Mode' : 'Start Event-Day Mode'}
+              </button>
+            </Card>
+          )}
+
+          {/* Recent Activity & Decisions */}
+          <div className="grid md:grid-cols-2 gap-5">
             <div>
-              <p className="font-semibold text-white text-sm flex items-center gap-2"><ClipboardList size={15} /> Generate Project Report</p>
-              <p className="text-xs text-slate-500 mt-0.5">Create a full summary for handover, review, or team records.</p>
+              <SectionHeader title="Recent Activity" />
+              <div className="space-y-1.5">
+                {recentActivity.length === 0 && <p className="text-slate-600 text-sm">No activity yet.</p>}
+                {recentActivity.map((a) => (
+                  <Card key={a.id} className="py-2">
+                    <p className="text-xs text-slate-300">{a.summary}</p>
+                    <p className="text-[10px] text-slate-600 mt-0.5">{formatDateShort(a.createdAt.slice(0, 10))}</p>
+                  </Card>
+                ))}
+              </div>
             </div>
-            <button className="btn-primary text-sm" onClick={generateAndSaveReport}><FileText size={14} /> Generate & Save</button>
-          </Card>
+            <div>
+              <SectionHeader title="Recent Decisions" />
+              <div className="space-y-1.5">
+                {recentDecisions.length === 0 && <p className="text-slate-600 text-sm">No meeting decisions recorded.</p>}
+                {recentDecisions.map((d) => (
+                  <Card key={d.id} className="py-2">
+                    <p className="text-xs text-slate-300">{d.decision}</p>
+                    <p className="text-[10px] text-slate-600 mt-0.5">{d.meetingTitle} · {formatDateShort(d.meetingDate)}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -565,7 +659,7 @@ export default function ProjectDetailPage() {
                       {(task.status === 'Done' || task.status === 'Approved') && <Check size={10} className="text-white" />}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium text-sm ${task.status === 'Done' || task.status === 'Approved' ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
+                      <p className={`font-medium text-sm cursor-pointer hover:text-blue-300 ${task.status === 'Done' || task.status === 'Approved' ? 'line-through text-slate-500' : 'text-white'}`} onClick={() => setInspectTask(task)}>{task.title}</p>
                       {task.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{task.description}</p>}
                       <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-slate-500">
                         <span className="flex items-center gap-1"><User size={10} /> {task.assigneeId ? (data.members.find((m) => m.id === task.assigneeId)?.displayName || task.assignee || 'Unassigned') : (task.assignee || 'Unassigned')}</span>
@@ -596,7 +690,7 @@ export default function ProjectDetailPage() {
             <Card key={pr.id}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap"><h3 className="font-semibold text-white text-sm">{pr.title}</h3><StatusBadge status={pr.approvalStatus} /><StatusBadge status={pr.publishingStatus} /></div>
+                  <div className="flex items-center gap-2 flex-wrap"><h3 className="font-semibold text-white text-sm cursor-pointer hover:text-blue-300" onClick={() => setInspectLaunch(pr)}>{pr.title}</h3><StatusBadge status={pr.approvalStatus} /><StatusBadge status={pr.publishingStatus} /></div>
                   <p className="text-xs text-slate-500 mt-0.5">{pr.platform} · {pr.campaign}</p>
                   <div className="flex items-center gap-4 text-xs text-slate-500 mt-1.5 flex-wrap">
                     <span>{pr.publishDate || 'No date'} {pr.publishTime}</span>
@@ -768,7 +862,7 @@ export default function ProjectDetailPage() {
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-white text-sm">{s.name}</h3>
+                            <h3 className="font-semibold text-white text-sm cursor-pointer hover:text-blue-300" onClick={() => setInspectSponsor(s)}>{s.name}</h3>
                             <StatusBadge status={s.stage} />
                             <StatusBadge status={s.paymentStatus} />
                           </div>
@@ -918,7 +1012,7 @@ export default function ProjectDetailPage() {
             <Card key={a.id}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap"><h3 className="font-semibold text-white text-sm">{a.title}</h3><StatusBadge status={a.status} /></div>
+                  <div className="flex items-center gap-2 flex-wrap"><h3 className="font-semibold text-white text-sm cursor-pointer hover:text-blue-300" onClick={() => setInspectApproval(a)}>{a.title}</h3><StatusBadge status={a.status} /></div>
                   <p className="text-xs text-slate-500 mt-0.5">{a.relatedType} · {a.requestedBy} → {a.approver}</p>
                   <p className="text-xs text-slate-600 mt-0.5">{formatDate(a.submittedDate)}{a.decisionDate ? ` → ${formatDate(a.decisionDate)}` : ''}</p>
                   {a.comments && <p className="text-xs text-slate-600 mt-1 italic">"{a.comments}"</p>}
@@ -983,6 +1077,30 @@ export default function ProjectDetailPage() {
 
       <ConfirmDialog open={!!confirm} title="Please confirm" message={confirm?.message ?? ''} confirmLabel="Delete" onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
       <ConfirmDialog open={confirmDeleteProject} title="Delete project?" message={`Delete "${p.name}" and all its data? This cannot be undone.`} confirmLabel="Delete Project" onConfirm={() => { deleteProject(p.id); navigate('/projects'); }} onCancel={() => setConfirmDeleteProject(false)} />
+
+      <TaskInspector open={!!inspectTask} onClose={() => setInspectTask(null)} task={inspectTask} project={p} members={data.members}
+        onStatusChange={(s) => { if (inspectTask) updateTaskStatus(inspectTask.id, s); setInspectTask((t) => t ? { ...t, status: s } : null); }}
+        onEdit={() => { if (inspectTask) { setTaskModal({ open: true, editing: inspectTask }); setInspectTask(null); } }}
+      />
+      <DeliverableInspector open={!!inspectDeliverable} onClose={() => setInspectDeliverable(null)} deliverable={inspectDeliverable} project={p} members={data.members}
+        onStatusChange={(s) => { if (inspectDeliverable) saveDeliverable({ ...inspectDeliverable, status: s, updatedAt: new Date().toISOString() }); setInspectDeliverable((d) => d ? { ...d, status: s } : null); }}
+      />
+      <LaunchInspector open={!!inspectLaunch} onClose={() => setInspectLaunch(null)} item={inspectLaunch} project={p} members={data.members}
+        onApprovalChange={(s) => { if (inspectLaunch) updatePRApproval(inspectLaunch.id, s); setInspectLaunch((x) => x ? { ...x, approvalStatus: s } : null); }}
+        onPublishingChange={(s) => { if (inspectLaunch) updatePRPublishing(inspectLaunch.id, s); setInspectLaunch((x) => x ? { ...x, publishingStatus: s } : null); }}
+        onEdit={() => { if (inspectLaunch) { setPrModal({ open: true, editing: inspectLaunch }); setInspectLaunch(null); } }}
+      />
+      <SponsorInspector open={!!inspectSponsor} onClose={() => setInspectSponsor(null)} sponsor={inspectSponsor} project={p} members={data.members}
+        onStageChange={(s) => { if (inspectSponsor) saveSponsor({ ...inspectSponsor, stage: s }); setInspectSponsor((x) => x ? { ...x, stage: s } : null); }}
+        onPaymentChange={(s) => { if (inspectSponsor) saveSponsor({ ...inspectSponsor, paymentStatus: s }); setInspectSponsor((x) => x ? { ...x, paymentStatus: s } : null); }}
+        onEdit={() => { if (inspectSponsor) { setSponsorModal({ open: true, editing: inspectSponsor }); setInspectSponsor(null); } }}
+      />
+      <ApprovalInspector open={!!inspectApproval} onClose={() => setInspectApproval(null)} approval={inspectApproval} project={p}
+        onEdit={() => { if (inspectApproval) { setApprovalModal({ open: true, editing: inspectApproval }); setInspectApproval(null); } }}
+      />
+      <MeetingInspector open={!!inspectMeeting} onClose={() => setInspectMeeting(null)} meeting={inspectMeeting} project={p}
+        onEdit={() => { if (inspectMeeting) { setMeetingModal({ open: true, editing: inspectMeeting }); setInspectMeeting(null); } }}
+      />
     </div>
   );
 }

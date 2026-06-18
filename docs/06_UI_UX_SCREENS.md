@@ -128,3 +128,31 @@
 - Date headers with today highlight and past date indicators
 - Each item shows: icon, label, project name, extra info, status badge
 - Color-coded by type: blue (tasks), amber (milestones), violet (PR), green (events)
+
+## RCCS OS Liquid Glass-Inspired UI Pass
+
+RCCS OS now uses a calm, spatial, Liquid Glass-inspired design language without copying Apple assets or making content unreadable.
+
+Placement rules:
+- Page primary actions live in `PageHeader` actions.
+- Section actions live beside `SectionHeader`.
+- Filters sit directly above the content they affect, preferably inside a floating control surface.
+- Row actions stay at the far right and should not force mobile overflow.
+- Destructive actions remain quiet until confirmation.
+
+Screen behavior updates:
+- Sidebar is a glass rail with active capsule indicators.
+- Topbar is a floating command surface with integrated search, command hint, attention button, connection chip, and profile pill.
+- Today opens with a command strip, compact stat capsules, readable attention rows, project health, money, and recent activity.
+- Calendar is a rolling 60-day grid: previous 30 days, today, next 30 days. Agenda remains available through segmented control.
+- Project Detail keeps exactly seven tabs and uses a sticky segmented control.
+- Launches uses a five-lane publishing pipeline plus a detailed filtered work list.
+- Money stays mostly solid for finance readability, with glass only for selectors/tabs/header chrome.
+- People includes workload/availability rails and standard person tokens.
+- Library uses segmented sections for Reports, Files & Links, Audit, Archives, and Handover.
+- Event-Day has a Now / Next / Problems cockpit strip above the checklist.
+
+Accessibility:
+- Text over glass must remain high contrast.
+- Dense operational data should use solid/strong surfaces.
+- Reduced transparency, reduced motion, and contrast media queries are defined in `global.css`.

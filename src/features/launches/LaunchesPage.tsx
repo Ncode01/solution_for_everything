@@ -93,6 +93,7 @@ export default function LaunchesPage() {
   const readyToPost = allPRItems.filter((pr) => pr.approvalStatus === 'Approved' && pr.publishingStatus !== 'Posted' && pr.publishingStatus !== 'Archived');
   const inDesign = allPRItems.filter((pr) => pr.publishingStatus === 'Designing');
   const scheduled = allPRItems.filter((pr) => pr.publishingStatus === 'Scheduled');
+  const posted = allPRItems.filter((pr) => pr.publishingStatus === 'Posted');
   const thisWeekItems = allPRItems.filter((pr) => isThisWeek(pr.publishDate) && pr.publishingStatus !== 'Posted');
 
   function MiniCard({ pr, accent }: { pr: PRItem & { projectName: string }; accent: string }) {
@@ -120,49 +121,23 @@ export default function LaunchesPage() {
         }
       />
 
-      {/* Status boards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="text-center py-3">
-          <p className="text-xl font-bold text-amber-300">{needsApproval.length}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Needs Approval</p>
-        </Card>
-        <Card className="text-center py-3">
-          <p className="text-xl font-bold text-emerald-300">{readyToPost.length}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Ready to Post</p>
-        </Card>
-        <Card className="text-center py-3">
-          <p className="text-xl font-bold text-blue-300">{inDesign.length}</p>
-          <p className="text-xs text-slate-500 mt-0.5">In Design</p>
-        </Card>
-        <Card className="text-center py-3">
-          <p className="text-xl font-bold text-violet-300">{scheduled.length}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Scheduled</p>
-        </Card>
-      </div>
-
-      {/* Operational sections */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <SectionHeader title="Needs approval" icon={AlertTriangle} tone="warning" count={needsApproval.length} />
-          <div className="space-y-2 mt-2">
-            {needsApproval.slice(0, 5).map((pr) => <MiniCard key={pr.id} pr={pr} accent="border-l-amber-500" />)}
-            {needsApproval.length === 0 && <p className="text-xs text-slate-600 py-2">Nothing waiting for approval.</p>}
-          </div>
-        </Card>
-        <Card>
-          <SectionHeader title="Ready to publish" icon={CheckCircle2} count={readyToPost.length} />
-          <div className="space-y-2 mt-2">
-            {readyToPost.slice(0, 5).map((pr) => <MiniCard key={pr.id} pr={pr} accent="border-l-emerald-500" />)}
-            {readyToPost.length === 0 && <p className="text-xs text-slate-600 py-2">Nothing approved yet.</p>}
-          </div>
-        </Card>
-        <Card>
-          <SectionHeader title="This week" icon={Clock} count={thisWeekItems.length} />
-          <div className="space-y-2 mt-2">
-            {thisWeekItems.slice(0, 5).map((pr) => <MiniCard key={pr.id} pr={pr} accent="border-l-blue-500" />)}
-            {thisWeekItems.length === 0 && <p className="text-xs text-slate-600 py-2">No launches scheduled this week.</p>}
-          </div>
-        </Card>
+      {/* Publishing pipeline */}
+      <div className="grid md:grid-cols-5 gap-3">
+        {[
+          { title: 'Needs Approval', icon: AlertTriangle, items: needsApproval, accent: 'border-l-amber-500', empty: 'Clear.' },
+          { title: 'Ready', icon: CheckCircle2, items: readyToPost, accent: 'border-l-emerald-500', empty: 'Nothing approved yet.' },
+          { title: 'In Design', icon: Send, items: inDesign, accent: 'border-l-blue-500', empty: 'No design work.' },
+          { title: 'Scheduled', icon: Clock, items: scheduled, accent: 'border-l-violet-500', empty: 'No scheduled posts.' },
+          { title: 'Posted', icon: Rocket, items: posted, accent: 'border-l-slate-500', empty: 'No posted items.' },
+        ].map((lane) => (
+          <Card key={lane.title} className="min-h-48">
+            <SectionHeader title={lane.title} icon={lane.icon} count={lane.items.length} tone={lane.title === 'Needs Approval' ? 'warning' : 'default'} />
+            <div className="space-y-2 mt-2">
+              {lane.items.slice(0, 5).map((pr) => <MiniCard key={pr.id} pr={pr} accent={lane.accent} />)}
+              {lane.items.length === 0 && <p className="text-xs text-slate-600 py-2">{lane.empty}</p>}
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* Filters */}

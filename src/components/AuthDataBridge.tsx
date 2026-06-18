@@ -10,11 +10,12 @@ import { useAppData } from '../state/AppDataContext';
 
 export default function AuthDataBridge() {
   const { profile } = useAuth();
-  const { setActorId } = useAppData();
+  const { setActorId, setActorName } = useAppData();
 
   useEffect(() => {
     setActorId(profile?.id ?? null);
-  }, [profile, setActorId]);
+    setActorName(profile?.displayName ?? null);
+  }, [profile, setActorId, setActorName]);
 
   return null;
 }

@@ -18,6 +18,7 @@ import Card from '../../components/Card';
 import StatusBadge from '../../components/StatusBadge';
 import ProgressBar from '../../components/ProgressBar';
 import QuickAddMenu from '../../components/QuickAddMenu';
+import StatCapsule from '../../components/design/StatCapsule';
 
 interface Props {
   user: User;
@@ -147,18 +148,20 @@ export default function TodayPage({ user }: Props) {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader
-        title={`${greeting}, ${user.displayName.split(' ')[0]}`}
-        description="Here's what RCCS needs to handle next."
-        actions={<QuickAddMenu actions={quickActions} />}
-      />
+      <div className="glass-panel-strong rounded-[var(--radius-xl)] p-5 md:p-6">
+        <PageHeader
+          title={`${greeting}, ${user.displayName.split(' ')[0]}`}
+          description={`Today is ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}. What matters now, who owns it, and what happens next.`}
+          actions={<QuickAddMenu actions={quickActions} />}
+        />
+      </div>
 
       {/* Quick stat bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatPill icon={FolderPlus} label="Active projects" value={getActiveProjectsCount(projects)} accent="blue" onClick={() => navigate('/projects')} />
-        <StatPill icon={AlertTriangle} label="Needs attention" value={totalAttention} accent="red" onClick={() => {}} />
-        <StatPill icon={CheckSquare} label="Pending approvals" value={pendingApprovals.length + pendingPR.length} accent="amber" onClick={() => navigate('/approvals')} />
-        <StatPill icon={Handshake} label="Confirmed sponsors" value={formatCurrency(sponsorTotals.confirmed)} accent="emerald" onClick={() => navigate('/money')} />
+      <div className="flex flex-wrap gap-3">
+        <StatCapsule icon={FolderPlus} label="Active projects" value={getActiveProjectsCount(projects)} tone="blue" onClick={() => navigate('/projects')} />
+        <StatCapsule icon={AlertTriangle} label="Needs attention" value={totalAttention} tone={totalAttention > 0 ? 'red' : 'neutral'} />
+        <StatCapsule icon={CheckSquare} label="Pending approvals" value={pendingApprovals.length + pendingPR.length} tone="amber" onClick={() => navigate('/approvals')} />
+        <StatCapsule icon={Handshake} label="Confirmed sponsors" value={formatCurrency(sponsorTotals.confirmed)} tone="emerald" onClick={() => navigate('/money')} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -200,7 +203,7 @@ export default function TodayPage({ user }: Props) {
                               {item.date && ` · ${formatDateShort(item.date)}`}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="hidden sm:flex items-center gap-2 shrink-0">
                             {item.badge && <StatusBadge status={item.badge} />}
                             <ChevronRight size={14} className="text-slate-600" />
                           </div>

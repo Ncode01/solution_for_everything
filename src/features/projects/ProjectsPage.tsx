@@ -14,6 +14,7 @@ import Card from '../../components/Card';
 import ProjectForm from './ProjectForm';
 import { formatDateShort, isOverdue } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
+import { applyProjectTemplate, ProjectTemplateId } from '../../lib/projectTemplates';
 
 type SortKey = 'deadline' | 'priority' | 'status' | 'progress';
 
@@ -24,7 +25,7 @@ const STATUS_ORDER: Record<string, number> = {
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const { data, saveProject } = useAppData();
+  const { data, saveProject, saveDeliverable, saveEventDayItem } = useAppData();
   const projects = data.projects;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'All'>('All');
@@ -175,7 +176,27 @@ export default function ProjectsPage() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Project" size="lg">
         <ProjectForm
-          onSave={(p: Project) => { saveProject(p); setShowForm(false); }}
+          members={data.members}
+          onSave={(p) => {
+            const templateId = (p as Project & { _templateId?: ProjectTemplateId })._templateId ?? 'blank';
+            const { _templateId, ...project } = p as Project & { _templateId?: ProjectTemplateId };
+            if (templateId !== 'blank') {
+              const applied = applyProjectTemplate(templateId, project.id, project.ownerId, project.owner);
+              saveProject({
+                ...project,
+                phases: applied.phases,
+                milestones: applied.milestones,
+                tasks: applied.tasks,
+                prItems: applied.prItems,
+              });
+              applied.deliverables.forEach((d) => saveDeliverable({ ...d, projectId: project.id }));
+              applied.eventDayItems.forEach((e) => saveEventDayItem({ ...e, projectId: project.id }));
+            } else {
+              saveProject(project);
+            }
+            setShowForm(false);
+            navigate(`/projects/${project.id}`);
+          }}
           onCancel={() => setShowForm(false)}
         />
       </Modal>

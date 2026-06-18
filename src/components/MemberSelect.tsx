@@ -68,14 +68,14 @@ export default function MemberSelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm transition-colors
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-[var(--radius-md)] border text-sm transition-colors
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-600'}
-          ${open ? 'border-blue-500 bg-slate-800' : 'border-slate-700 bg-slate-900'}
+          ${open ? 'border-blue-400/60 bg-white/8' : 'border-white/10 bg-slate-950/60'}
           ${required && !value ? 'border-amber-600/50' : ''}
           text-left`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+          <div className="w-5 h-5 rounded-full bg-blue-400/12 border border-blue-200/20 flex items-center justify-center shrink-0">
             {selected ? (
               <span className="text-xs text-slate-200 font-medium">
                 {selected.displayName.charAt(0)}
@@ -97,9 +97,9 @@ export default function MemberSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-slate-800">
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-800 rounded-md">
+        <div className="absolute z-50 left-0 right-0 mt-1 glass-panel-strong rounded-[var(--radius-md)] shadow-xl overflow-hidden motion-safe-pop">
+          <div className="p-2 border-b border-white/10">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-white/6 rounded-md">
               <Search size={13} className="text-slate-500 shrink-0" />
               <input
                 autoFocus
@@ -115,7 +115,7 @@ export default function MemberSelect({
               <button
                 type="button"
                 onClick={clear}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-300 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-white/8 hover:text-slate-300 transition-colors"
               >
                 <User size={13} /> None / Unassigned
               </button>
@@ -128,10 +128,10 @@ export default function MemberSelect({
                   key={m.id}
                   type="button"
                   onClick={() => select(m)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-slate-800 transition-colors
-                    ${m.id === value ? 'bg-slate-800/60 text-blue-300' : 'text-slate-200'}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-white/8 transition-colors
+                    ${m.id === value ? 'bg-blue-400/10 text-blue-200' : 'text-slate-200'}`}
                 >
-                  <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center shrink-0 text-xs font-semibold text-slate-200">
+                  <div className="w-7 h-7 rounded-full bg-blue-400/12 border border-blue-200/20 flex items-center justify-center shrink-0 text-xs font-semibold text-blue-100">
                     {m.displayName.charAt(0)}
                   </div>
                   <div className="text-left min-w-0">

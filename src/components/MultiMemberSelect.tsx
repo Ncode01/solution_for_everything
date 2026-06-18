@@ -66,9 +66,9 @@ export default function MultiMemberSelect({
     <div ref={containerRef} className={`relative ${className}`}>
       <div
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`min-h-10 w-full flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors
+        className={`min-h-10 w-full flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] border text-sm transition-colors
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-600'}
-          ${open ? 'border-blue-500 bg-slate-800' : 'border-slate-700 bg-slate-900'}`}
+          ${open ? 'border-blue-400/60 bg-white/8' : 'border-white/10 bg-slate-950/60'}`}
       >
         {selected.length === 0 ? (
           <span className="text-slate-500 flex items-center gap-1.5">
@@ -79,7 +79,7 @@ export default function MultiMemberSelect({
             {displayedNames.map((m) => (
               <span
                 key={m.id}
-                className="flex items-center gap-1 bg-slate-700 text-slate-200 rounded-md px-2 py-0.5 text-xs"
+                className="flex items-center gap-1 bg-blue-400/10 border border-blue-200/15 text-slate-200 rounded-full px-2 py-0.5 text-xs"
               >
                 {m.displayName}
                 <button
@@ -99,9 +99,9 @@ export default function MultiMemberSelect({
       </div>
 
       {open && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-slate-800">
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-800 rounded-md">
+        <div className="absolute z-50 left-0 right-0 mt-1 glass-panel-strong rounded-[var(--radius-md)] shadow-xl overflow-hidden motion-safe-pop">
+          <div className="p-2 border-b border-white/10">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-white/6 rounded-md">
               <Search size={13} className="text-slate-500 shrink-0" />
               <input
                 autoFocus
@@ -123,7 +123,7 @@ export default function MultiMemberSelect({
                     key={m.id}
                     type="button"
                     onClick={() => toggle(m)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-slate-800 transition-colors
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-white/8 transition-colors
                       ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0
@@ -131,7 +131,7 @@ export default function MultiMemberSelect({
                     >
                       {isSelected && <span className="text-white text-xs">✓</span>}
                     </div>
-                    <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center shrink-0 text-xs font-semibold">
+                    <div className="w-6 h-6 rounded-full bg-blue-400/12 border border-blue-200/20 flex items-center justify-center shrink-0 text-xs font-semibold">
                       {m.displayName.charAt(0)}
                     </div>
                     <div className="text-left min-w-0">
@@ -144,7 +144,7 @@ export default function MultiMemberSelect({
             )}
           </div>
           {selected.length > 0 && (
-            <div className="p-2 border-t border-slate-800 flex justify-between items-center">
+            <div className="p-2 border-t border-white/10 flex justify-between items-center">
               <span className="text-xs text-slate-400">{selected.length} selected</span>
               <button
                 type="button"

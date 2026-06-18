@@ -8,8 +8,8 @@ interface Props {
 }
 
 export default function Card({ children, className = '', onClick, interactive }: Props) {
-  const base = 'bg-slate-900 border border-slate-800 rounded-xl p-4';
-  const hover = interactive || onClick ? 'hover:border-slate-700 transition-colors cursor-pointer' : '';
+  const base = 'apple-card';
+  const hover = interactive || onClick ? 'apple-list-row cursor-pointer' : '';
   return (
     <div className={`${base} ${hover} ${className}`} onClick={onClick}>
       {children}

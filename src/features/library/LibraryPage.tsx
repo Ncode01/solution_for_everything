@@ -14,7 +14,7 @@ import { useAppData } from '../../state/AppDataContext';
 import { useAuth } from '../../state/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { getLocalAuditEntries, type AuditEntry } from '../../lib/audit';
-import { generateProjectReport } from '../../lib/report';
+import { generateProjectReport, generateHandoverReport } from '../../lib/report';
 import { generateId, todayISO, formatDate } from '../../lib/dateUtils';
 import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
@@ -22,14 +22,16 @@ import EmptyState from '../../components/EmptyState';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Modal from '../../components/Modal';
 import FileLinkForm from '../files/FileLinkForm';
+import SegmentedControl from '../../components/design/SegmentedControl';
 
-type Section = 'reports' | 'files' | 'audit' | 'archives';
+type Section = 'reports' | 'files' | 'audit' | 'archives' | 'handover';
 
 const SECTION_LABELS: Record<Section, string> = {
   reports:  'Reports',
   files:    'Files & Links',
   audit:    'Audit Trail',
   archives: 'Archives',
+  handover: 'Handover',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -63,23 +65,16 @@ export default function LibraryPage() {
       />
 
       {/* Section tabs */}
-      <div className="flex gap-1 border-b border-slate-800 pb-0">
-        {(Object.entries(SECTION_LABELS) as [Section, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setSection(key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg border-b-2 ${
-              activeSection === key
-                ? 'text-blue-300 border-blue-500'
-                : 'text-slate-500 border-transparent hover:text-slate-300'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="floating-control p-2 overflow-x-auto">
+        <SegmentedControl
+          value={activeSection}
+          onChange={setSection}
+          options={(Object.entries(SECTION_LABELS) as [Section, string][]).map(([value, label]) => ({ value, label }))}
+        />
       </div>
 
       {activeSection === 'reports' && <ReportsSection projects={projects} reports={reports} saveReport={saveReport} deleteReport={deleteReport} data={data} />}
+      {activeSection === 'handover' && <HandoverSection projects={projects} reports={reports} saveReport={saveReport} deleteReport={deleteReport} data={data} />}
       {activeSection === 'files'   && <FilesSection projects={projects} fileLinks={fileLinks} saveFileLink={saveFileLink} deleteFileLink={deleteFileLink} members={data.members} />}
       {activeSection === 'audit'   && <AuditSection projects={projects} profile={profile} />}
       {activeSection === 'archives' && <ArchivesSection projects={projects} navigate={navigate} />}
@@ -200,6 +195,112 @@ function ReportsSection({ projects, reports, saveReport, deleteReport, data }: {
           onCancel={() => setConfirmDel(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Handover Section
+// ────────────────────────────────────────────────────────────
+function HandoverSection({ projects, reports, saveReport, deleteReport, data }: {
+  projects: typeof data.projects; reports: typeof data.reports;
+  saveReport: (r: Report) => void; deleteReport: (id: string) => void;
+  data: ReturnType<typeof useAppData>['data'];
+}) {
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
+  const [preview, setPreview] = useState<{ title: string; summary: string; sections: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const handoverReports = reports.filter((r) => r.type === 'Handover');
+  const project = projects.find((p) => p.id === projectId);
+
+  function generate() {
+    if (!project) return;
+    setPreview(generateHandoverReport(data, project));
+  }
+
+  function copyReport() {
+    if (!preview) return;
+    navigator.clipboard?.writeText(`${preview.title}\n\n${preview.summary}\n\n${preview.sections}`).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  function printReport() {
+    if (!preview) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><title>${preview.title}</title>
+      <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:32px auto;padding:0 16px;color:#0f172a;line-height:1.5}
+      h1{font-size:20px}pre{white-space:pre-wrap;font-family:inherit;font-size:13px}</style></head>
+      <body><h1>${preview.title}</h1><p><em>${preview.summary}</em></p><pre>${preview.sections.replace(/</g, '&lt;')}</pre></body></html>`);
+    win.document.close(); win.focus(); win.print();
+  }
+
+  function saveCurrent() {
+    if (!preview || !project) return;
+    saveReport({
+      id: generateId(),
+      projectId: project.id,
+      title: preview.title,
+      type: 'Handover',
+      summary: preview.summary,
+      sections: preview.sections,
+      generatedDate: todayISO(),
+    });
+    setPreview(null);
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        <h3 className="font-semibold text-white text-sm mb-1 flex items-center gap-2"><ScrollText size={14} /> Generate Handover Report</h3>
+        <p className="text-xs text-slate-500 mb-3">Comprehensive project handover for future RCCS batches — includes deliverables, event-day items, money, and activity.</p>
+        <div className="flex gap-3 flex-wrap">
+          <select className="select flex-1 min-w-44 text-sm" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <button className="btn-primary text-sm" onClick={generate} disabled={!project}>
+            <Wand2 size={14} /> Generate Handover
+          </button>
+        </div>
+        {preview && (
+          <div className="mt-4 space-y-3">
+            <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 max-h-72 overflow-y-auto">
+              <h4 className="font-bold text-white text-sm">{preview.title}</h4>
+              <p className="text-xs text-slate-400 mt-1 italic">{preview.summary}</p>
+              <pre className="text-xs text-slate-400 mt-3 whitespace-pre-wrap font-sans">{preview.sections}</pre>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button className="btn-primary text-sm" onClick={saveCurrent}><Save size={13} /> Save to Library</button>
+              <button className="btn-ghost text-sm" onClick={copyReport}><Copy size={13} /> {copied ? 'Copied!' : 'Copy'}</button>
+              <button className="btn-ghost text-sm" onClick={printReport}><Printer size={13} /> Print</button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-white">Saved Handover Reports</h3>
+        {handoverReports.length === 0 ? (
+          <Card className="py-8 text-center text-slate-500 text-sm">No handover reports yet. Generate one above or from Project Overview.</Card>
+        ) : (
+          handoverReports.map((r) => {
+            const proj = projects.find((p) => p.id === r.projectId);
+            return (
+              <Card key={r.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-white text-sm">{r.title}</p>
+                    <p className="text-xs text-slate-500">{proj?.name ?? r.projectId} · {formatDate(r.generatedDate)}</p>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2 italic">{r.summary}</p>
+                  </div>
+                  <button className="btn-ghost p-1.5 text-red-500 shrink-0" onClick={() => deleteReport(r.id)}><Trash2 size={13} /></button>
+                </div>
+              </Card>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

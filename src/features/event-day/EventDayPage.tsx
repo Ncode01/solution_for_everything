@@ -86,6 +86,8 @@ export default function EventDayPage() {
   const notReady = items.filter((i) => i.status === 'Not Ready' || i.status === 'In Progress');
   const completed = items.filter((i) => i.status === 'Completed');
   const readinessPercent = items.length > 0 ? Math.round((completed.length / items.length) * 100) : 0;
+  const nowItems = items.filter((i) => i.status === 'In Progress' || i.status === 'Problem');
+  const nextItems = items.filter((i) => i.status !== 'Completed' && i.status !== 'Problem').slice(0, 3);
 
   function openAdd() {
     setForm(defaultForm());
@@ -206,6 +208,26 @@ export default function EventDayPage() {
         </Card>
       ) : (
         <>
+          <div className="glass-panel-strong rounded-[var(--radius-xl)] p-4 grid md:grid-cols-3 gap-3 sticky top-0 z-10">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Now</p>
+              <p className="text-sm font-semibold text-white truncate">{nowItems[0]?.title ?? 'No live blockers'}</p>
+              <p className="text-xs text-slate-500">{nowItems[0]?.owner ?? 'Team standing by'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Next</p>
+              <p className="text-sm font-semibold text-white truncate">{nextItems[0]?.title ?? 'Checklist clear'}</p>
+              <p className="text-xs text-slate-500">{nextItems[0]?.scheduledTime ?? 'No time set'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Problems</p>
+              <p className={`text-sm font-semibold ${problems.length > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                {problems.length > 0 ? `${problems.length} open` : 'None open'}
+              </p>
+              <p className="text-xs text-slate-500">{readinessPercent}% ready</p>
+            </div>
+          </div>
+
           {/* Readiness bar */}
           <Card>
             <div className="flex items-center justify-between mb-2">

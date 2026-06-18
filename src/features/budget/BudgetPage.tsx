@@ -21,6 +21,7 @@ import BudgetForm from './BudgetForm';
 import SponsorForm from '../sponsors/SponsorForm';
 import { formatDate, formatCurrency, isOverdue } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
+import SegmentedControl from '../../components/design/SegmentedControl';
 
 type FinanceTab = 'overview' | 'transactions' | 'sponsors';
 
@@ -106,9 +107,11 @@ export default function BudgetPage() {
       />
 
       {/* Project selector */}
-      <select className="select w-56" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-        {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
+      <div className="floating-control p-2 inline-flex max-w-full">
+        <select className="select w-72 max-w-full" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
 
       {!project ? (
         <EmptyState icon={Wallet} title="No project selected" description="Create a project first to track its finances." />
@@ -158,18 +161,12 @@ export default function BudgetPage() {
           )}
 
           {/* Inner tabs */}
-          <div className="flex border-b border-slate-800 gap-1">
-            {FINANCE_TABS.map((ft) => (
-              <button
-                key={ft.id}
-                onClick={() => setFinanceTab(ft.id)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  financeTab === ft.id ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {ft.label}
-              </button>
-            ))}
+          <div className="floating-control p-2 overflow-x-auto">
+            <SegmentedControl
+              value={financeTab}
+              onChange={setFinanceTab}
+              options={FINANCE_TABS.map((ft) => ({ value: ft.id, label: ft.label }))}
+            />
           </div>
 
           {/* Overview sub-tab */}

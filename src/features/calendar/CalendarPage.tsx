@@ -2,15 +2,17 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, CalendarDays, ListTodo, Target, Megaphone, Flag,
-  CalendarCheck, Handshake, Copy, Check, LayoutGrid, List, X,
+  CalendarCheck, Handshake, Copy, Check, LayoutGrid, List, Package, CheckSquare, Wallet,
 } from 'lucide-react';
-import { Project, Meeting, Sponsor, Member } from '../../types';
+import { Project, Meeting, Sponsor, Member, Deliverable, ApprovalRequest, Transaction, EventDayItem } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
 import { isOverdue, daysUntil, formatDateShort } from '../../lib/dateUtils';
 import StatusBadge from '../../components/StatusBadge';
 import PageHeader from '../../components/PageHeader';
+import { CalendarDayInspector, type CalendarDayItem as DayItem } from '../../components/inspectors/EntityInspectors';
+import SegmentedControl from '../../components/design/SegmentedControl';
 
-type ItemType = 'task' | 'milestone' | 'pr' | 'event' | 'meeting' | 'sponsor';
+type ItemType = 'task' | 'milestone' | 'pr' | 'event' | 'meeting' | 'sponsor' | 'deliverable' | 'approval' | 'payment';
 type FilterType = 'all' | ItemType;
 type ViewMode = 'grid' | 'agenda';
 
@@ -23,10 +25,20 @@ interface CalendarItem {
   projectId?: string;
   status?: string;
   extra?: string;
+  ownerId?: string;
   link: string;
 }
 
-function buildItems(projects: Project[], meetings: Meeting[], sponsors: Sponsor[], members: Member[]): CalendarItem[] {
+function buildItems(
+  projects: Project[],
+  meetings: Meeting[],
+  sponsors: Sponsor[],
+  members: Member[],
+  deliverables: Deliverable[],
+  approvals: ApprovalRequest[],
+  transactions: Transaction[],
+  eventDayItems: EventDayItem[],
+): CalendarItem[] {
   const items: CalendarItem[] = [];
 
   function resolveName(idOrName: string | undefined, fallback = 'Unassigned') {
@@ -56,8 +68,9 @@ function buildItems(projects: Project[], meetings: Meeting[], sponsors: Sponsor[
       if (pr.publishDate) items.push({
         id: pr.id, label: pr.title, date: pr.publishDate, type: 'pr',
         projectName: p.name, projectId: p.id, status: pr.publishingStatus,
-        extra: `${pr.platform} · ${pr.publishTime}`,
-        link: '/pr-planner',
+        extra: `${resolveName(pr.designerId || pr.designer)} · ${pr.platform}`,
+        ownerId: pr.designerId,
+        link: `/projects/${p.id}`,
       });
     });
     if (p.finalEventDate) items.push({
@@ -84,9 +97,63 @@ function buildItems(projects: Project[], meetings: Meeting[], sponsors: Sponsor[
       items.push({
         id: `fu-${s.id}`, label: `Follow up: ${s.name}`, date: s.nextFollowUpDate,
         type: 'sponsor', projectName: proj?.name ?? 'General', projectId: s.projectId,
-        status: s.stage, extra: `${resolveName(s.assignedMemberId || s.assignedMember)} · ${s.stage}`,
-        link: '/budget',
+        status: s.stage,         extra: `${resolveName(s.assignedMemberId || s.assignedMember)} · ${s.stage}`,
+        ownerId: s.assignedMemberId,
+        link: '/money',
       });
+    }
+  });
+
+  deliverables.forEach((d) => {
+    if (d.dueDate) {
+      const proj = projects.find((p) => p.id === d.projectId);
+      items.push({
+        id: d.id, label: d.title, date: d.dueDate, type: 'deliverable',
+        projectName: proj?.name ?? 'General', projectId: d.projectId, status: d.status,
+        extra: resolveName(d.ownerId || d.owner),
+        ownerId: d.ownerId,
+        link: `/projects/${d.projectId}?tab=timeline`,
+      });
+    }
+  });
+
+  approvals.forEach((a) => {
+    if (a.submittedDate && (a.status === 'Submitted' || a.status === 'Changes Requested')) {
+      const proj = projects.find((p) => p.id === a.projectId);
+      items.push({
+        id: a.id, label: a.title, date: a.submittedDate, type: 'approval',
+        projectName: proj?.name ?? 'General', projectId: a.projectId, status: a.status,
+        extra: a.approver,
+        link: '/approvals',
+      });
+    }
+  });
+
+  transactions.forEach((t) => {
+    if (t.date) {
+      const proj = projects.find((p) => p.id === t.projectId);
+      items.push({
+        id: t.id, label: `${t.type}: ${t.category}`, date: t.date, type: 'payment',
+        projectName: proj?.name ?? 'General', projectId: t.projectId,
+        extra: `Rs ${t.amount.toLocaleString('en-LK')}`,
+        link: '/money',
+      });
+    }
+  });
+
+  eventDayItems.forEach((e) => {
+    if (e.scheduledTime) {
+      const datePart = e.scheduledTime.slice(0, 10);
+      if (datePart.length === 10) {
+        const proj = projects.find((p) => p.id === e.projectId);
+        items.push({
+          id: e.id, label: e.title, date: datePart, type: 'event',
+          projectName: proj?.name ?? 'General', projectId: e.projectId, status: e.status,
+          extra: `${e.category} · ${resolveName(e.ownerId || e.owner)}`,
+          ownerId: e.ownerId,
+          link: `/event-day?project=${e.projectId}`,
+        });
+      }
     }
   });
 
@@ -100,6 +167,9 @@ const TYPE_COLORS: Record<ItemType, string> = {
   event:     'border-l-emerald-500 bg-emerald-500/5',
   meeting:   'border-l-cyan-500 bg-cyan-500/5',
   sponsor:   'border-l-orange-500 bg-orange-500/5',
+  deliverable: 'border-l-pink-500 bg-pink-500/5',
+  approval:  'border-l-yellow-500 bg-yellow-500/5',
+  payment:   'border-l-teal-500 bg-teal-500/5',
 };
 
 const TYPE_DOT: Record<ItemType, string> = {
@@ -109,6 +179,9 @@ const TYPE_DOT: Record<ItemType, string> = {
   event:     'bg-emerald-500',
   meeting:   'bg-cyan-500',
   sponsor:   'bg-orange-500',
+  deliverable: 'bg-pink-500',
+  approval:  'bg-yellow-500',
+  payment:   'bg-teal-500',
 };
 
 const TYPE_ICONS: Record<ItemType, React.ReactNode> = {
@@ -118,6 +191,9 @@ const TYPE_ICONS: Record<ItemType, React.ReactNode> = {
   event:     <Flag size={12} />,
   meeting:   <CalendarCheck size={12} />,
   sponsor:   <Handshake size={12} />,
+  deliverable: <Package size={12} />,
+  approval:  <CheckSquare size={12} />,
+  payment:   <Wallet size={12} />,
 };
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -126,8 +202,7 @@ export default function CalendarPage() {
   const navigate = useNavigate();
   const { data } = useAppData();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  const [rangeOffset, setRangeOffset] = useState(0);
   const [filter, setFilter] = useState<FilterType>('all');
   const [projectFilter, setProjectFilter] = useState('All');
   const [memberFilter, setMemberFilter] = useState('All');
@@ -136,38 +211,46 @@ export default function CalendarPage() {
   const [copied, setCopied] = useState(false);
 
   const allItems = useMemo(
-    () => buildItems(data.projects, data.meetings, data.sponsors, data.members),
+    () => buildItems(
+      data.projects, data.meetings, data.sponsors, data.members,
+      data.deliverables ?? [], data.approvals, data.transactions, data.eventDayItems ?? [],
+    ),
     [data]
   );
 
   const todayStr = now.toISOString().slice(0, 10);
-  const monthLabel = new Date(year, month, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const rangeStart = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 30 + rangeOffset);
+    return d;
+  }, [rangeOffset]);
+  const rangeEnd = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 30 + rangeOffset);
+    return d;
+  }, [rangeOffset]);
+  const rangeStartStr = rangeStart.toISOString().slice(0, 10);
+  const rangeEndStr = rangeEnd.toISOString().slice(0, 10);
+  const monthLabel = `${rangeStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${rangeEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
-  // Build grid days for current month
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startPad = firstDay.getDay(); // 0=Sun
-  const totalCells = Math.ceil((startPad + lastDay.getDate()) / 7) * 7;
-
-  const gridDays: Array<{ date: string | null; dayNum: number | null }> = [];
-  for (let i = 0; i < totalCells; i++) {
-    const dayIdx = i - startPad + 1;
-    if (dayIdx < 1 || dayIdx > lastDay.getDate()) {
-      gridDays.push({ date: null, dayNum: null });
-    } else {
-      const d = new Date(year, month, dayIdx);
-      gridDays.push({ date: d.toISOString().slice(0, 10), dayNum: dayIdx });
-    }
+  const gridDays: Array<{ date: string | null; dayNum: number | null; weekday: string | null }> = [];
+  for (let i = 0; i < rangeStart.getDay(); i++) {
+    gridDays.push({ date: null, dayNum: null, weekday: null });
+  }
+  for (let i = 0; i <= 60; i++) {
+    const d = new Date(rangeStart);
+    d.setDate(rangeStart.getDate() + i);
+    gridDays.push({ date: d.toISOString().slice(0, 10), dayNum: d.getDate(), weekday: DAYS[d.getDay()] });
   }
 
   function applyFilters(item: CalendarItem, dateStr?: string): boolean {
-    const matchMonth = dateStr
+    const matchRange = dateStr
       ? item.date === dateStr
-      : item.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`);
+      : item.date >= rangeStartStr && item.date <= rangeEndStr;
     const matchType = filter === 'all' || item.type === filter;
     const matchProject = projectFilter === 'All' || item.projectId === projectFilter;
-    const matchMember = memberFilter === 'All' || (item.extra?.includes(memberFilter) ?? false);
-    return matchMonth && matchType && matchProject && matchMember;
+    const matchMember = memberFilter === 'All' || item.ownerId === memberFilter || (item.extra?.includes(memberFilter) ?? false);
+    return matchRange && matchType && matchProject && matchMember;
   }
 
   const filteredItems = allItems.filter((item) => applyFilters(item));
@@ -184,19 +267,19 @@ export default function CalendarPage() {
     return allItems.filter((item) => {
       const matchType = filter === 'all' || item.type === filter;
       const matchProject = projectFilter === 'All' || item.projectId === projectFilter;
-      return item.date === dateStr && matchType && matchProject;
+      const matchMember = memberFilter === 'All' || item.ownerId === memberFilter || (item.extra?.includes(memberFilter) ?? false);
+      return item.date === dateStr && matchType && matchProject && matchMember;
     });
   }
 
   function prevMonth() {
-    if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1);
+    setRangeOffset((v) => v - 30);
   }
   function nextMonth() {
-    if (month === 11) { setMonth(0); setYear((y) => y + 1); } else setMonth((m) => m + 1);
+    setRangeOffset((v) => v + 30);
   }
   function goToday() {
-    setYear(now.getFullYear());
-    setMonth(now.getMonth());
+    setRangeOffset(0);
   }
 
   function exportAgenda() {
@@ -228,10 +311,13 @@ export default function CalendarPage() {
     { value: 'all',       label: 'All',        icon: <CalendarDays size={13} /> },
     { value: 'task',      label: 'Tasks',      icon: <ListTodo size={13} /> },
     { value: 'milestone', label: 'Milestones', icon: <Target size={13} /> },
-    { value: 'pr',        label: 'PR Posts',   icon: <Megaphone size={13} /> },
+    { value: 'deliverable', label: 'Deliverables', icon: <Package size={13} /> },
+    { value: 'pr',        label: 'Launches',   icon: <Megaphone size={13} /> },
     { value: 'meeting',   label: 'Meetings',   icon: <CalendarCheck size={13} /> },
     { value: 'event',     label: 'Events',     icon: <Flag size={13} /> },
     { value: 'sponsor',   label: 'Follow-ups', icon: <Handshake size={13} /> },
+    { value: 'approval',  label: 'Approvals',  icon: <CheckSquare size={13} /> },
+    { value: 'payment',   label: 'Payments',   icon: <Wallet size={13} /> },
   ];
 
   // Selected day modal items
@@ -241,19 +327,19 @@ export default function CalendarPage() {
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
       <PageHeader
         title="Calendar"
-        description="Deadlines, posts, meetings, events, and sponsor follow-ups."
+        description="A rolling operating window: previous 30 days, today, and next 30 days."
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <button className="btn-ghost p-2" onClick={prevMonth}><ChevronLeft size={18} /></button>
             <button className="btn-secondary text-xs px-3 py-1.5" onClick={goToday}>Today</button>
-            <span className="text-white font-semibold min-w-36 text-center text-sm">{monthLabel}</span>
+            <span className="text-white font-semibold min-w-48 text-center text-sm">{monthLabel}</span>
             <button className="btn-ghost p-2" onClick={nextMonth}><ChevronRight size={18} /></button>
           </div>
         }
       />
 
       {/* Filters row */}
-      <div className="flex gap-2 flex-wrap items-center">
+      <div className="floating-control flex gap-2 flex-wrap items-center p-2">
         {FILTER_OPTS.map((f) => (
           <button
             key={f.value}
@@ -266,26 +352,23 @@ export default function CalendarPage() {
           </button>
         ))}
         <div className="flex gap-2 ml-auto items-center">
+          <select className="select text-xs h-8 py-0 px-2 w-40" value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
+            <option value="All">All People</option>
+            {data.members.map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+          </select>
           <select className="select text-xs h-8 py-0 px-2 w-40" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
             <option value="All">All Projects</option>
             {data.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <div className="flex border border-slate-700 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 transition-colors ${viewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
-              title="Grid view"
-            >
-              <LayoutGrid size={13} />
-            </button>
-            <button
-              onClick={() => setViewMode('agenda')}
-              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 transition-colors ${viewMode === 'agenda' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
-              title="Agenda view"
-            >
-              <List size={13} />
-            </button>
-          </div>
+          <SegmentedControl
+            size="sm"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'grid', label: 'Grid', icon: <LayoutGrid size={13} /> },
+              { value: 'agenda', label: 'Agenda', icon: <List size={13} /> },
+            ]}
+          />
           <button
             onClick={exportAgenda}
             className="btn-secondary text-xs flex items-center gap-1.5 h-8 px-3"
@@ -298,7 +381,7 @@ export default function CalendarPage() {
 
       {/* ── GRID VIEW ──────────────────────────────────────────────────── */}
       {viewMode === 'grid' && (
-        <div className="card overflow-hidden">
+        <div className="solid-panel overflow-hidden">
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-slate-800">
             {DAYS.map((d) => (
@@ -315,7 +398,7 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={`empty-${idx}`}
-                    className={`min-h-24 bg-slate-950/40 ${idx % 7 !== 6 ? '' : ''} ${Math.floor(idx / 7) > 0 ? 'border-t border-slate-800/60' : ''}`}
+                    className={`min-h-24 bg-slate-950/30 ${Math.floor(idx / 7) > 0 ? 'border-t border-slate-800/60' : ''}`}
                   />
                 );
               }
@@ -332,7 +415,7 @@ export default function CalendarPage() {
                   onClick={() => { if (items.length > 0) setSelectedDay(cell.date); }}
                   className={`min-h-24 p-1.5 flex flex-col gap-0.5 cursor-pointer transition-colors select-none
                     ${Math.floor(idx / 7) > 0 ? 'border-t border-slate-800/60' : ''}
-                    ${isToday ? 'bg-blue-950/20 hover:bg-blue-950/30' : isPast ? 'bg-slate-950/20 hover:bg-slate-900/50' : 'hover:bg-slate-800/30'}`}
+                    ${isToday ? 'bg-blue-500/10 ring-1 ring-inset ring-blue-300/30 hover:bg-blue-500/15' : isPast ? 'bg-slate-950/20 hover:bg-slate-900/50' : 'hover:bg-white/6'}`}
                 >
                   {/* Day number */}
                   <div className="flex items-center justify-between mb-0.5">
@@ -340,6 +423,7 @@ export default function CalendarPage() {
                       ${isToday ? 'bg-blue-500 text-white' : isPast ? 'text-slate-600' : 'text-slate-400'}`}>
                       {cell.dayNum}
                     </span>
+                    <span className="text-[10px] text-slate-600">{cell.weekday}</span>
                     {items.length > 0 && (
                       <span className="text-xs text-slate-600">{items.length}</span>
                     )}
@@ -375,7 +459,7 @@ export default function CalendarPage() {
             <div className="card text-center py-12">
               <CalendarDays size={36} className="text-slate-700 mx-auto mb-3" />
               <p className="text-slate-500">No items in {monthLabel}</p>
-              <p className="text-xs text-slate-600 mt-1">Try switching months or adjusting filters.</p>
+              <p className="text-xs text-slate-600 mt-1">Try shifting the range or adjusting filters.</p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -423,54 +507,16 @@ export default function CalendarPage() {
         </>
       )}
 
-      {/* ── DAY DETAIL MODAL ────────────────────────────────────────────── */}
-      {selectedDay && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => setSelectedDay(null)}
-        >
-          <div
-            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <div>
-                <p className="font-semibold text-slate-200">
-                  {new Date(selectedDay).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">{selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''}</p>
-              </div>
-              <button onClick={() => setSelectedDay(null)} className="btn-ghost p-1.5 rounded-lg">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-4 space-y-2">
-              {selectedItems.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-4">No items for this day.</p>
-              ) : (
-                selectedItems.map((item) => (
-                  <button
-                    key={`${item.type}-${item.id}`}
-                    onClick={() => { navigate(item.link); setSelectedDay(null); }}
-                    className={`w-full text-left rounded-lg border border-slate-800 border-l-2 ${TYPE_COLORS[item.type].split(' ').filter(c => c.startsWith('border-l')).join(' ')} px-3 py-2.5 hover:border-slate-600 transition-colors`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0 text-slate-400">{TYPE_ICONS[item.type]}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm text-slate-200 truncate">{item.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{item.projectName}{item.extra ? ` · ${item.extra}` : ''}</p>
-                      </div>
-                      {item.status && <StatusBadge status={item.status} />}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Day detail slide-over */}
+      <CalendarDayInspector
+        open={!!selectedDay}
+        onClose={() => setSelectedDay(null)}
+        date={selectedDay}
+        items={selectedItems as DayItem[]}
+        onItemClick={(item) => { navigate(item.link); setSelectedDay(null); }}
+      />
 
-      {/* ── LEGEND ──────────────────────────────────────────────────────── */}
+      {/* Legend */}
       <div className="flex flex-wrap gap-3 text-xs text-slate-500">
         {(Object.keys(TYPE_DOT) as ItemType[]).map((t) => (
           <span key={t} className="flex items-center gap-1.5">

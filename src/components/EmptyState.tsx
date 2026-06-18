@@ -15,8 +15,8 @@ export default function EmptyState({ icon, title, description, action }: Props) 
     : icon;
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+    <div className="solid-panel flex flex-col items-center justify-center py-14 px-4 text-center">
+      <div className="w-16 h-16 rounded-[var(--radius-xl)] glass-panel-strong flex items-center justify-center mb-4">
         {iconContent}
       </div>
       <h3 className="text-slate-300 font-semibold text-base mb-1">{title}</h3>

@@ -34,6 +34,11 @@ Project Detail must stay at exactly 7 tabs: **Overview · Timeline · Tasks · L
 
 ### Design Rules (Apple-caliber)
 - Prefer calm surfaces, subtle borders, minimal visual noise.
+- Use Liquid Glass-inspired material selectively: sidebar, topbar, command menu, filters, inspectors, modals, and high-level chrome.
+- Keep dense operational data on `SolidPanel`, `Card`, or strong surfaces. Do not place critical text on weak transparent glass.
+- Prefer the shared design primitives in `src/components/design/` before creating local one-off styling.
+- Use `SegmentedControl` for tabs/view switches, `StatCapsule` for compact metrics, `PersonToken` for people, and `StatusDot`/`StatusBadge` according to density.
+- Respect `prefers-reduced-motion`, `prefers-reduced-transparency`, and `prefers-contrast` fallbacks in `global.css`.
 - Use EmptyState for empty lists — always with a helpful action button.
 - All modals require the `open` prop (boolean). Always pass `open={!!someState}` or `open={modalState.open}`.
 - All ConfirmDialogs require `open`, `title`, `message` props.
@@ -41,6 +46,33 @@ Project Detail must stay at exactly 7 tabs: **Overview · Timeline · Tasks · L
 - Do NOT add random gradients, heavy shadows, or purely decorative elements.
 
 ### DATA_VERSION = 4
+
+## Final Phase Rules (complete)
+
+### Project Templates
+- 8 templates in `src/lib/projectTemplates.ts`. Apply via ProjectForm on create. Templates prefill nested project data plus top-level deliverables and event_day_items.
+
+### Activity Logging
+- Mutations in `AppDataContext` auto-log human-readable activity via `createActivityItem` / `logActivityItem`.
+- Supabase mode: activity inserts go to `activity_items` via `src/lib/supabaseActivity.ts` (approved Supabase file).
+- Activity failures must never break primary actions.
+
+### Inspectors
+- Use `SlideOver` for entity inspection (desktop right panel, mobile full-width).
+- Inspectors live in `src/components/inspectors/EntityInspectors.tsx`.
+- Edit forms remain modals; inspectors show summary + quick actions.
+
+### Handover Reports
+- `generateHandoverReport()` in `src/lib/report.ts`. Type `Handover` in reports collection.
+- Available in Library → Handover and Project Overview quick actions.
+
+### Role-aware UX
+- Navigation visibility via `src/lib/navigationAccess.ts` + Sidebar role prop.
+- Route guards via `RoleGuard` — UX only, not security. RLS handles Supabase data access.
+
+### Event-Day Mode
+- Project Overview shows Open/Start Event-Day Mode for event-like types or projects with event_day_items.
+- Links to `/event-day?project=ID`.
 
 ## Phase Five Rules (still active)
 
@@ -60,7 +92,7 @@ The app uses Supabase Auth in Supabase mode and hardcoded local demo auth in loc
 12. **Supabase CLI migrations live in `supabase/migrations/`** — all schema changes must go through migration files, not ad-hoc SQL.
 13. **Supabase types live in `src/types/supabase.ts`** — regenerate with `npm run supabase:types` after schema changes.
 14. **Audit log all important mutations** — use `logAudit()` from `src/lib/audit.ts` for create/update/delete/status change operations. Audit failures must never break the primary action.
-15. **No direct Supabase calls outside approved files** — only `src/lib/supabaseClient.ts`, `src/lib/audit.ts`, `src/state/AuthContext.tsx`, and explicit data-provider files may call supabase directly.
+15. **No direct Supabase calls outside approved files** — only `src/lib/supabaseClient.ts`, `src/lib/audit.ts`, `src/lib/supabaseActivity.ts`, `src/state/AuthContext.tsx`, and explicit data-provider files may call supabase directly.
 16. **RLS policies must remain production-safe** — do not add permissive anon or blanket authenticated policies. All new tables must have RLS enabled and proper policies in a migration file.
 17. **Do not run destructive Supabase commands on remote data** — `supabase db reset` is local-only.
 
@@ -75,7 +107,7 @@ The app uses Supabase Auth in Supabase mode and hardcoded local demo auth in loc
 ## Data Version Rules
 
 15. **Always bump `DATA_VERSION`** in `src/lib/storage.ts` when making breaking changes to the AppData schema.
-16. **Current DATA_VERSION = 3**. All new schema additions that could break existing localStorage data must increment this.
+16. **Current DATA_VERSION = 4**. All new schema additions that could break existing localStorage data must increment this.
 17. **`saveAppData` and `resetToSeedData` must write the version key** (`rccs_data_version`). Do not remove this behaviour.
 
 ## UI Consistency Rules

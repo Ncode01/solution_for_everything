@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, LogOut, Shield, User as UserIcon, Wifi, WifiOff, Search } from 'lucide-react';
+import { LogOut, Menu, Search, Shield, User as UserIcon, Wifi, WifiOff } from 'lucide-react';
 import { User } from '../types';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import GlobalSearch from './GlobalSearch';
@@ -13,33 +13,34 @@ interface TopbarProps {
 }
 
 const ROLE_ICON: Record<string, React.ReactNode> = {
-  'Super Admin':     <Shield size={12} className="text-blue-400" />,
-  'Executive Admin': <Shield size={12} className="text-emerald-400" />,
-  'Project Admin':   <Shield size={12} className="text-amber-400" />,
-  'Team Lead':       <UserIcon size={12} className="text-violet-400" />,
-  Member:            <UserIcon size={12} className="text-slate-400" />,
-  Viewer:            <UserIcon size={12} className="text-slate-600" />,
+  'Super Admin': <Shield size={12} className="text-blue-300" />,
+  'Executive Admin': <Shield size={12} className="text-emerald-300" />,
+  'Project Admin': <Shield size={12} className="text-amber-300" />,
+  'Team Lead': <UserIcon size={12} className="text-violet-300" />,
+  Member: <UserIcon size={12} className="text-slate-400" />,
+  Viewer: <UserIcon size={12} className="text-slate-500" />,
 };
 
 export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }: TopbarProps) {
   const isSupabase = isSupabaseConfigured;
 
   return (
-    <header className="h-16 bg-slate-950 border-b border-slate-800/70 flex items-center gap-3 px-3 sm:px-4 shrink-0">
+    <header className="relative z-[var(--z-topbar)] h-20 flex items-center gap-3 px-3 sm:px-6 shrink-0">
       <button
         onClick={onOpenSidebar}
-        className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors lg:hidden"
+        className="apple-button-glass p-2 lg:hidden"
         title="Menu"
+        aria-label="Open sidebar"
       >
         <Menu size={20} />
       </button>
 
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      <div className="floating-control flex-1 min-w-0 flex items-center gap-2 p-1.5">
         <GlobalSearch />
         {onOpenCommand && (
           <button
             onClick={onOpenCommand}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors border border-slate-800 shrink-0"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 shrink-0"
             title="Command Menu (Ctrl+K)"
           >
             <Search size={12} />
@@ -50,13 +51,15 @@ export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }:
 
       <AttentionBell />
 
-      {/* Connection badge — subtle, desktop only */}
-      <div className={`hidden md:flex items-center gap-1 text-xs ${isSupabase ? 'text-emerald-500' : 'text-slate-600'}`} title={isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}>
+      <div
+        className={`hidden md:flex control-pill min-h-0 py-1 px-2 text-[11px] ${isSupabase ? 'text-emerald-300' : 'text-slate-500'}`}
+        title={isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
+      >
         {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+      <div className="control-pill">
+        <div className="w-7 h-7 rounded-full bg-blue-400/15 border border-blue-200/20 flex items-center justify-center text-blue-100 text-sm font-semibold shrink-0">
           {user.displayName[0]}
         </div>
         <div className="hidden md:block">
@@ -70,11 +73,11 @@ export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }:
 
       <button
         onClick={onLogout}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+        className="apple-button-ghost p-2"
         title="Logout"
+        aria-label="Logout"
       >
         <LogOut size={16} />
-        <span className="hidden sm:inline">Logout</span>
       </button>
     </header>
   );

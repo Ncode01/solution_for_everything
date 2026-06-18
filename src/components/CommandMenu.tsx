@@ -136,14 +136,14 @@ export default function CommandMenu({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24 px-4 bg-black/35 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-2xl glass-panel-strong rounded-[var(--radius-xl)] shadow-2xl overflow-hidden motion-safe-pop"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKey}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
           <Search size={16} className="text-slate-500 shrink-0" />
           <input
             ref={inputRef}
@@ -153,7 +153,7 @@ export default function CommandMenu({ open, onClose }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button onClick={onClose} className="text-slate-600 hover:text-slate-400">
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-300" aria-label="Close command menu">
             <X size={14} />
           </button>
         </div>
@@ -175,7 +175,7 @@ export default function CommandMenu({ open, onClose }: Props) {
                       key={item.id}
                       onClick={item.action}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                        globalIdx === selected ? 'bg-blue-600/20 text-blue-300' : 'hover:bg-slate-800/60 text-slate-300'
+                        globalIdx === selected ? 'bg-blue-400/14 text-blue-200' : 'hover:bg-white/8 text-slate-300'
                       }`}
                     >
                       <item.icon size={15} className="shrink-0 text-slate-500" />

@@ -80,13 +80,14 @@ const COLOR_MAP: Record<string, string> = {
 interface Props {
   status: string;
   size?: 'sm' | 'md';
+  subtle?: boolean;
 }
 
-export default function StatusBadge({ status, size = 'sm' }: Props) {
+export default function StatusBadge({ status, size = 'sm', subtle = false }: Props) {
   const color = COLOR_MAP[status] || 'bg-slate-800 text-slate-300 border-slate-700';
   const sizeClass = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-2.5 py-1';
   return (
-    <span className={`inline-flex items-center rounded-md border font-medium ${color} ${sizeClass}`}>
+    <span className={`inline-flex items-center rounded-full border font-medium ${color} ${sizeClass} ${subtle ? 'bg-opacity-50' : ''}`}>
       {status}
     </span>
   );

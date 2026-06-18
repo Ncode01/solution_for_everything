@@ -1,5 +1,30 @@
 # Changelog
 
+## Apple-Caliber UI/UX Transformation - June 18, 2026
+
+- Added RCCS OS design tokens and Liquid Glass-inspired CSS material classes with reduced motion, reduced transparency, and contrast fallbacks.
+- Added reusable design primitives under `src/components/design/`.
+- Redesigned app shell: glass rail sidebar, floating command topbar, polished login, command menu, attention/search surfaces, modals, and slide-overs.
+- Converted Calendar from a month grid to a rolling previous-30/today/next-30 operating window with aligned weekday grid.
+- Upgraded Launches into a five-lane publishing pipeline.
+- Added People workload/availability rails and shared `PersonToken` identity display.
+- Added Event-Day Now / Next / Problems cockpit strip.
+- Updated Today hero command strip, stat capsules, mobile row behavior, and overall surface hierarchy.
+- Verified with `npm run build` and Playwright screenshots for login, Today, Calendar, Launches, Money, People, Library, System, Event-Day, and mobile Today.
+
+## Final Phase — June 17, 2026
+
+### Completion & Polish
+- **Project Templates** — 8 templates with prefilled phases, milestones, deliverables, tasks, launches, event-day items (`src/lib/projectTemplates.ts`)
+- **Activity auto-logging** — all major mutations log human-readable activity; Supabase insert when connected (`src/lib/activityLog.ts`, `src/lib/supabaseActivity.ts`)
+- **Handover Report generator** — 17-section report in Library → Handover and Project Overview (`generateHandoverReport` in `src/lib/report.ts`)
+- **Slide-over Inspectors** — Task, Deliverable, Launch, Sponsor, Person, Approval, Meeting, Calendar Day (`src/components/SlideOver.tsx`, `src/components/inspectors/`)
+- **Role-aware navigation** — sidebar filtering and route guards by role (`src/lib/navigationAccess.ts`, `src/components/RoleGuard.tsx`)
+- **Calendar deliverables** — deliverables, approvals, payments, event-day items; Deliverable filter; member filter
+- **Project Overview polish** — Next Action, health explanation, recent activity/decisions, Event-Day Mode button, handover quick action
+- **Event-Day from Overview** — Open/Start Event-Day Mode for event-like projects
+- Docs updated across README, AGENTS, architecture, known issues, testing checklist
+
 ## Phase Six — June 17, 2026
 
 ### Product Transformation: RCCS Command Center → RCCS OS

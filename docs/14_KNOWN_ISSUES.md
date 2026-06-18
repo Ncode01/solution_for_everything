@@ -1,37 +1,49 @@
 # Known Issues & Limitations
 
-## Phase Six Remaining Items
-- **Project Templates** — not yet implemented. Selecting a template when creating a project is planned for Phase Seven.
-- **Role-aware navigation hiding** — roles are checked in Focus/Today for member mapping but full navigation hiding by role is not implemented. Frontend-only anyway (RLS handles actual data security).
-- **Activity Timeline wire-up** — `activityItems` collection exists and `addActivity` works locally, but mutation hooks (saveProject, saveDeliverable, etc.) don't auto-log to activity yet. A dedicated Phase Seven task.
-- **Supabase `activity_items` adapter** — migration exists but `AppDataContext` still uses localStorage for activity. Wire in Phase Seven.
-- **Inspector panels** — entity editing happens via modals (which serve as inspectors). Dedicated slide-over inspector panels not implemented; current modal approach is functional.
-- **Handover report generation** — Library shows archived projects; full handover summary auto-generation not yet implemented.
-- **Deliverables in Calendar** — deliverables with due dates don't yet appear as calendar cells. Planned for Phase Seven.
-- **Event Day linked to Project Overview** — "Start Event-Day Mode" button in Project Overview not yet added; use `/event-day?project=ID` directly.
+## UI / UX Limitations
 
+- The Apple-caliber pass establishes the system and upgrades the primary chrome/screens, but some older inner table/list sections still use legacy markup while inheriting the new tokens.
+- Browser MCP was unavailable during this pass due to a locked profile, so visual QA used Playwright CLI screenshots instead.
+- The main bundled chunk remains above Vite's 500 kB warning threshold; this predates the visual pass and can be addressed with deeper route/component splitting.
 
+## Remaining (honest)
 
-## Auth (temporary)
-- Hardcoded plaintext users in `src/lib/auth.ts`. No JWT, no hashing, no server validation.
-- Roles are display-only — every logged-in user can access every module. **Not secure.** Replace before any real deployment.
+### Data persistence (local mode)
+- When Supabase env vars are not set, all data lives in **localStorage** only — not synced across devices.
+- Full Supabase **read/write sync for all collections** is not implemented; only auth, audit logs, and activity_items insert are wired to Supabase. Projects, tasks, sponsors, etc. still use localStorage even in Supabase mode until a full data provider migration is completed.
 
-## Data persistence
-- All data lives in browser **localStorage** only.
-- Not synced across devices or browsers; clearing browser storage loses everything.
-- Backup relies entirely on **Data Tools → Export JSON**. Encourage regular exports.
+### Auth & security
+- **Local demo mode** uses hardcoded plaintext users in `src/lib/auth.ts` — not production security.
+- **Role-aware navigation** is frontend UX only; RLS policies protect Supabase data but local mode has no server-side enforcement.
+- Link `profiles.auth_user_id` to Supabase Auth users before production (see `docs/05_AUTH_SECURITY_RLS.md`).
 
-## Functional gaps
-- Calendar is agenda/list style only (no month/week grid).
+### Functional
 - No real file uploads — File Links are external URLs only.
-- Reports are plain text (copy/print/save); no PDF export or charts.
-- "Convert action item → task" creates a task but does not deep-link back into the meeting.
+- Reports and handover are plain text (copy/print/save); no PDF export.
+- No email/push notifications — attention is in-app only.
+- No real-time Supabase subscriptions — data does not live-update across browser tabs.
 - Global search is simple substring matching, not fuzzy/ranked.
-- No notifications — the Attention Center is in-app only (no email/push).
-- No data migration/versioning: importing an old export from a future schema change may drop unknown fields.
 
-## Scale
-- Built for a student society's handful of concurrent projects. Large datasets (hundreds of records) are untested and may feel slow since everything is in memory.
+### Scale
+- Built for a student society's handful of concurrent projects. Large datasets are untested.
 
-## Phase Three fixes
-See `docs/08_IMPLEMENTATION_PLAN.md` for the planned Supabase migration that addresses auth, persistence, and notifications.
+## Fixed in Final Phase
+- ~~Project Templates not implemented~~ — 8 templates in project creation flow
+- ~~Activity auto-logging not wired~~ — mutations log to activity timeline
+- ~~activity_items Supabase adapter missing~~ — insert sync via `src/lib/supabaseActivity.ts`
+- ~~Deliverables not in Calendar~~ — deliverables appear in grid and agenda
+- ~~Event-Day button missing from Project Overview~~ — Open/Start Event-Day Mode added
+- ~~Role-aware nav not implemented~~ — sidebar filtering + route guards
+- ~~Handover report not implemented~~ — Library Handover section + Project Overview
+- ~~Slide-over inspectors missing~~ — SlideOver + entity inspectors added
+
+## Auth (local demo only)
+- Demo logins: `admin/admin123`, `secretary/rccs2026`, `member/member123`
+- Roles: Super Admin, Executive Admin, Member (demo). Viewer role supported in nav rules but no demo login.
+
+## Supabase production checklist
+1. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+2. Run migrations: `npm run supabase:db:push`
+3. Link auth users to profiles (`supabase/dev_link_profiles_example.sql`)
+4. Verify RLS with non-admin test accounts
+5. Plan full data provider migration for multi-device sync

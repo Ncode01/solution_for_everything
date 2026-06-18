@@ -14,6 +14,7 @@ import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import MemberForm from '../members/MemberForm';
 import { useAutoNew } from '../../lib/useAutoNew';
+import PersonToken from '../../components/design/PersonToken';
 
 const COMMITTEES: Committee[] = [
   'Executive', 'PR & Media', 'Development', 'Sponsorship', 'Finance',
@@ -68,6 +69,7 @@ export default function PeoplePage() {
 
   // People balance
   const overloaded = members.filter((m) => m.workloadLevel === 'Overloaded' || m.workloadLevel === 'Heavy');
+  const available = members.filter((m) => m.availabilityStatus === 'Available' && (m.workloadLevel === 'Light' || m.workloadLevel === 'Normal'));
   const committeeGroups = useMemo(() => {
     const g: Record<string, number> = {};
     members.forEach((m) => { g[m.committee] = (g[m.committee] ?? 0) + 1; });
@@ -115,6 +117,37 @@ export default function PeoplePage() {
         </Card>
       )}
 
+      {members.length > 0 && (
+        <div className="grid md:grid-cols-2 gap-3">
+          <Card>
+            <h2 className="text-sm font-semibold text-white mb-3">Overloaded</h2>
+            <div className="flex flex-wrap gap-2">
+              {overloaded.length === 0 ? (
+                <span className="text-xs text-slate-500">No heavy workload signals right now.</span>
+              ) : overloaded.slice(0, 6).map((m) => (
+                <button key={m.id} className="control-pill" onClick={() => setDetail(m)}>
+                  <PersonToken member={m} compact />
+                  <span className="text-xs">{m.displayName}</span>
+                </button>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-sm font-semibold text-white mb-3">Available</h2>
+            <div className="flex flex-wrap gap-2">
+              {available.length === 0 ? (
+                <span className="text-xs text-slate-500">No clearly available members in the current data.</span>
+              ) : available.slice(0, 6).map((m) => (
+                <button key={m.id} className="control-pill" onClick={() => setDetail(m)}>
+                  <PersonToken member={m} compact />
+                  <span className="text-xs">{m.displayName}</span>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-44">
@@ -149,13 +182,7 @@ export default function PeoplePage() {
               <Card key={m.id} onClick={() => setDetail(m)} className="cursor-pointer hover:border-slate-600 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sm font-bold text-blue-300 shrink-0">
-                      {m.displayName.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-200 text-sm truncate">{m.displayName}</p>
-                      <p className="text-xs text-slate-500 truncate">{m.role}</p>
-                    </div>
+                    <PersonToken member={m} />
                   </div>
                   <div className="flex gap-1.5 shrink-0">
                     <button className="btn-ghost p-1.5" onClick={(e) => { e.stopPropagation(); setFormModal({ open: true, editing: m }); }}>

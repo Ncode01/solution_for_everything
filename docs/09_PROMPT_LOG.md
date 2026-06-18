@@ -1,5 +1,68 @@
 # Prompt Log
 
+## Apple-Caliber UI/UX Transformation - June 18, 2026
+
+### Summary
+
+Completed a repo-wide RCCS OS visual-system pass: design tokens, Liquid Glass-inspired material classes, reusable design primitives, app shell redesign, login branding correction, rolling 60-day Calendar, Launches pipeline, People rails, Event-Day cockpit strip, Today command strip/stat capsules, mobile row overflow fix, and documentation updates.
+
+### Key Files Created
+- `src/components/design/GlassPanel.tsx`
+- `src/components/design/SolidPanel.tsx`
+- `src/components/design/FloatingBar.tsx`
+- `src/components/design/SegmentedControl.tsx`
+- `src/components/design/LiquidButton.tsx`
+- `src/components/design/LiquidInput.tsx`
+- `src/components/design/StatCapsule.tsx`
+- `src/components/design/AttentionRow.tsx`
+- `src/components/design/PersonToken.tsx`
+- `src/components/design/StatusDot.tsx`
+
+### Key Files Changed
+- `src/styles/global.css` - tokens, material classes, accessibility fallbacks
+- `src/components/Layout.tsx`, `Sidebar.tsx`, `Topbar.tsx`, `GlobalSearch.tsx`, `CommandMenu.tsx`, `AttentionBell.tsx`, `Modal.tsx`, `SlideOver.tsx`
+- `src/features/auth/LoginPage.tsx`
+- `src/features/today/TodayPage.tsx`
+- `src/features/calendar/CalendarPage.tsx`
+- `src/features/projects/ProjectDetailPage.tsx`
+- `src/features/launches/LaunchesPage.tsx`
+- `src/features/budget/BudgetPage.tsx`
+- `src/features/people/PeoplePage.tsx`
+- `src/features/library/LibraryPage.tsx`
+- `src/features/event-day/EventDayPage.tsx`
+- Docs: README, AGENTS, CHANGELOG, architecture, UI/UX screens, testing checklist, known issues, prompt log
+
+### Checks Run
+- `npm run build` - pass
+- Playwright CLI screenshots: login, Today, Calendar, Launches, Money, People, Library, System, Event-Day, mobile Today
+
+
+## Final Phase — June 17, 2026
+
+### Summary
+
+Completed RCCS OS final phase: project templates, activity auto-logging, Supabase activity sync, deliverables in calendar, slide-over inspectors, role-aware navigation, handover report generator, Project Overview polish, Event-Day Mode entry from Overview, docs update. Build passes with zero TypeScript errors.
+
+### Key Files Created
+- `src/lib/projectTemplates.ts`, `src/lib/activityLog.ts`, `src/lib/supabaseActivity.ts`, `src/lib/navigationAccess.ts`
+- `src/components/SlideOver.tsx`, `src/components/RoleGuard.tsx`, `src/components/inspectors/EntityInspectors.tsx`
+
+### Key Files Changed
+- `src/state/AppDataContext.tsx` — activity auto-logging on mutations
+- `src/features/projects/ProjectForm.tsx`, `ProjectsPage.tsx` — template selector and apply flow
+- `src/features/projects/ProjectDetailPage.tsx` — overview polish, inspectors, handover, event-day
+- `src/features/calendar/CalendarPage.tsx` — deliverables, approvals, payments, day inspector
+- `src/features/library/LibraryPage.tsx` — Handover section
+- `src/components/Sidebar.tsx`, `src/App.tsx`, `src/components/Layout.tsx` — role-aware nav
+- `src/lib/report.ts` — `generateHandoverReport`
+- `src/lib/attention.ts` — overdue deliverables
+- Docs: README, AGENTS, CHANGELOG, 14_KNOWN_ISSUES
+
+### Checks Run
+- `npm run build` — pass (zero TS errors)
+
+---
+
 ## Phase Six — June 17, 2026
 
 ### Summary

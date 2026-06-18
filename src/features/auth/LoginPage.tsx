@@ -15,7 +15,7 @@ export default function LoginPage() {
   // ── Profile not found ──────────────────────────────────────────────────────
   if (state === 'no-profile') {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="app-background min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-4">
           <div className="text-center">
             <div className="w-16 h-16 rounded-2xl bg-amber-600/20 border border-amber-600/40 flex items-center justify-center mx-auto mb-4">
@@ -25,7 +25,7 @@ export default function LoginPage() {
             <p className="text-slate-500 text-sm mt-1">Your account is not linked to an RCCS profile.</p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 text-sm">
+          <div className="solid-panel p-4 space-y-2 text-sm">
             <p className="text-slate-300 font-medium">Logged in as:</p>
             <p className="text-slate-500 font-mono text-xs">{session?.user?.email ?? 'Unknown'}</p>
             <div className="border-t border-slate-800 pt-3 mt-2 text-slate-500 text-xs space-y-1">
@@ -57,15 +57,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+    <div className="app-background min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4">
-            <ChevronRight size={28} className="text-white" />
+          <div className="relative w-16 h-16 rounded-3xl glass-panel-strong flex items-center justify-center mx-auto mb-4">
+            <span className="absolute inset-2 rounded-2xl border border-white/10" />
+            <ChevronRight size={28} className="text-blue-100" />
           </div>
-          <h1 className="text-2xl font-bold text-white">RCCS Command Center</h1>
-          <p className="text-slate-500 text-sm mt-1">Royal College Computing Society</p>
+          <h1 className="text-2xl font-bold text-white">RCCS OS</h1>
+          <p className="text-slate-500 text-sm mt-1">Internal Operating System</p>
         </div>
 
         {/* Mode badge */}
@@ -75,7 +76,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="card space-y-4">
+        <form onSubmit={handleSubmit} className="glass-panel-strong rounded-[var(--radius-xl)] p-4 space-y-4">
           <div>
             <label className="label" htmlFor="credential">
               {isSupabase ? 'Email' : 'Username'}
@@ -120,7 +121,7 @@ export default function LoginPage() {
 
         {/* Demo credentials — only shown in local mode */}
         {!isSupabase && (
-          <div className="mt-4 card text-xs space-y-1">
+          <div className="mt-4 solid-panel p-4 text-xs space-y-1">
             <p className="text-slate-500 font-medium mb-2">Demo Credentials</p>
             <p className="text-slate-400"><span className="text-slate-300">admin</span> / admin123 — Super Admin</p>
             <p className="text-slate-400"><span className="text-slate-300">secretary</span> / rccs2026 — Executive Admin</p>
