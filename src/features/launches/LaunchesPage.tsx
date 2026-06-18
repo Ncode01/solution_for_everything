@@ -2,14 +2,18 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Edit2, Plus, Rocket, Search, Trash2 } from 'lucide-react';
 import { PRItem, PRPlatform, PRWorkflowStatus } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
+import { useAuth } from '../../state/AuthContext';
 import { getAllPRItems } from '../../lib/stats';
 import {
+  DISPLAY_LANES,
+  DisplayLane,
   getMissingChips,
   getPRWorkflowStatus,
+  isAssignedDesigner,
+  isChairmanOrSecretary,
   laneForStatus,
   syncLegacyFromWorkflow,
   validateWorkflowTransition,
-  WORKFLOW_LANES,
 } from '../../lib/prWorkflow';
 import { formatDate } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
@@ -30,49 +34,64 @@ const PLATFORMS: (PRPlatform | 'All')[] = ['All', 'Instagram', 'Facebook', 'Link
 type LaunchRow = PRItem & { projectName: string; projectId: string };
 
 export default function LaunchesPage() {
+  const { user } = useAuth();
   const { data, saveProject } = useAppData();
   const projects = data.projects;
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('All');
   const [platformFilter, setPlatformFilter] = useState<PRPlatform | 'All'>('All');
-  const [workflowFilter, setWorkflowFilter] = useState<PRWorkflowStatus | 'All'>('All');
+  const [laneFilter, setLaneFilter] = useState<DisplayLane | 'All'>('All');
   const [showArchive, setShowArchive] = useState(false);
   const [prModal, setPrModal] = useState<{ open: boolean; editing?: LaunchRow; projectId?: string }>({ open: false });
   const [confirmDel, setConfirmDel] = useState<{ projectId: string; pr: PRItem } | null>(null);
   const [confirmPost, setConfirmPost] = useState<LaunchRow | null>(null);
+  const [actionError, setActionError] = useState('');
 
   useAutoNew(() => setPrModal({ open: true, projectId: projects[0]?.id }));
+
+  const myMember = useMemo(() => {
+    if (!user) return undefined;
+    const lower = user.username.toLowerCase();
+    const byUsername = data.members.find((m) => m.name.toLowerCase().includes(lower) || m.displayName.toLowerCase().includes(lower));
+    if (byUsername) return byUsername;
+    if (user.role === 'Super Admin' || user.role === 'Executive Admin') {
+      return data.members.find((m) => isChairmanOrSecretary(m));
+    }
+    return data.members.find((m) => m.displayName === user.displayName);
+  }, [data.members, user]);
 
   const allLaunches = getAllPRItems(projects);
   const filtered = useMemo(() => allLaunches
     .filter((launch) => {
-      const status = getPRWorkflowStatus(launch);
+      const lane = laneForStatus(getPRWorkflowStatus(launch));
       const matchSearch = launch.title.toLowerCase().includes(search.toLowerCase()) || launch.campaign.toLowerCase().includes(search.toLowerCase());
       const matchProject = projectFilter === 'All' || launch.projectId === projectFilter;
       const matchPlatform = platformFilter === 'All' || launch.platform === platformFilter;
-      const matchWorkflow = workflowFilter === 'All' || status === workflowFilter;
-      const matchArchive = showArchive || laneForStatus(status) !== 'Archived';
-      return matchSearch && matchProject && matchPlatform && matchWorkflow && matchArchive;
+      const matchLane = laneFilter === 'All' || lane === laneFilter;
+      const matchArchive = showArchive || lane !== 'Archived';
+      return matchSearch && matchProject && matchPlatform && matchLane && matchArchive;
     })
-    .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999')), [allLaunches, platformFilter, projectFilter, search, showArchive, workflowFilter]);
+    .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999')), [allLaunches, laneFilter, platformFilter, projectFilter, search, showArchive]);
 
   const metrics = useMemo(() => {
     const active = allLaunches.filter((l) => laneForStatus(getPRWorkflowStatus(l)) !== 'Archived');
     return {
-      drafts: active.filter((l) => getPRWorkflowStatus(l) === 'Draft').length,
-      withDesigner: active.filter((l) => ['Sent to Designer', 'Designer Accepted', 'Designing'].includes(getPRWorkflowStatus(l))).length,
-      inApproval: active.filter((l) => ['In Approval', 'Changes Requested', 'Design Submitted'].includes(getPRWorkflowStatus(l))).length,
-      ready: active.filter((l) => ['Ready to Launch', 'Scheduled'].includes(getPRWorkflowStatus(l))).length,
+      withDesigner: active.filter((l) => laneForStatus(getPRWorkflowStatus(l)) === 'Sent to Designer').length,
+      inApproval: active.filter((l) => laneForStatus(getPRWorkflowStatus(l)) === 'In Approval').length,
+      ready: active.filter((l) => laneForStatus(getPRWorkflowStatus(l)) === 'Ready to Post').length,
       archived: allLaunches.filter((l) => laneForStatus(getPRWorkflowStatus(l)) === 'Archived').length,
     };
   }, [allLaunches]);
 
   const lanes = useMemo(() => {
-    const map: Record<string, LaunchRow[]> = {};
-    WORKFLOW_LANES.forEach((lane) => { map[lane] = []; });
+    const map: Record<DisplayLane, LaunchRow[]> = {
+      'Sent to Designer': [],
+      'In Approval': [],
+      'Ready to Post': [],
+    };
     filtered.forEach((launch) => {
       const lane = laneForStatus(getPRWorkflowStatus(launch));
-      map[lane].push(launch);
+      if (lane !== 'Archived') map[lane].push(launch);
     });
     return map;
   }, [filtered]);
@@ -93,15 +112,18 @@ export default function LaunchesPage() {
   }
 
   function transition(launch: LaunchRow, next: PRWorkflowStatus) {
+    setActionError('');
     const err = validateWorkflowTransition(launch, next);
     if (err) {
+      setActionError(err);
       setPrModal({ open: true, editing: launch, projectId: launch.projectId });
       return;
     }
     const now = new Date().toISOString();
     let updated = syncLegacyFromWorkflow({ ...launch }, next);
-    if (next === 'Designer Accepted') updated.designerAcceptedAt = now;
-    if (next === 'Design Submitted') updated.designSubmittedAt = now;
+    if (next === 'Designing' && getPRWorkflowStatus(launch) === 'Sent to Designer') {
+      updated.designerAcceptedAt = now;
+    }
     if (next === 'In Approval') updated.approvalSubmittedAt = now;
     if (next === 'Ready to Launch') updated.approvedAt = now;
     savePR(launch.projectId, updated);
@@ -118,19 +140,38 @@ export default function LaunchesPage() {
     setConfirmPost(null);
   }
 
-  function primaryAction(launch: LaunchRow): { label: string; action: () => void } | null {
+  function primaryAction(launch: LaunchRow): { label: string; action: () => void; disabled?: boolean; hint?: string } | null {
     const status = getPRWorkflowStatus(launch);
+    const isDesigner = isAssignedDesigner(launch, myMember);
+    const canApprove = isChairmanOrSecretary(myMember);
+
     switch (status) {
-      case 'Draft': return { label: 'Send to Designer', action: () => transition(launch, 'Sent to Designer') };
-      case 'Sent to Designer': return { label: 'Designer Accept', action: () => transition(launch, 'Designer Accepted') };
-      case 'Designer Accepted': return { label: 'Start Designing', action: () => transition(launch, 'Designing') };
-      case 'Designing': return { label: 'Submit Design', action: () => transition(launch, 'Design Submitted') };
-      case 'Design Submitted': return { label: 'Send to Approval', action: () => transition(launch, 'In Approval') };
-      case 'In Approval': return { label: 'Mark Approved', action: () => transition(launch, 'Ready to Launch') };
-      case 'Changes Requested': return { label: 'Back to Designing', action: () => transition(launch, 'Designing') };
-      case 'Ready to Launch': return { label: 'Schedule', action: () => transition(launch, 'Scheduled') };
-      case 'Scheduled': return { label: 'Mark Posted', action: () => setConfirmPost(launch) };
-      default: return null;
+      case 'Draft':
+        return { label: 'Send to Designer', action: () => transition(launch, 'Sent to Designer') };
+      case 'Sent to Designer':
+        if (!isDesigner) {
+          return { label: 'Accept', action: () => {}, disabled: true, hint: 'Assigned designer only' };
+        }
+        return { label: 'Accept & Start Designing', action: () => transition(launch, 'Designing') };
+      case 'Designer Accepted':
+      case 'Designing':
+      case 'Changes Requested':
+        if (!isDesigner) {
+          return { label: 'Submit for Approval', action: () => {}, disabled: true, hint: 'Assigned designer only' };
+        }
+        return { label: 'Submit for Approval', action: () => transition(launch, 'In Approval') };
+      case 'Design Submitted':
+        return { label: 'In Approval', action: () => transition(launch, 'In Approval') };
+      case 'In Approval':
+        if (!canApprove) {
+          return { label: 'Approve', action: () => {}, disabled: true, hint: 'Chairman or Secretary only' };
+        }
+        return { label: 'Approve', action: () => transition(launch, 'Ready to Launch') };
+      case 'Ready to Launch':
+      case 'Scheduled':
+        return { label: 'Mark Posted', action: () => setConfirmPost(launch) };
+      default:
+        return null;
     }
   }
 
@@ -158,13 +199,18 @@ export default function LaunchesPage() {
         )}
         <div className="flex flex-wrap gap-1.5 pt-1">
           {action && (
-            <button className="btn-primary text-xs px-2 py-1" onClick={(e) => { e.stopPropagation(); action.action(); }}>
+            <button
+              className={`btn-primary text-xs px-2 py-1 ${action.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              disabled={action.disabled}
+              title={action.hint}
+              onClick={(e) => { e.stopPropagation(); if (!action.disabled) action.action(); }}
+            >
               {action.label}
             </button>
           )}
-          {status === 'In Approval' && (
+          {status === 'In Approval' && isChairmanOrSecretary(myMember) && (
             <button className="btn-secondary text-xs px-2 py-1" onClick={(e) => { e.stopPropagation(); transition(launch, 'Changes Requested'); }}>
-              Changes Requested
+              Request Changes
             </button>
           )}
           <button className="btn-ghost text-xs px-2 py-1" onClick={(e) => { e.stopPropagation(); setPrModal({ open: true, editing: launch, projectId: launch.projectId }); }}>
@@ -183,10 +229,9 @@ export default function LaunchesPage() {
         tone="launch"
         primaryAction={<button className="btn-primary" onClick={() => setPrModal({ open: true, projectId: projects[0]?.id })} disabled={projects.length === 0}><Plus size={16} /> New Launch</button>}
         metrics={[
-          { label: 'Drafts', value: metrics.drafts },
-          { label: 'With Designer', value: metrics.withDesigner, tone: 'warning' },
+          { label: 'Sent to Designer', value: metrics.withDesigner, tone: 'warning' },
           { label: 'In Approval', value: metrics.inApproval, tone: 'warning' },
-          { label: 'Ready', value: metrics.ready, tone: 'success' },
+          { label: 'Ready to Post', value: metrics.ready, tone: 'success' },
         ]}
       />
 
@@ -202,24 +247,28 @@ export default function LaunchesPage() {
         <select className="select w-36" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value as PRPlatform | 'All')}>
           {PLATFORMS.map((platform) => <option key={platform}>{platform}</option>)}
         </select>
-        <select className="select w-40" value={workflowFilter} onChange={(e) => setWorkflowFilter(e.target.value as PRWorkflowStatus | 'All')}>
-          <option value="All">All workflow</option>
-          {WORKFLOW_LANES.map((lane) => <option key={lane}>{lane}</option>)}
+        <select className="select w-40" value={laneFilter} onChange={(e) => setLaneFilter(e.target.value as DisplayLane | 'All')}>
+          <option value="All">All stages</option>
+          {DISPLAY_LANES.map((lane) => <option key={lane}>{lane}</option>)}
         </select>
         <button className={`btn-secondary text-xs ${showArchive ? 'ring-1 ring-[var(--accent)]' : ''}`} onClick={() => setShowArchive((v) => !v)}>
           Archive ({metrics.archived})
         </button>
       </ContextActionBar>
 
-      <Pipeline title="Design handoff pipeline">
-        {WORKFLOW_LANES.map((lane) => {
+      {actionError && (
+        <div className="rounded-lg border border-amber-600/30 bg-amber-900/20 px-3 py-2 text-xs text-amber-300">{actionError}</div>
+      )}
+
+      <Pipeline title="Launch pipeline">
+        {DISPLAY_LANES.map((lane) => {
           const items = lanes[lane] ?? [];
           return (
             <PipelineLane key={lane} title={lane} count={`${items.length} item${items.length === 1 ? '' : 's'}`}>
               {items.length === 0 ? (
                 <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--border-subtle)] px-3 py-6 text-center text-sm text-[var(--text-tertiary)]">Nothing here</div>
               ) : (
-                items.slice(0, 6).map((launch) => renderLaunchCard(launch))
+                items.map((launch) => renderLaunchCard(launch))
               )}
             </PipelineLane>
           );
@@ -243,7 +292,11 @@ export default function LaunchesPage() {
                   </div>
                   <StatusBadge status={status} />
                   <div className="flex flex-wrap gap-2">
-                    {action && <button className="btn-primary text-xs" onClick={action.action}>{action.label}</button>}
+                    {action && (
+                      <button className={`btn-primary text-xs ${action.disabled ? 'opacity-40 cursor-not-allowed' : ''}`} disabled={action.disabled} title={action.hint} onClick={() => !action.disabled && action.action()}>
+                        {action.label}
+                      </button>
+                    )}
                     <button className="btn-ghost text-xs" onClick={() => setPrModal({ open: true, editing: launch, projectId: launch.projectId })}>Edit</button>
                     <button className="btn-ghost text-xs text-[var(--danger)]" onClick={() => setConfirmDel({ projectId: launch.projectId, pr: launch })}><Trash2 size={13} /></button>
                   </div>

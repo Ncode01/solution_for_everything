@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Plus, Search, Users } from 'lucide-react';
 import { Committee, Member, WorkloadLevel } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
@@ -37,11 +37,6 @@ export default function PeoplePage() {
     return matchSearch && matchCommittee && matchWorkload;
   });
 
-  const committees = useMemo(() => COMMITTEES.map((committee) => ({
-    committee,
-    members: filtered.filter((member) => member.committee === committee),
-  })).filter((group) => group.members.length > 0), [filtered]);
-
   const activePeople = members.length;
   const overloaded = members.filter((member) => member.workloadLevel === 'Overloaded').length;
   const available = members.filter((member) => member.availabilityStatus === 'Available' && ['Light', 'Normal'].includes(member.workloadLevel)).length;
@@ -59,11 +54,10 @@ export default function PeoplePage() {
     <ScreenCanvas variant="wide">
       <CommandHero
         title="People"
-        description="Committee map, workload balance, and who has capacity."
+        description="Team roster and workload across RCCS projects."
         primaryAction={<button className="btn-primary" onClick={() => setFormModal({ open: true })}><Plus size={16} /> Add Person</button>}
         metrics={[
           { label: 'Active People', value: activePeople },
-          { label: 'Committees', value: committees.length },
           { label: 'Overloaded', value: overloaded, tone: overloaded > 0 ? 'danger' : 'default' },
           { label: 'Available', value: available, tone: 'success' },
         ]}
@@ -88,30 +82,26 @@ export default function PeoplePage() {
         <EmptyMoment icon={<Users size={20} />} title="No people found" description="Add members so work can be assigned properly." action={<button className="btn-primary" onClick={() => setFormModal({ open: true })}>Add person</button>} />
       ) : (
         <>
-          <section className="space-y-3">
-            <div className="text-[15px] font-semibold text-[var(--text-primary)]">Committee map</div>
-            <div className="grid gap-4 xl:grid-cols-2">
-              {committees.map((group) => (
-                <Card key={group.committee} className="space-y-3 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium text-[var(--text-primary)]">{group.committee}</div>
-                    <div className="text-xs text-[var(--text-tertiary)]">{group.members.length} people</div>
+          <Card className="p-4">
+            <div className="text-[15px] font-semibold text-[var(--text-primary)]">Team roster</div>
+            <div className="mt-3 space-y-2">
+              {filtered.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => setFormModal({ open: true, editing: member })}
+                  className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                >
+                  <PersonToken member={member} />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className="text-xs text-[var(--text-tertiary)]">{member.committee} · {member.role}</span>
+                    <StatusBadge status={member.availabilityStatus} subtle />
+                    <StatusDot label={member.workloadLevel} tone={member.workloadLevel === 'Overloaded' ? 'red' : member.workloadLevel === 'Heavy' ? 'amber' : member.workloadLevel === 'Normal' ? 'emerald' : 'blue'} lozenge />
                   </div>
-                  <div className="space-y-3">
-                    {group.members.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-3">
-                        <PersonToken member={member} />
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={member.availabilityStatus} />
-                          <StatusDot label={member.workloadLevel} tone={member.workloadLevel === 'Overloaded' ? 'red' : member.workloadLevel === 'Heavy' ? 'amber' : member.workloadLevel === 'Normal' ? 'emerald' : 'blue'} lozenge />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
+                </button>
               ))}
             </div>
-          </section>
+          </Card>
 
           <section className="space-y-3">
             <div className="text-[15px] font-semibold text-[var(--text-primary)]">Workload matrix</div>
@@ -133,28 +123,6 @@ export default function PeoplePage() {
                 );
               })}
             />
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-2">
-            <Card className="p-4">
-              <div className="text-[15px] font-semibold text-[var(--text-primary)]">Skills rail</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {filtered.flatMap((member) => member.skills).slice(0, 18).map((skill, index) => (
-                  <span key={`${skill}-${index}`} className="rounded-full border border-[var(--border-subtle)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">{skill}</span>
-                ))}
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-[15px] font-semibold text-[var(--text-primary)]">Availability rail</div>
-              <div className="mt-3 space-y-2">
-                {filtered.slice(0, 6).map((member) => (
-                  <div key={`availability-${member.id}`} className="flex items-center justify-between gap-3">
-                    <PersonToken member={member} compact />
-                    <StatusBadge status={member.availabilityStatus} />
-                  </div>
-                ))}
-              </div>
-            </Card>
           </section>
         </>
       )}

@@ -1,16 +1,11 @@
 import { PRItem, PRWorkflowStatus } from '../types';
 
-export const WORKFLOW_LANES: PRWorkflowStatus[] = [
-  'Draft',
-  'Sent to Designer',
-  'Designer Accepted',
-  'Designing',
-  'Design Submitted',
-  'In Approval',
-  'Ready to Launch',
-  'Scheduled',
-  'Archived',
-];
+/** Three pipeline tabs shown on Launches page */
+export const DISPLAY_LANES = ['Sent to Designer', 'In Approval', 'Ready to Post'] as const;
+export type DisplayLane = typeof DISPLAY_LANES[number];
+
+/** @deprecated use DISPLAY_LANES */
+export const WORKFLOW_LANES = DISPLAY_LANES;
 
 export function getPRWorkflowStatus(item: PRItem): PRWorkflowStatus {
   if (item.workflowStatus) return item.workflowStatus;
@@ -61,10 +56,10 @@ export function syncLegacyFromWorkflow(item: PRItem, workflowStatus: PRWorkflowS
       updated.publishingStatus = 'Idea';
       break;
     case 'Sent to Designer':
-    case 'Designer Accepted':
       updated.approvalStatus = 'Draft';
       updated.publishingStatus = 'Idea';
       break;
+    case 'Designer Accepted':
     case 'Designing':
       updated.approvalStatus = 'Draft';
       updated.publishingStatus = 'Designing';
@@ -130,6 +125,9 @@ export function validateWorkflowTransition(item: PRItem, next: PRWorkflowStatus)
     case 'In Approval':
       if (!finalLink.trim()) return 'Add a final design link before sending to approval.';
       break;
+    case 'Designing':
+      if (!hasSource && !finalLink.trim()) return 'Add a design link before submitting.';
+      break;
     case 'Ready to Launch':
       if (item.approvalStatus !== 'Approved' && getPRWorkflowStatus(item) !== 'In Approval') {
         // allow transition from In Approval when marking approved
@@ -144,8 +142,24 @@ export function validateWorkflowTransition(item: PRItem, next: PRWorkflowStatus)
   return null;
 }
 
-export function laneForStatus(status: PRWorkflowStatus): PRWorkflowStatus {
+export function laneForStatus(status: PRWorkflowStatus): DisplayLane | 'Archived' {
   if (status === 'Posted' || status === 'Archived') return 'Archived';
-  if (status === 'Changes Requested') return 'In Approval';
-  return status;
+  if (['In Approval', 'Design Submitted'].includes(status)) return 'In Approval';
+  if (['Ready to Launch', 'Scheduled'].includes(status)) return 'Ready to Post';
+  return 'Sent to Designer';
+}
+
+export function isAssignedDesigner(
+  item: PRItem,
+  member?: { id: string; displayName: string; name: string },
+): boolean {
+  if (!member) return false;
+  if (item.designerId) return item.designerId === member.id;
+  return item.designer === member.displayName || item.designer === member.name;
+}
+
+export function isChairmanOrSecretary(member?: { role: string }): boolean {
+  if (!member) return false;
+  const role = member.role.toLowerCase();
+  return role.includes('chairman') || role.includes('secretary');
 }
