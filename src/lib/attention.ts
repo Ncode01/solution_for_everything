@@ -1,5 +1,7 @@
 import { AppData, Project } from '../types';
 import { isOverdue, isDueSoon, daysUntil } from './dateUtils';
+import { getPRWorkflowStatus, getDesignBrief } from './prWorkflow';
+import { ensureApprovalStages, getCurrentStage } from './approvalStages';
 
 export interface AttentionItem {
   id: string;
@@ -58,24 +60,53 @@ export function buildAttention(data: AppData): AttentionGroup[] {
   if (dueSoonTasks.length)
     groups.push({ key: 'due-soon-tasks', label: 'Tasks due today / tomorrow', tone: 'warning', items: dueSoonTasks });
 
-  // PR needing approval + PR scheduled soon
+  // PR workflow attention
   const prApproval: AttentionItem[] = [];
   const prSoon: AttentionItem[] = [];
+  const prWorkflow: AttentionItem[] = [];
   projects.forEach((p) => {
     p.prItems.forEach((pr) => {
-      if (pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review') {
+      const status = getPRWorkflowStatus(pr);
+      if (status === 'In Approval' || status === 'Design Submitted') {
         prApproval.push({
           id: pr.id,
           title: pr.title,
           meta: `${p.name} · ${pr.platform}`,
-          badge: pr.approvalStatus,
+          badge: status,
+          link: '/launches',
+        });
+      }
+      if (status === 'Draft' && (!getDesignBrief(pr).trim() || !(pr.designerId || pr.designer))) {
+        prWorkflow.push({
+          id: `wf-${pr.id}`,
+          title: pr.title,
+          meta: `${p.name} · missing brief or designer`,
+          badge: 'Draft',
+          link: '/launches',
+        });
+      }
+      if (status === 'Sent to Designer') {
+        prWorkflow.push({
+          id: `wf-${pr.id}`,
+          title: pr.title,
+          meta: `${p.name} · waiting designer accept`,
+          badge: status,
+          link: '/launches',
+        });
+      }
+      if (status === 'Ready to Launch' && !pr.publishDate) {
+        prWorkflow.push({
+          id: `wf-${pr.id}`,
+          title: pr.title,
+          meta: `${p.name} · no publish date`,
+          badge: status,
           link: '/launches',
         });
       }
       if (
         pr.publishDate &&
-        pr.publishingStatus !== 'Posted' &&
-        pr.publishingStatus !== 'Archived' &&
+        status !== 'Posted' &&
+        status !== 'Archived' &&
         isDueSoon(pr.publishDate, 7)
       ) {
         prSoon.push({
@@ -83,14 +114,16 @@ export function buildAttention(data: AppData): AttentionGroup[] {
           title: pr.title,
           meta: `${p.name} · ${pr.platform}`,
           date: pr.publishDate,
-          badge: pr.publishingStatus,
+          badge: status,
           link: '/launches',
         });
       }
     });
   });
   if (prApproval.length)
-    groups.push({ key: 'pr-approval', label: 'Launches needing approval', tone: 'warning', items: prApproval });
+    groups.push({ key: 'pr-approval', label: 'Launches in approval', tone: 'warning', items: prApproval });
+  if (prWorkflow.length)
+    groups.push({ key: 'pr-workflow', label: 'Launch workflow needs action', tone: 'warning', items: prWorkflow });
   if (prSoon.length)
     groups.push({ key: 'pr-soon', label: 'Launches scheduled soon', tone: 'info', items: prSoon });
 
@@ -130,7 +163,7 @@ export function buildAttention(data: AppData): AttentionGroup[] {
   if (sponsorPayments.length)
     groups.push({ key: 'sponsor-payments', label: 'Sponsor payments to chase', tone: 'danger', items: sponsorPayments });
 
-  // Budget: missing receipts on expenses
+  // Budget: missing receipts + missing quotations on expenses
   const missingReceipts: AttentionItem[] = transactions
     .filter((t) => t.type === 'Expense' && !t.receiptLink)
     .map((t) => ({
@@ -140,8 +173,19 @@ export function buildAttention(data: AppData): AttentionGroup[] {
       date: t.date,
       link: '/money',
     }));
+  const missingQuotes: AttentionItem[] = transactions
+    .filter((t) => t.type === 'Expense' && (t.quotations?.filter((q) => q.sellerName.trim()).length ?? 0) < 3)
+    .map((t) => ({
+      id: `quote-${t.id}`,
+      title: `Missing quotations: ${t.category}`,
+      meta: `${projectName(projects, t.projectId)} · ${t.quotations?.filter((q) => q.sellerName.trim()).length ?? 0}/3 quotes`,
+      date: t.date,
+      link: '/money',
+    }));
   if (missingReceipts.length > 0)
     groups.push({ key: 'missing-receipts', label: 'Expenses missing receipts', tone: 'info', items: missingReceipts });
+  if (missingQuotes.length > 0)
+    groups.push({ key: 'missing-quotes', label: 'Expenses missing quotations', tone: 'warning', items: missingQuotes });
 
   // Meeting action items overdue / due soon
   const meetingActions: AttentionItem[] = [];
@@ -163,19 +207,37 @@ export function buildAttention(data: AppData): AttentionGroup[] {
   if (meetingActions.length)
     groups.push({ key: 'meeting-actions', label: 'Meeting action items due', tone: 'warning', items: meetingActions });
 
-  // Approvals pending
-  const pendingApprovals: AttentionItem[] = approvals
-    .filter((a) => a.status === 'Submitted')
-    .map((a) => ({
-      id: a.id,
-      title: a.title,
-      meta: `${projectName(projects, a.projectId)} · ${a.approver}`,
-      date: a.submittedDate,
-      badge: a.status,
-      link: '/approvals',
-    }));
+  // Approvals pending + stage timelines
+  const pendingApprovals: AttentionItem[] = [];
+  const overdueStages: AttentionItem[] = [];
+  approvals.forEach((a) => {
+    const stages = ensureApprovalStages(a);
+    const current = getCurrentStage(stages);
+    if (a.status === 'Submitted' || a.status === 'Changes Requested') {
+      pendingApprovals.push({
+        id: a.id,
+        title: a.title,
+        meta: `${projectName(projects, a.projectId)} · ${current?.title ?? a.approver}`,
+        date: a.submittedDate,
+        badge: a.status,
+        link: '/approvals',
+      });
+    }
+    if (current?.dueDate && isOverdue(current.dueDate) && current.status === 'Pending') {
+      overdueStages.push({
+        id: `stage-${a.id}`,
+        title: `${a.title} — ${current.title}`,
+        meta: projectName(projects, a.projectId),
+        date: current.dueDate,
+        badge: 'Overdue stage',
+        link: '/approvals',
+      });
+    }
+  });
   if (pendingApprovals.length)
-    groups.push({ key: 'approvals', label: 'Approval requests pending', tone: 'info', items: pendingApprovals });
+    groups.push({ key: 'approvals', label: 'Approval processes pending', tone: 'info', items: pendingApprovals });
+  if (overdueStages.length)
+    groups.push({ key: 'approval-stages', label: 'Overdue approval stages', tone: 'danger', items: overdueStages });
 
   // Overdue deliverables (not completed/approved/published)
   const overdueDeliverables: AttentionItem[] = deliverables
@@ -190,6 +252,19 @@ export function buildAttention(data: AppData): AttentionGroup[] {
     }));
   if (overdueDeliverables.length)
     groups.push({ key: 'overdue-deliverables', label: 'Overdue deliverables', tone: 'warning', items: overdueDeliverables });
+
+  // Event-day problems
+  const eventDayProblems: AttentionItem[] = (data.eventDayItems ?? [])
+    .filter((e) => e.status === 'Problem')
+    .map((e) => ({
+      id: e.id,
+      title: e.title,
+      meta: `${projectName(projects, e.projectId)} · ${e.category}`,
+      badge: 'Problem',
+      link: `/event-day?project=${e.projectId}`,
+    }));
+  if (eventDayProblems.length)
+    groups.push({ key: 'event-day-problems', label: 'Event-day problems', tone: 'danger', items: eventDayProblems });
 
   return groups;
 }

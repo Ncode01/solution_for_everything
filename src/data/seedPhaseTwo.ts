@@ -311,9 +311,15 @@ export const SEED_TRANSACTIONS: Transaction[] = [
     amount: 75000,
     date: '2026-09-15',
     paidBy: 'Agsharan Kathirkhamaruban',
+    assignedMember: 'Agsharan Kathirkhamaruban',
     approvedBy: 'Shasvinth Srikanth',
     receiptLink: '',
     notes: 'BMICH Lotus Room advance payment.',
+    quotations: [
+      { id: 'q-venue-1', sellerName: 'BMICH', amount: 75000, selected: true },
+      { id: 'q-venue-2', sellerName: 'Nelum Pokuna', amount: 95000 },
+      { id: 'q-venue-3', sellerName: 'Trace City', amount: 60000 },
+    ],
   },
   {
     id: 'txn-btui-certs',
@@ -441,6 +447,12 @@ export const SEED_APPROVALS: ApprovalRequest[] = [
     status: 'Submitted',
     submittedDate: '2026-06-13',
     comments: '',
+    stages: [
+      { id: 'st-btui-1', title: 'Draft Prepared', sortOrder: 1, status: 'Approved', completedDate: '2026-06-10' },
+      { id: 'st-btui-2', title: 'Teacher-in-Charge Reviewed', sortOrder: 2, status: 'Approved', completedDate: '2026-06-12' },
+      { id: 'st-btui-3', title: 'Principal Signed', sortOrder: 3, status: 'Pending' },
+      { id: 'st-btui-4', title: 'Sent / Filed', sortOrder: 4, status: 'Not Started' },
+    ],
   },
   {
     id: 'appr-sparkit-speaker',
@@ -468,6 +480,12 @@ export const SEED_APPROVALS: ApprovalRequest[] = [
     submittedDate: '2026-06-04',
     decisionDate: '2026-06-05',
     comments: 'Approved with minor wording fixes.',
+    stages: [
+      { id: 'st-spon-1', title: 'Proposal Drafted', sortOrder: 1, status: 'Approved', completedDate: '2026-06-02' },
+      { id: 'st-spon-2', title: 'Sponsorship Lead Reviewed', sortOrder: 2, status: 'Approved', completedDate: '2026-06-03' },
+      { id: 'st-spon-3', title: 'Treasurer Reviewed', sortOrder: 3, status: 'Approved', completedDate: '2026-06-04' },
+      { id: 'st-spon-4', title: 'Teacher-in-Charge Approved', sortOrder: 4, status: 'Approved', completedDate: '2026-06-05' },
+    ],
   },
   {
     id: 'appr-sparkit-agenda',

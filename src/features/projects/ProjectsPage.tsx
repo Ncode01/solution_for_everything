@@ -190,28 +190,7 @@ export default function ProjectsPage() {
             })}
           />
         )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Planning, completed, archived</div>
-        <div className="space-y-2">
-          {sorted.map((project) => (
-            <button
-              key={`row-${project.id}`}
-              onClick={() => navigate(`/projects/${project.id}`)}
-              className="solid-panel flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-left transition-colors hover:bg-[var(--surface-elevated)]"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-[var(--text-primary)]">{project.name}</div>
-                <div className="mt-1 text-xs text-[var(--text-tertiary)]">{project.type} · {project.year}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge status={project.status} />
-                <StatusBadge status={project.priority} />
-              </div>
-            </button>
-          ))}
-        </div>
+        <p className="text-xs text-[var(--text-tertiary)]">Use filters above to view planning, completed, or archived projects.</p>
       </section>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Project" size="lg">

@@ -1,5 +1,6 @@
 import { Project, Task, PRItem, AppData, Transaction, Sponsor } from '../types';
 import { isOverdue, isDueSoon, isThisWeek } from './dateUtils';
+import { getPRWorkflowStatus } from './prWorkflow';
 
 export function getActiveProjectsCount(projects: Project[]): number {
   return projects.filter((p) => p.status === 'Active' || p.status === 'Event Week').length;
@@ -52,7 +53,11 @@ export function getPRThisWeek(projects: Project[]): PRItem[] {
 
 export function getPendingApprovalPR(projects: Project[]): PRItem[] {
   return getAllPRItems(projects).filter(
-    (pr) => pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review'
+    (pr) => {
+      const status = getPRWorkflowStatus(pr);
+      return status === 'In Approval' || status === 'Design Submitted'
+        || pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review';
+    }
   );
 }
 
@@ -68,6 +73,7 @@ export interface BudgetSummary {
   surplus: number;
   usagePct: number;
   missingReceipts: number;
+  missingQuotations: number;
 }
 
 export function getProjectTransactions(data: AppData, projectId: string): Transaction[] {
@@ -86,6 +92,7 @@ export function getBudgetSummary(data: AppData, projectId: string): BudgetSummar
   const surplus = actualIncome + confirmedIncome - (actualExpense + confirmedExpense);
   const usagePct = expectedExpense > 0 ? Math.round((actualExpense / expectedExpense) * 100) : 0;
   const missingReceipts = txns.filter((t) => t.type === 'Expense' && !t.receiptLink).length;
+  const missingQuotations = txns.filter((t) => t.type === 'Expense' && (t.quotations?.filter((q) => q.sellerName.trim()).length ?? 0) < 3).length;
   return {
     expectedIncome,
     expectedExpense,
@@ -96,6 +103,7 @@ export function getBudgetSummary(data: AppData, projectId: string): BudgetSummar
     surplus,
     usagePct,
     missingReceipts,
+    missingQuotations,
   };
 }
 
@@ -131,7 +139,11 @@ export function getProjectHealth(project: Project, data: AppData): ProjectHealth
     (a) => a.projectId === project.id && (a.status === 'Submitted' || a.status === 'Changes Requested')
   ).length;
   const pendingPR = project.prItems.filter(
-    (pr) => pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review'
+    (pr) => {
+      const status = getPRWorkflowStatus(pr);
+      return ['In Approval', 'Design Submitted', 'Changes Requested'].includes(status)
+        || pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review';
+    }
   ).length;
 
   let score = 100;

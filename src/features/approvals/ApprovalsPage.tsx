@@ -1,24 +1,60 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, CheckSquare, Edit2, Trash2 } from 'lucide-react';
-import { ApprovalRequest, ApprovalStatus } from '../../types';
+import { ApprovalRequest, ApprovalStageStatus, ApprovalStatus } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
-import PageHeader from '../../components/PageHeader';
-import Card from '../../components/Card';
+import {
+  countStagesWaiting,
+  deriveApprovalFromStages,
+  ensureApprovalStages,
+  getApprovalTypeOptions,
+  getCurrentStage,
+  getStageProgress,
+  normalizeApprovalTypeLabel,
+  updateStageStatus,
+} from '../../lib/approvalStages';
 import StatusBadge from '../../components/StatusBadge';
-import EmptyState from '../../components/EmptyState';
+import ScreenCanvas from '../../components/layout/ScreenCanvas';
+import CommandHero from '../../components/layout/CommandHero';
+import ContextActionBar from '../../components/layout/ContextActionBar';
+import EmptyMoment from '../../components/layout/EmptyMoment';
+import Card from '../../components/Card';
 import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ApprovalForm from './ApprovalForm';
-import { formatDate, todayISO } from '../../lib/dateUtils';
+import { formatDate } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
 
 const STATUSES: ApprovalStatus[] = ['Draft', 'Submitted', 'Changes Requested', 'Approved', 'Rejected'];
+
+function StageTimeline({ stages }: { stages: ReturnType<typeof ensureApprovalStages> }) {
+  const current = getCurrentStage(stages);
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-2">
+      {stages.map((stage) => {
+        const isActive = stage.id === current?.id;
+        const done = stage.status === 'Approved' || stage.status === 'Skipped';
+        const dotColor = stage.status === 'Rejected' ? 'bg-red-500'
+          : stage.status === 'Changes Requested' ? 'bg-amber-500'
+          : done ? 'bg-emerald-500'
+          : isActive ? 'bg-blue-500 ring-2 ring-blue-400/50'
+          : 'bg-slate-600';
+        return (
+          <div key={stage.id} className="flex items-center gap-1" title={`${stage.title}: ${stage.status}`}>
+            <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
+            <span className={`text-[10px] max-w-[72px] truncate ${isActive ? 'text-blue-300 font-medium' : 'text-slate-500'}`}>{stage.title}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function ApprovalsPage() {
   const { data, saveApproval, deleteApproval } = useAppData();
   const { approvals, projects } = data;
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | 'All'>('All');
   const [projectFilter, setProjectFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState<string>('All');
   const [formModal, setFormModal] = useState<{ open: boolean; editing?: ApprovalRequest }>({ open: false });
   const [confirmDel, setConfirmDel] = useState<ApprovalRequest | null>(null);
 
@@ -26,76 +62,115 @@ export default function ApprovalsPage() {
 
   const projectName = (id?: string) => (id ? projects.find((p) => p.id === id)?.name ?? '—' : 'General');
 
-  const filtered = approvals
-    .filter((a) => (statusFilter === 'All' || a.status === statusFilter) && (projectFilter === 'All' || a.projectId === projectFilter))
+  const enriched = useMemo(() => approvals.map((a) => {
+    const stages = ensureApprovalStages(a);
+    return { ...a, stages, progress: getStageProgress(stages), current: getCurrentStage(stages) };
+  }), [approvals]);
+
+  const filtered = enriched
+    .filter((a) => (statusFilter === 'All' || a.status === statusFilter)
+      && (projectFilter === 'All' || a.projectId === projectFilter)
+      && (typeFilter === 'All' || normalizeApprovalTypeLabel(a.relatedType) === typeFilter))
     .sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime());
 
-  function quickStatus(a: ApprovalRequest, status: ApprovalStatus) {
-    const decided = status === 'Approved' || status === 'Rejected';
-    saveApproval({ ...a, status, decisionDate: decided ? (a.decisionDate ?? todayISO()) : undefined });
+  const pendingProcesses = enriched.filter((a) => a.status === 'Submitted' || a.status === 'Changes Requested').length;
+  const stagesWaiting = enriched.reduce((sum, a) => sum + countStagesWaiting(a.stages), 0);
+  const changesRequested = enriched.filter((a) => a.status === 'Changes Requested').length;
+  const completed = enriched.filter((a) => a.status === 'Approved').length;
+
+  function quickStageUpdate(approval: ApprovalRequest, stageId: string, status: ApprovalStageStatus) {
+    const stages = updateStageStatus(ensureApprovalStages(approval), stageId, status);
+    saveApproval(deriveApprovalFromStages(approval, stages));
   }
 
-  const pending = approvals.filter((a) => a.status === 'Submitted').length;
+  function quickCurrentStage(approval: ApprovalRequest, status: ApprovalStageStatus) {
+    const current = getCurrentStage(ensureApprovalStages(approval));
+    if (!current) return;
+    quickStageUpdate(approval, current.id, status);
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
-      <PageHeader
+    <ScreenCanvas variant="wide">
+      <CommandHero
         title="Approvals"
-        description={`Track sign-off for posters, budgets, sponsors, and agendas. ${pending} pending.`}
-        actions={<button onClick={() => setFormModal({ open: true })} className="btn-primary"><Plus size={16} /> New Request</button>}
+        description="Track letters, project approvals, budgets, permissions, and external sign-offs."
+        primaryAction={<button onClick={() => setFormModal({ open: true })} className="btn-primary"><Plus size={16} /> New Request</button>}
+        metrics={[
+          { label: 'Pending Processes', value: pendingProcesses, tone: pendingProcesses > 0 ? 'warning' : 'default' },
+          { label: 'Stages Waiting', value: stagesWaiting, tone: stagesWaiting > 0 ? 'warning' : 'default' },
+          { label: 'Changes Requested', value: changesRequested, tone: changesRequested > 0 ? 'danger' : 'default' },
+          { label: 'Completed', value: completed, tone: 'success' },
+        ]}
       />
 
-      <div className="flex flex-wrap gap-3">
-        <select className="select w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ApprovalStatus | 'All')}>
-          <option value="All">All Status</option>
+      <ContextActionBar>
+        <select className="select w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ApprovalStatus | 'All')}>
+          <option value="All">All status</option>
           {STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
         <select className="select w-48" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-          <option value="All">All Projects</option>
+          <option value="All">All projects</option>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
-      </div>
+        <select className="select w-52" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="All">All approval types</option>
+          {getApprovalTypeOptions().map((t) => <option key={t}>{t}</option>)}
+        </select>
+      </ContextActionBar>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon={CheckSquare} title="No approval requests" description="Create a request when something needs sign-off." action={<button onClick={() => setFormModal({ open: true })} className="btn-primary">New Request</button>} />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((a) => (
-            <Card key={a.id}>
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-white text-sm">{a.title}</h3>
-                    <StatusBadge status={a.status} />
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">{a.relatedType}</span>
+      <section className="space-y-3">
+        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Ongoing approval processes</div>
+        {filtered.length === 0 ? (
+          <EmptyMoment icon={<CheckSquare size={20} />} title="No approval requests" description="Create a request when something needs sign-off." action={<button onClick={() => setFormModal({ open: true })} className="btn-primary">New Request</button>} />
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((a) => (
+              <Card key={a.id} className="p-4 space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-sm text-[var(--text-primary)]">{a.title}</h3>
+                      <StatusBadge status={a.status} />
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700">
+                        {normalizeApprovalTypeLabel(a.relatedType)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                      {projectName(a.projectId)} · Requested by {a.requestedBy || '—'} · Owner {a.approver || '—'}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">
+                      Current: {a.current?.title ?? '—'} · Progress {a.progress.completed}/{a.progress.total}
+                    </p>
+                    <StageTimeline stages={a.stages} />
+                    <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)] mt-1.5 flex-wrap">
+                      <span>Submitted {formatDate(a.submittedDate)}</span>
+                      {a.decisionDate && <span>Decided {formatDate(a.decisionDate)}</span>}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">{projectName(a.projectId)} · Requested by {a.requestedBy || '—'} · Approver {a.approver || '—'}</p>
-                  {a.description && <p className="text-sm text-slate-400 mt-1.5">{a.description}</p>}
-                  <div className="flex items-center gap-4 text-xs text-slate-500 mt-1.5 flex-wrap">
-                    <span>Submitted {formatDate(a.submittedDate)}</span>
-                    {a.decisionDate && <span>Decided {formatDate(a.decisionDate)}</span>}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button className="btn-ghost text-xs" onClick={() => setFormModal({ open: true, editing: a })}><Edit2 size={13} /> Open</button>
+                    {a.current && a.status !== 'Approved' && a.status !== 'Rejected' && (
+                      <div className="flex flex-wrap gap-1">
+                        <button className="btn-primary text-xs px-2 py-1" onClick={() => quickCurrentStage(a, 'Approved')}>Mark Approved</button>
+                        <button className="btn-secondary text-xs px-2 py-1" onClick={() => quickCurrentStage(a, 'Changes Requested')}>Changes</button>
+                        <button className="btn-ghost text-xs px-2 py-1 text-[var(--danger)]" onClick={() => quickCurrentStage(a, 'Rejected')}>Reject</button>
+                      </div>
+                    )}
+                    <button className="btn-ghost text-xs text-[var(--danger)]" onClick={() => setConfirmDel(a)}><Trash2 size={13} /></button>
                   </div>
-                  {a.comments && <p className="text-xs text-slate-600 mt-1.5 italic">“{a.comments}”</p>}
                 </div>
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <select className="select text-xs py-1 w-40" value={a.status} onChange={(e) => quickStatus(a, e.target.value as ApprovalStatus)}>
-                    {STATUSES.map((s) => <option key={s}>{s}</option>)}
-                  </select>
-                  <button className="btn-ghost p-1.5" onClick={() => setFormModal({ open: true, editing: a })}><Edit2 size={13} /></button>
-                  <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirmDel(a)}><Trash2 size={13} /></button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <Modal open={formModal.open} onClose={() => setFormModal({ open: false })} title={formModal.editing ? 'Edit Request' : 'New Approval Request'} size="lg">
+      <Modal open={formModal.open} onClose={() => setFormModal({ open: false })} title={formModal.editing ? 'Edit Approval Process' : 'New Approval Request'} size="lg">
         <ApprovalForm
           initial={formModal.editing}
           projects={projects}
           members={data.members}
-          onSave={(a) => { saveApproval(a); setFormModal({ open: false }); }}
+          onSave={(item) => { saveApproval(item); setFormModal({ open: false }); }}
           onCancel={() => setFormModal({ open: false })}
         />
       </Modal>
@@ -108,6 +183,6 @@ export default function ApprovalsPage() {
         onConfirm={() => { if (confirmDel) deleteApproval(confirmDel.id); setConfirmDel(null); }}
         onCancel={() => setConfirmDel(null)}
       />
-    </div>
+    </ScreenCanvas>
   );
 }

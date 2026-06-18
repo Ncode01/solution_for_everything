@@ -80,6 +80,19 @@ export type PRPlatform =
   | 'YouTube'
   | 'Email';
 
+export type PRWorkflowStatus =
+  | 'Draft'
+  | 'Sent to Designer'
+  | 'Designer Accepted'
+  | 'Designing'
+  | 'Design Submitted'
+  | 'In Approval'
+  | 'Changes Requested'
+  | 'Ready to Launch'
+  | 'Scheduled'
+  | 'Posted'
+  | 'Archived';
+
 export interface Phase {
   id: string;
   projectId: string;
@@ -152,6 +165,16 @@ export interface PRItem {
   caption: string;
   designLink?: string;
   notes?: string;
+  workflowStatus?: PRWorkflowStatus;
+  designBrief?: string;
+  designerAcceptedAt?: string;
+  designSubmittedAt?: string;
+  approvalSubmittedAt?: string;
+  approvedAt?: string;
+  postedAt?: string;
+  archivedAt?: string;
+  sourceFileLink?: string;
+  finalDesignLink?: string;
 }
 
 export interface Project {
@@ -348,6 +371,16 @@ export type TransactionCategory =
   | 'Sponsorship'
   | 'Miscellaneous';
 
+export interface ExpenseQuotation {
+  id: string;
+  sellerName: string;
+  amount: number;
+  contact?: string;
+  quotationLink?: string;
+  notes?: string;
+  selected?: boolean;
+}
+
 export interface Transaction {
   id: string;
   projectId: string;
@@ -363,15 +396,46 @@ export interface Transaction {
   approvedById?: string;
   receiptLink?: string;
   notes?: string;
+  assignedMember?: string;
+  assignedMemberId?: string;
+  quotations?: ExpenseQuotation[];
 }
 
 export type ApprovalRelatedType =
+  | 'Project Approval'
+  | 'Letter Approval'
+  | 'Budget Approval'
+  | 'Sponsor Proposal Approval'
+  | 'Event Permission Approval'
+  | 'External / Ministry Approval'
+  | 'General Approval'
+  // legacy stored values
   | 'PR Item'
   | 'Budget'
   | 'Sponsor'
   | 'Task'
   | 'File'
   | 'General';
+
+export type ApprovalStageStatus =
+  | 'Not Started'
+  | 'Pending'
+  | 'Approved'
+  | 'Changes Requested'
+  | 'Rejected'
+  | 'Skipped';
+
+export interface ApprovalStage {
+  id: string;
+  title: string;
+  owner?: string;
+  ownerId?: string;
+  status: ApprovalStageStatus;
+  dueDate?: string;
+  completedDate?: string;
+  notes?: string;
+  sortOrder: number;
+}
 
 export type ApprovalStatus =
   | 'Draft'
@@ -397,6 +461,7 @@ export interface ApprovalRequest {
   submittedDate: string;
   decisionDate?: string;
   comments?: string;
+  stages?: ApprovalStage[];
 }
 
 export type FileCategory =

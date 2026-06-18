@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { PRItem, PRApprovalStatus, PRPublishingStatus, PRPlatform, Member } from '../../types';
+import { PRItem, PRApprovalStatus, PRPublishingStatus, PRPlatform, PRWorkflowStatus, Member } from '../../types';
 import { generateId } from '../../lib/dateUtils';
+import { getPRWorkflowStatus, syncLegacyFromWorkflow, validateWorkflowTransition } from '../../lib/prWorkflow';
 import MemberSelect from '../../components/MemberSelect';
 
 interface Props {
@@ -11,128 +12,208 @@ interface Props {
   onCancel: () => void;
 }
 
+const WORKFLOW_STATUSES: PRWorkflowStatus[] = [
+  'Draft', 'Sent to Designer', 'Designer Accepted', 'Designing', 'Design Submitted',
+  'In Approval', 'Changes Requested', 'Ready to Launch', 'Scheduled', 'Posted', 'Archived',
+];
 const APPROVAL_STATUSES: PRApprovalStatus[] = ['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'];
 const PUBLISH_STATUSES: PRPublishingStatus[] = ['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'];
 const PLATFORMS: PRPlatform[] = ['Instagram', 'Facebook', 'LinkedIn', 'WhatsApp', 'Website', 'YouTube', 'Email'];
 
 export default function PRItemForm({ projectId, members, initial, onSave, onCancel }: Props) {
+  const base: Partial<PRItem> = initial ?? {};
   const [form, setForm] = useState({
-    title: initial?.title ?? '',
-    campaign: initial?.campaign ?? '',
-    platform: (initial?.platform ?? 'Instagram') as PRPlatform,
-    publishDate: initial?.publishDate ?? '',
-    publishTime: initial?.publishTime ?? '18:00',
-    designer: initial?.designer ?? '',
-    designerId: initial?.designerId ?? '',
-    captionWriter: initial?.captionWriter ?? '',
-    captionWriterId: initial?.captionWriterId ?? '',
-    reviewer: initial?.reviewer ?? '',
-    reviewerId: initial?.reviewerId ?? '',
-    approvalStatus: (initial?.approvalStatus ?? 'Draft') as PRApprovalStatus,
-    publishingStatus: (initial?.publishingStatus ?? 'Idea') as PRPublishingStatus,
-    caption: initial?.caption ?? '',
-    designLink: initial?.designLink ?? '',
-    notes: initial?.notes ?? '',
+    title: base.title ?? '',
+    campaign: base.campaign ?? '',
+    platform: (base.platform ?? 'Instagram') as PRPlatform,
+    publishDate: base.publishDate ?? '',
+    publishTime: base.publishTime ?? '18:00',
+    designBrief: base.designBrief ?? base.notes ?? '',
+    caption: base.caption ?? '',
+    notes: base.notes ?? '',
+    designer: base.designer ?? '',
+    designerId: base.designerId ?? '',
+    captionWriter: base.captionWriter ?? '',
+    captionWriterId: base.captionWriterId ?? '',
+    reviewer: base.reviewer ?? '',
+    reviewerId: base.reviewerId ?? '',
+    sourceFileLink: base.sourceFileLink ?? '',
+    finalDesignLink: base.finalDesignLink ?? base.designLink ?? '',
+    workflowStatus: (base.workflowStatus ?? getPRWorkflowStatus(base as PRItem)) as PRWorkflowStatus,
+    approvalStatus: (base.approvalStatus ?? 'Draft') as PRApprovalStatus,
+    publishingStatus: (base.publishingStatus ?? 'Idea') as PRPublishingStatus,
   });
+  const [error, setError] = useState('');
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+    setError('');
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({ id: initial?.id ?? generateId(), projectId, ...form });
+    const draft: PRItem = {
+      id: initial?.id ?? generateId(),
+      projectId,
+      title: form.title,
+      campaign: form.campaign,
+      platform: form.platform,
+      publishDate: form.publishDate,
+      publishTime: form.publishTime,
+      designer: form.designer,
+      designerId: form.designerId || undefined,
+      captionWriter: form.captionWriter,
+      captionWriterId: form.captionWriterId || undefined,
+      reviewer: form.reviewer,
+      reviewerId: form.reviewerId || undefined,
+      approvalStatus: form.approvalStatus,
+      publishingStatus: form.publishingStatus,
+      caption: form.caption,
+      designLink: form.finalDesignLink || undefined,
+      notes: form.notes || undefined,
+      designBrief: form.designBrief,
+      sourceFileLink: form.sourceFileLink || undefined,
+      finalDesignLink: form.finalDesignLink || undefined,
+      workflowStatus: form.workflowStatus,
+      designerAcceptedAt: initial?.designerAcceptedAt,
+      designSubmittedAt: initial?.designSubmittedAt,
+      approvalSubmittedAt: initial?.approvalSubmittedAt,
+      approvedAt: initial?.approvedAt,
+      postedAt: initial?.postedAt,
+      archivedAt: initial?.archivedAt,
+    };
+
+    const validationError = validateWorkflowTransition(draft, form.workflowStatus);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const synced = syncLegacyFromWorkflow(draft, form.workflowStatus);
+    if (form.workflowStatus === 'Posted' && !synced.postedAt) {
+      synced.postedAt = new Date().toISOString();
+    }
+    if (form.workflowStatus === 'Archived' && !synced.archivedAt) {
+      synced.archivedAt = new Date().toISOString();
+    }
+    onSave(synced);
   }
 
-  const missingCaption = form.publishingStatus !== 'Idea' && !form.caption.trim();
-  const missingDesignLink = (form.publishingStatus === 'Scheduled' || form.publishingStatus === 'Posted') && !form.designLink.trim();
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {(missingCaption || missingDesignLink) && (
-        <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-xs text-amber-300 space-y-1">
-          {missingCaption && <p>⚠ Caption is missing — required before scheduling.</p>}
-          {missingDesignLink && <p>⚠ Design link is missing for scheduled/posted status.</p>}
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && (
+        <div className="rounded-lg border border-red-600/30 bg-red-900/20 p-3 text-xs text-red-300">{error}</div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="col-span-2 sm:col-span-2">
-          <label className="label">Post Title *</label>
-          <input className="input" required value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Registration Launch Poster" />
+
+      <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Basics</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="label">Title *</label>
+            <input className="input" required value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Registration Launch Poster" />
+          </div>
+          <div>
+            <label className="label">Campaign</label>
+            <input className="input" value={form.campaign} onChange={(e) => set('campaign', e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Platform</label>
+            <select className="select" value={form.platform} onChange={(e) => set('platform', e.target.value as PRPlatform)}>
+              {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Publish Date</label>
+            <input className="input" type="date" value={form.publishDate} onChange={(e) => set('publishDate', e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Publish Time</label>
+            <input className="input" type="time" value={form.publishTime} onChange={(e) => set('publishTime', e.target.value)} />
+          </div>
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Designer brief</div>
         <div>
-          <label className="label">Campaign</label>
-          <input className="input" value={form.campaign} onChange={(e) => set('campaign', e.target.value)} placeholder="e.g. BTUI 2026 Launch Campaign" />
-        </div>
-        <div>
-          <label className="label">Platform</label>
-          <select className="select" value={form.platform} onChange={(e) => set('platform', e.target.value as PRPlatform)}>
-            {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">Publish Date</label>
-          <input className="input" type="date" value={form.publishDate} onChange={(e) => set('publishDate', e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Publish Time</label>
-          <input className="input" type="time" value={form.publishTime} onChange={(e) => set('publishTime', e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Designer</label>
-          <MemberSelect
-            members={members}
-            value={form.designerId}
-            onChange={(id, name) => setForm((f) => ({ ...f, designerId: id, designer: name }))}
-            placeholder="Select designer…"
+          <label className="label">Design brief / things to include *</label>
+          <textarea
+            className="textarea"
+            rows={3}
+            value={form.designBrief}
+            onChange={(e) => set('designBrief', e.target.value)}
+            placeholder="Mention theme, speaker, date, venue, logos, colors, sponsor mentions, required text, reference links…"
           />
         </div>
         <div>
-          <label className="label">Caption Writer</label>
-          <MemberSelect
-            members={members}
-            value={form.captionWriterId}
-            onChange={(id, name) => setForm((f) => ({ ...f, captionWriterId: id, captionWriter: name }))}
-            placeholder="Select writer…"
-          />
-        </div>
-        <div>
-          <label className="label">Reviewer</label>
-          <MemberSelect
-            members={members}
-            value={form.reviewerId}
-            onChange={(id, name) => setForm((f) => ({ ...f, reviewerId: id, reviewer: name }))}
-            placeholder="Select reviewer…"
-          />
-        </div>
-        <div>
-          <label className="label">Approval Status</label>
-          <select className="select" value={form.approvalStatus} onChange={(e) => set('approvalStatus', e.target.value as PRApprovalStatus)}>
-            {APPROVAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">Publishing Status</label>
-          <select className="select" value={form.publishingStatus} onChange={(e) => set('publishingStatus', e.target.value as PRPublishingStatus)}>
-            {PUBLISH_STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="col-span-2">
           <label className="label">Caption</label>
-          <textarea className="textarea" rows={3} value={form.caption} onChange={(e) => set('caption', e.target.value)} placeholder="Post caption..." />
+          <textarea className="textarea" rows={2} value={form.caption} onChange={(e) => set('caption', e.target.value)} />
         </div>
-        <div className="col-span-2">
-          <label className="label">Design Link (Canva/Figma)</label>
-          <input className="input" value={form.designLink} onChange={(e) => set('designLink', e.target.value)} placeholder="https://..." />
-        </div>
-        <div className="col-span-2">
-          <label className="label">Notes</label>
+        <div>
+          <label className="label">Notes / reference links</label>
           <textarea className="textarea" rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} />
         </div>
       </div>
+
+      <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Assignment</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="label">Caption writer</label>
+            <MemberSelect members={members} value={form.captionWriterId} onChange={(id, name) => setForm((f) => ({ ...f, captionWriterId: id, captionWriter: name }))} placeholder="Select writer…" />
+          </div>
+          <div>
+            <label className="label">Designer</label>
+            <MemberSelect members={members} value={form.designerId} onChange={(id, name) => setForm((f) => ({ ...f, designerId: id, designer: name }))} placeholder="Select designer…" />
+          </div>
+          <div>
+            <label className="label">Reviewer</label>
+            <MemberSelect members={members} value={form.reviewerId} onChange={(id, name) => setForm((f) => ({ ...f, reviewerId: id, reviewer: name }))} placeholder="Select reviewer…" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Design output</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">PSD / source file link</label>
+            <input className="input" value={form.sourceFileLink} onChange={(e) => set('sourceFileLink', e.target.value)} placeholder="https://..." />
+          </div>
+          <div>
+            <label className="label">Final design link</label>
+            <input className="input" value={form.finalDesignLink} onChange={(e) => set('finalDesignLink', e.target.value)} placeholder="https://..." />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Workflow</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="label">Workflow status</label>
+            <select className="select" value={form.workflowStatus} onChange={(e) => set('workflowStatus', e.target.value as PRWorkflowStatus)}>
+              {WORKFLOW_STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Approval status</label>
+            <select className="select" value={form.approvalStatus} onChange={(e) => set('approvalStatus', e.target.value as PRApprovalStatus)}>
+              {APPROVAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Publishing status</label>
+            <select className="select" value={form.publishingStatus} onChange={(e) => set('publishingStatus', e.target.value as PRPublishingStatus)}>
+              {PUBLISH_STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-3 pt-1">
         <button type="submit" className="btn-primary flex-1 justify-center">
-          {initial?.id ? 'Save Changes' : 'Add PR Item'}
+          {initial?.id ? 'Save Changes' : 'Add Launch'}
         </button>
         <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
       </div>

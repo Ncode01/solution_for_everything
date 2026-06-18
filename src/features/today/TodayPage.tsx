@@ -17,9 +17,9 @@ import {
   getActiveProjectsCount,
   getBudgetSummary,
   getNextDeadlines,
+  getOverdueTasks,
   getPendingApprovalPR,
   getProjectHealth,
-  getSponsorTotals,
 } from '../../lib/stats';
 import { formatCurrency, formatDateShort, todayISO } from '../../lib/dateUtils';
 import QuickAddMenu from '../../components/QuickAddMenu';
@@ -44,7 +44,7 @@ export default function TodayPage({ user }: Props) {
   const { projects, sponsors, meetings, approvals, transactions, members, activityItems } = data;
   const attentionGroups = useMemo(() => buildAttention(data), [data]);
   const totalAttention = attentionGroups.reduce((sum, group) => sum + group.items.length, 0);
-  const sponsorTotals = getSponsorTotals(sponsors);
+  const overdueTasks = getOverdueTasks(projects);
   const pendingLaunches = getPendingApprovalPR(projects);
   const pendingApprovals = approvals.filter((item) => item.status === 'Submitted' || item.status === 'Changes Requested');
   const activeProjects = projects.filter((project) => ['Planning', 'Active', 'Event Week'].includes(project.status));
@@ -154,7 +154,7 @@ export default function TodayPage({ user }: Props) {
           { label: 'Active Projects', value: getActiveProjectsCount(projects) },
           { label: 'Needs Attention', value: totalAttention, tone: totalAttention > 0 ? 'warning' : 'default' },
           { label: 'Pending Approvals', value: pendingApprovals.length + pendingLaunches.length, tone: 'warning' },
-          { label: 'Confirmed Sponsors', value: formatCurrency(sponsorTotals.confirmed), tone: 'success' },
+          { label: 'Overdue Tasks', value: overdueTasks.length, tone: overdueTasks.length > 0 ? 'danger' : 'default' },
         ]}
       >
         <div className="text-xs text-[var(--text-tertiary)]">

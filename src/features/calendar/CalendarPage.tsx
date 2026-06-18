@@ -204,7 +204,8 @@ export default function CalendarPage() {
   const navigate = useNavigate();
   const { data } = useAppData();
   const now = new Date();
-  const [rangeOffset, setRangeOffset] = useState(0);
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth());
+  const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [filter, setFilter] = useState<FilterType>('all');
   const [projectFilter, setProjectFilter] = useState('All');
   const [memberFilter, setMemberFilter] = useState('All');
@@ -221,34 +222,28 @@ export default function CalendarPage() {
   );
 
   const todayStr = now.toISOString().slice(0, 10);
-  const rangeStart = useMemo(() => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 30 + rangeOffset);
-    return d;
-  }, [rangeOffset]);
-  const rangeEnd = useMemo(() => {
-    const d = new Date(now);
-    d.setDate(d.getDate() + 30 + rangeOffset);
-    return d;
-  }, [rangeOffset]);
-  const rangeStartStr = rangeStart.toISOString().slice(0, 10);
-  const rangeEndStr = rangeEnd.toISOString().slice(0, 10);
-  const monthLabel = `${rangeStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${rangeEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay = new Date(currentYear, currentMonth + 1, 0);
+  const monthStartStr = firstDay.toISOString().slice(0, 10);
+  const monthEndStr = lastDay.toISOString().slice(0, 10);
+  const monthLabel = firstDay.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-  const gridDays: Array<{ date: string | null; dayNum: number | null; weekday: string | null }> = [];
-  for (let i = 0; i < rangeStart.getDay(); i++) {
-    gridDays.push({ date: null, dayNum: null, weekday: null });
+  const gridDays: Array<{ date: string | null; dayNum: number | null }> = [];
+  for (let i = 0; i < firstDay.getDay(); i++) {
+    gridDays.push({ date: null, dayNum: null });
   }
-  for (let i = 0; i <= 60; i++) {
-    const d = new Date(rangeStart);
-    d.setDate(rangeStart.getDate() + i);
-    gridDays.push({ date: d.toISOString().slice(0, 10), dayNum: d.getDate(), weekday: DAYS[d.getDay()] });
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const d = new Date(currentYear, currentMonth, day);
+    gridDays.push({ date: d.toISOString().slice(0, 10), dayNum: day });
+  }
+  while (gridDays.length % 7 !== 0) {
+    gridDays.push({ date: null, dayNum: null });
   }
 
   function applyFilters(item: CalendarItem, dateStr?: string): boolean {
     const matchRange = dateStr
       ? item.date === dateStr
-      : item.date >= rangeStartStr && item.date <= rangeEndStr;
+      : item.date >= monthStartStr && item.date <= monthEndStr;
     const matchType = filter === 'all' || item.type === filter;
     const matchProject = projectFilter === 'All' || item.projectId === projectFilter;
     const matchMember = memberFilter === 'All' || item.ownerId === memberFilter || (item.extra?.includes(memberFilter) ?? false);
@@ -275,13 +270,25 @@ export default function CalendarPage() {
   }
 
   function prevMonth() {
-    setRangeOffset((v) => v - 30);
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear((y) => y - 1);
+    } else {
+      setCurrentMonth((m) => m - 1);
+    }
   }
   function nextMonth() {
-    setRangeOffset((v) => v + 30);
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear((y) => y + 1);
+    } else {
+      setCurrentMonth((m) => m + 1);
+    }
   }
   function goToday() {
-    setRangeOffset(0);
+    const today = new Date();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
   }
 
   function exportAgenda() {
@@ -329,7 +336,7 @@ export default function CalendarPage() {
     <ScreenCanvas variant="calendar">
       <CommandHero
         title="Calendar"
-        description="A rolling operating window: previous 30 days, today, and next 30 days."
+        description="Deadlines, launches, meetings, approvals, and event work for the selected month."
         primaryAction={<button className="btn-secondary text-xs px-3 py-1.5" onClick={goToday}>Today</button>}
         secondaryActions={
           <div className="flex items-center gap-2 flex-wrap">
@@ -421,10 +428,9 @@ export default function CalendarPage() {
                   {/* Day number */}
                   <div className="flex items-center justify-between mb-0.5">
                     <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full
-                      ${isToday ? 'bg-blue-500 text-white' : isPast ? 'text-slate-600' : 'text-slate-400'}`}>
+                      ${isToday ? 'bg-blue-500 text-white ring-2 ring-blue-400/60' : isPast ? 'text-slate-600' : 'text-slate-400'}`}>
                       {cell.dayNum}
                     </span>
-                    <span className="text-[10px] text-slate-600">{cell.weekday}</span>
                     {items.length > 0 && (
                       <span className="text-xs text-slate-600">{items.length}</span>
                     )}
@@ -460,7 +466,7 @@ export default function CalendarPage() {
             <div className="card text-center py-12">
               <CalendarDays size={36} className="text-slate-700 mx-auto mb-3" />
               <p className="text-slate-500">No items in {monthLabel}</p>
-              <p className="text-xs text-slate-600 mt-1">Try shifting the range or adjusting filters.</p>
+              <p className="text-xs text-slate-600 mt-1">Try another month or adjust filters.</p>
             </div>
           ) : (
             <div className="space-y-5">
