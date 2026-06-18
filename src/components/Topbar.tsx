@@ -13,19 +13,19 @@ interface TopbarProps {
 }
 
 const ROLE_ICON: Record<string, React.ReactNode> = {
-  'Super Admin': <Shield size={12} className="text-blue-300" />,
-  'Executive Admin': <Shield size={12} className="text-emerald-300" />,
-  'Project Admin': <Shield size={12} className="text-amber-300" />,
-  'Team Lead': <UserIcon size={12} className="text-violet-300" />,
-  Member: <UserIcon size={12} className="text-slate-400" />,
-  Viewer: <UserIcon size={12} className="text-slate-500" />,
+  'Super Admin': <Shield size={12} className="text-[var(--accent)]" />,
+  'Executive Admin': <Shield size={12} className="text-[var(--success)]" />,
+  'Project Admin': <Shield size={12} className="text-[var(--warning)]" />,
+  'Team Lead': <UserIcon size={12} className="text-[var(--launch)]" />,
+  Member: <UserIcon size={12} className="text-[var(--text-tertiary)]" />,
+  Viewer: <UserIcon size={12} className="text-[var(--text-faint)]" />,
 };
 
 export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }: TopbarProps) {
   const isSupabase = isSupabaseConfigured;
 
   return (
-    <header className="relative z-[var(--z-topbar)] h-20 flex items-center gap-3 px-3 sm:px-6 shrink-0">
+    <header className="relative z-[var(--z-topbar)] flex h-20 shrink-0 items-center gap-3 px-3 sm:px-6">
       <button
         onClick={onOpenSidebar}
         className="apple-button-glass p-2 lg:hidden"
@@ -35,16 +35,16 @@ export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }:
         <Menu size={20} />
       </button>
 
-      <div className="floating-control flex-1 min-w-0 flex items-center gap-2 p-1.5">
+      <div className="floating-control flex min-w-0 flex-1 items-center gap-2 p-1.5">
         <GlobalSearch />
         {onOpenCommand && (
           <button
             onClick={onOpenCommand}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-colors border border-white/10 shrink-0"
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-2.5 py-1.5 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-white/[0.04] hover:text-[var(--text-primary)] md:flex"
             title="Command Menu (Ctrl+K)"
           >
             <Search size={12} />
-            <span>Ctrl+K</span>
+            <span className="rounded-md border border-[var(--border-subtle)] bg-black/10 px-1.5 py-0.5 text-[10px]">Ctrl K</span>
           </button>
         )}
       </div>
@@ -52,20 +52,20 @@ export default function Topbar({ user, onLogout, onOpenSidebar, onOpenCommand }:
       <AttentionBell />
 
       <div
-        className={`hidden md:flex control-pill min-h-0 py-1 px-2 text-[11px] ${isSupabase ? 'text-emerald-300' : 'text-slate-500'}`}
+        className={`hidden md:flex control-pill min-h-0 py-1 px-2 text-[11px] ${isSupabase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}
         title={isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
       >
         {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
       </div>
 
       <div className="control-pill">
-        <div className="w-7 h-7 rounded-full bg-blue-400/15 border border-blue-200/20 flex items-center justify-center text-blue-100 text-sm font-semibold shrink-0">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--accent-soft)] text-sm font-semibold text-[var(--text-primary)]">
           {user.displayName[0]}
         </div>
         <div className="hidden md:block">
-          <div className="text-sm font-medium text-white leading-tight">{user.displayName}</div>
-          <div className="flex items-center gap-1 text-xs text-slate-500">
-            {ROLE_ICON[user.role] ?? <UserIcon size={12} className="text-slate-400" />}
+          <div className="text-sm font-medium leading-tight text-[var(--text-primary)]">{user.displayName}</div>
+          <div className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
+            {ROLE_ICON[user.role] ?? <UserIcon size={12} className="text-[var(--text-tertiary)]" />}
             {user.role}
           </div>
         </div>

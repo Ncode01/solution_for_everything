@@ -21,14 +21,14 @@ export default function PersonToken({ member, name, detail, compact = false, cla
     .toUpperCase() || '?';
 
   return (
-    <span className={`inline-flex items-center gap-2 min-w-0 ${className}`}>
-      <span className={`${compact ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs'} rounded-full bg-blue-400/12 border border-blue-200/20 text-blue-200 flex items-center justify-center font-bold shrink-0`}>
+    <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>
+      <span className={`${compact ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs'} flex shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--accent-soft)] font-bold text-[var(--text-primary)]`}>
         {initials}
       </span>
       {!compact && (
         <span className="min-w-0">
-          <span className="block text-sm text-slate-100 font-medium truncate">{label}</span>
-          {meta && <span className="block text-xs text-slate-500 truncate">{meta}</span>}
+          <span className="block truncate text-sm font-medium text-[var(--text-primary)]">{label}</span>
+          {meta && <span className="block truncate text-xs text-[var(--text-tertiary)]">{meta}</span>}
         </span>
       )}
     </span>

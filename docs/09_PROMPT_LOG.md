@@ -1,5 +1,48 @@
 # Prompt Log
 
+## Midnight Graphite Royal Redesign - June 18, 2026
+
+### Summary
+
+Executed a repo-wide RCCS OS redesign pass focused on a darker midnight graphite palette, calmer royal-blue accents, and screen-specific layout grammar. Added a dedicated layout component layer, refreshed the shell chrome, and rebuilt Today, Focus, Projects, Launches, Money, People, Library, System, Event-Day, and Calendar framing around queues, pipelines, ledgers, matrices, Finder-style archives, and settings lists.
+
+### Key Files Created
+- `src/components/layout/ScreenCanvas.tsx`
+- `src/components/layout/CommandHero.tsx`
+- `src/components/layout/ContextActionBar.tsx`
+- `src/components/layout/MetricCapsule.tsx`
+- `src/components/layout/WorkQueue.tsx`
+- `src/components/layout/WorkQueueRow.tsx`
+- `src/components/layout/Pipeline.tsx`
+- `src/components/layout/PipelineLane.tsx`
+- `src/components/layout/Ledger.tsx`
+- `src/components/layout/LedgerRow.tsx`
+- `src/components/layout/Matrix.tsx`
+- `src/components/layout/FinderView.tsx`
+- `src/components/layout/SettingsList.tsx`
+- `src/components/layout/SettingsRow.tsx`
+- `src/components/layout/LiveCockpit.tsx`
+- `src/components/layout/EmptyMoment.tsx`
+
+### Key Files Changed
+- `src/styles/global.css`
+- `src/components/Sidebar.tsx`, `Topbar.tsx`, `CommandMenu.tsx`, `Modal.tsx`, `SlideOver.tsx`, `Card.tsx`, `PageHeader.tsx`, `SectionHeader.tsx`, `StatusBadge.tsx`
+- `src/components/design/PersonToken.tsx`, `src/components/design/StatusDot.tsx`
+- `src/features/today/TodayPage.tsx`
+- `src/features/focus/FocusPage.tsx`
+- `src/features/calendar/CalendarPage.tsx`
+- `src/features/projects/ProjectsPage.tsx`
+- `src/features/launches/LaunchesPage.tsx`
+- `src/features/budget/BudgetPage.tsx`
+- `src/features/people/PeoplePage.tsx`
+- `src/features/library/LibraryPage.tsx`
+- `src/features/system/SystemPage.tsx`
+- `src/features/event-day/EventDayPage.tsx`
+- `CHANGELOG.md`, `docs/09_PROMPT_LOG.md`
+
+### Checks Run
+- `npm run build` - pass
+
 ## Apple-Caliber UI/UX Transformation - June 18, 2026
 
 ### Summary

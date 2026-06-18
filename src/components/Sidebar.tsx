@@ -75,24 +75,22 @@ export default function Sidebar({ className = '', onNavigate, role = 'Member' }:
   })).filter((g) => g.items.length > 0);
 
   return (
-    <aside className={`m-3 flex flex-col w-72 glass-shell rounded-[var(--radius-xl)] shrink-0 h-[calc(100%-1.5rem)] overflow-hidden ${className}`}>
-      <div className="flex items-center gap-3 px-4 h-[4.25rem] border-b border-white/10 shrink-0">
-        <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-300/30 via-blue-500/20 to-cyan-300/10 border border-blue-100/25 flex items-center justify-center shrink-0 shadow-lg shadow-blue-950/40">
-          <span className="absolute inset-1 rounded-xl border border-white/10" />
-          <Hexagon size={18} className="text-blue-100" />
+    <aside className={`m-3 flex h-[calc(100%-1.5rem)] w-[17rem] shrink-0 flex-col overflow-hidden rounded-[var(--radius-2xl)] glass-shell ${className}`}>
+      <div className="flex h-[4.5rem] shrink-0 items-center gap-3 border-b border-[var(--border-hairline)] px-4">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(82,119,255,0.08))]">
+          <span className="absolute inset-1 rounded-[14px] border border-white/10" />
+          <Hexagon size={17} className="text-[var(--accent)]" />
         </div>
         <div>
-          <div className="text-white font-bold text-sm leading-tight tracking-normal">RCCS OS</div>
-          <div className="text-slate-400 text-xs">Internal Operating System</div>
+          <div className="text-sm font-semibold leading-tight text-[var(--text-primary)]">RCCS OS</div>
+          <div className="text-xs text-[var(--text-tertiary)]">Internal Operating System</div>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {visibleGroups.map((group) => (
           <div key={group.heading}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-normal text-slate-500/80">
-              {group.heading}
-            </p>
+            <p className="mb-2 px-3 text-[11px] font-medium text-[var(--text-faint)]">{group.heading}</p>
             <div className="space-y-0.5">
               {group.items.map(({ to, icon: Icon, label }) => (
                 <NavLink
@@ -100,17 +98,17 @@ export default function Sidebar({ className = '', onNavigate, role = 'Member' }:
                   to={to}
                   onClick={onNavigate}
                   className={({ isActive }) =>
-                    `relative flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium transition-all border ${
+                    `relative flex items-center gap-3 rounded-full border px-3 py-2.5 text-sm font-medium transition-all ${
                       isActive
-                        ? 'bg-white/10 text-white border-blue-200/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                        : 'text-slate-400 hover:text-white hover:bg-white/6 border-transparent'
+                        ? 'border-[var(--border-glass)] bg-[var(--surface-glass-strong)] text-[var(--text-primary)] shadow-[var(--shadow-inner-highlight)]'
+                        : 'border-transparent text-[var(--text-tertiary)] hover:bg-white/[0.04] hover:text-[var(--text-primary)]'
                     }`
                   }
                 >
                   {({ isActive }) => (
                     <>
-                      {isActive && <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-blue-300/80" />}
-                      <Icon size={16} className={`shrink-0 ${isActive ? 'text-blue-200' : 'opacity-75'}`} />
+                      {isActive && <span className="absolute left-1.5 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-[var(--royal)]" />}
+                      <Icon size={16} className={`shrink-0 ${isActive ? 'text-[var(--accent)]' : 'opacity-75'}`} />
                       <span>{label}</span>
                     </>
                   )}
@@ -121,12 +119,13 @@ export default function Sidebar({ className = '', onNavigate, role = 'Member' }:
         ))}
       </nav>
 
-      <div className="px-4 py-3 border-t border-white/10 shrink-0">
-        <div className={`control-pill min-h-0 py-1 px-2 text-[11px] mb-2 ${isSupabase ? 'text-emerald-300' : 'text-slate-400'}`}>
+      <div className="shrink-0 border-t border-[var(--border-hairline)] px-4 py-3">
+        <div className={`mb-2 inline-flex min-h-0 items-center gap-2 rounded-full border border-[var(--border-subtle)] px-2.5 py-1 text-[11px] ${isSupabase ? 'text-[var(--success)]' : 'text-[var(--text-tertiary)]'}`}>
+          <span className={`h-2 w-2 rounded-full ${isSupabase ? 'bg-[var(--success)]' : 'bg-[var(--text-faint)]'}`} />
           {isSupabase ? <Wifi size={11} /> : <WifiOff size={11} />}
           {isSupabase ? 'Supabase Connected' : 'Local Demo Mode'}
         </div>
-        <p className="text-[10px] text-slate-600">RCCS OS · Final Phase</p>
+        <p className="text-[10px] text-[var(--text-faint)]">RCCS OS · Final Phase</p>
       </div>
     </aside>
   );

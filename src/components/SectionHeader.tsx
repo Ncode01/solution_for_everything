@@ -10,20 +10,18 @@ interface Props {
 }
 
 const TONE: Record<string, string> = {
-  default: 'text-white',
+  default: 'text-[var(--text-primary)]',
   danger: 'text-[var(--danger)]',
   warning: 'text-[var(--warning)]',
 };
 
 export default function SectionHeader({ title, icon: Icon, count, tone = 'default', action }: Props) {
   return (
-    <div className="flex items-center justify-between gap-3 mb-3">
-      <h2 className={`flex items-center gap-2 text-sm font-semibold tracking-normal ${TONE[tone]}`}>
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className={`flex items-center gap-2 text-[15px] font-semibold tracking-normal ${TONE[tone]}`}>
         {Icon && <Icon size={15} />}
         {title}
-        {count !== undefined && (
-          <span className="text-xs font-normal text-[var(--text-tertiary)]">({count})</span>
-        )}
+        {count !== undefined && <span className="text-xs font-normal text-[var(--text-tertiary)]">{count}</span>}
       </h2>
       {action}
     </div>

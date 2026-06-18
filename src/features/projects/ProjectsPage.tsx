@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ArrowRight, FolderKanban, Pin, PinOff } from 'lucide-react';
-import { Project, ProjectStatus, ProjectPriority } from '../../types';
+import { FolderKanban, Pin, PinOff, Plus, Search } from 'lucide-react';
+import { Project, ProjectPriority, ProjectStatus } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
-import { getProjectHealth, getNextDeadlines } from '../../lib/stats';
+import { getNextDeadlines, getProjectHealth } from '../../lib/stats';
 import { resolveMemberName } from '../../components/MemberSelect';
-import StatusBadge from '../../components/StatusBadge';
-import ProgressBar from '../../components/ProgressBar';
-import EmptyState from '../../components/EmptyState';
-import Modal from '../../components/Modal';
-import PageHeader from '../../components/PageHeader';
-import Card from '../../components/Card';
-import ProjectForm from './ProjectForm';
-import { formatDateShort, isOverdue } from '../../lib/dateUtils';
+import { formatDateShort } from '../../lib/dateUtils';
 import { useAutoNew } from '../../lib/useAutoNew';
 import { applyProjectTemplate, ProjectTemplateId } from '../../lib/projectTemplates';
+import Modal from '../../components/Modal';
+import ProjectForm from './ProjectForm';
+import ProgressBar from '../../components/ProgressBar';
+import StatusBadge from '../../components/StatusBadge';
+import StatusDot from '../../components/design/StatusDot';
+import PersonToken from '../../components/design/PersonToken';
+import ScreenCanvas from '../../components/layout/ScreenCanvas';
+import CommandHero from '../../components/layout/CommandHero';
+import ContextActionBar from '../../components/layout/ContextActionBar';
+import Matrix from '../../components/layout/Matrix';
+import EmptyMoment from '../../components/layout/EmptyMoment';
+import Card from '../../components/Card';
 
 type SortKey = 'deadline' | 'priority' | 'status' | 'progress';
 
@@ -35,21 +40,14 @@ export default function ProjectsPage() {
 
   useAutoNew(() => setShowForm(true));
 
-  const filtered = projects.filter((p) => {
-    const matchSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) || p.type.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All' || p.status === statusFilter;
-    const matchPriority = priorityFilter === 'All' || p.priority === priorityFilter;
+  const filtered = useMemo(() => projects.filter((project) => {
+    const matchSearch = project.name.toLowerCase().includes(search.toLowerCase()) || project.type.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'All' || project.status === statusFilter;
+    const matchPriority = priorityFilter === 'All' || project.priority === priorityFilter;
     return matchSearch && matchStatus && matchPriority;
-  });
-
-  function togglePin(e: React.MouseEvent, project: Project) {
-    e.stopPropagation();
-    saveProject({ ...project, pinned: !project.pinned });
-  }
+  }), [priorityFilter, projects, search, statusFilter]);
 
   const sorted = [...filtered].sort((a, b) => {
-    // Pinned projects always come first
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
     switch (sortKey) {
@@ -65,132 +63,168 @@ export default function ProjectsPage() {
         const db = getNextDeadlines(b, 1)[0]?.date;
         if (!da) return 1;
         if (!db) return -1;
-        return new Date(da).getTime() - new Date(db).getTime();
+        return da.localeCompare(db);
       }
     }
   });
 
+  const featured = sorted.filter((project) => project.pinned || ['Active', 'Event Week'].includes(project.status)).slice(0, 4);
+  const activeCount = projects.filter((project) => ['Planning', 'Active', 'Event Week'].includes(project.status)).length;
+  const atRiskCount = projects.filter((project) => getProjectHealth(project, data).label === 'At Risk').length;
+  const eventWeekCount = projects.filter((project) => project.status === 'Event Week').length;
+  const completedCount = projects.filter((project) => project.status === 'Completed').length;
+
+  function togglePin(e: React.MouseEvent, project: Project) {
+    e.stopPropagation();
+    saveProject({ ...project, pinned: !project.pinned });
+  }
+
+  function matrixCell(project: Project, value: number, tone: 'emerald' | 'amber' | 'red' | 'blue' | 'neutral') {
+    return <StatusDot label={String(value)} tone={tone === 'blue' ? 'blue' : tone === 'emerald' ? 'emerald' : tone === 'amber' ? 'amber' : tone === 'red' ? 'red' : 'neutral'} lozenge />;
+  }
+
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
-      <PageHeader
+    <ScreenCanvas variant="wide">
+      <CommandHero
         title="Projects"
-        description="All RCCS initiatives, sorted by what needs action next."
-        actions={
-          <button onClick={() => setShowForm(true)} className="btn-primary">
-            <Plus size={16} /> New Project
-          </button>
-        }
+        description="Active work, risk signals, and what each project needs next."
+        primaryAction={<button onClick={() => setShowForm(true)} className="btn-primary"><Plus size={16} /> New Project</button>}
+        metrics={[
+          { label: 'Active', value: activeCount },
+          { label: 'At Risk', value: atRiskCount, tone: atRiskCount > 0 ? 'danger' : 'default' },
+          { label: 'Event Week', value: eventWeekCount, tone: 'launch' },
+          { label: 'Completed', value: completedCount, tone: 'success' },
+        ]}
       />
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search projects..."
-            className="input pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <ContextActionBar>
+        <div className="relative min-w-[15rem] flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input type="text" placeholder="Search projects..." className="input pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="select w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | 'All')}>
-          <option value="All">All Status</option>
-          {(['Idea', 'Planning', 'Active', 'On Hold', 'Event Week', 'Completed', 'Archived'] as ProjectStatus[]).map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+        <select className="select w-40" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | 'All')}>
+          <option value="All">All statuses</option>
+          {(['Idea', 'Planning', 'Active', 'On Hold', 'Event Week', 'Completed', 'Archived'] as ProjectStatus[]).map((status) => <option key={status}>{status}</option>)}
         </select>
-        <select className="select w-36" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as ProjectPriority | 'All')}>
-          <option value="All">All Priority</option>
-          {(['Urgent', 'High', 'Medium', 'Low'] as ProjectPriority[]).map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
+        <select className="select w-40" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as ProjectPriority | 'All')}>
+          <option value="All">All priorities</option>
+          {(['Urgent', 'High', 'Medium', 'Low'] as ProjectPriority[]).map((priority) => <option key={priority}>{priority}</option>)}
         </select>
         <select className="select w-44" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
-          <option value="deadline">Sort: Next deadline</option>
-          <option value="priority">Sort: Priority</option>
-          <option value="status">Sort: Status</option>
-          <option value="progress">Sort: Progress</option>
+          <option value="deadline">Sort by next deadline</option>
+          <option value="priority">Sort by priority</option>
+          <option value="status">Sort by status</option>
+          <option value="progress">Sort by progress</option>
         </select>
-      </div>
+      </ContextActionBar>
 
-      {sorted.length === 0 ? (
-        <EmptyState
-          icon={FolderKanban}
-          title="No projects found"
-          description="Try adjusting your filters or create a new project."
-          action={<button onClick={() => setShowForm(true)} className="btn-primary">Create Project</button>}
-        />
-      ) : (
-        <div className="space-y-3">
-          {sorted.map((project) => {
-            const health = getProjectHealth(project, data);
-            const next = getNextDeadlines(project, 1)[0];
-            const healthColor =
-              health.label === 'Healthy' ? 'text-emerald-400' : health.label === 'Needs Attention' ? 'text-amber-400' : 'text-red-400';
-            return (
-              <Card key={project.id} onClick={() => navigate(`/projects/${project.id}`)}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {project.pinned && <Pin size={12} className="text-amber-400 shrink-0" />}
-                      <h3 className="font-semibold text-white">{project.name}</h3>
+      {featured.length > 0 && (
+        <section className="space-y-3">
+          <div className="text-[15px] font-semibold text-[var(--text-primary)]">Featured project shelf</div>
+          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+            {featured.map((project) => {
+              const health = getProjectHealth(project, data);
+              const next = getNextDeadlines(project, 1)[0];
+              return (
+                <Card key={project.id} onClick={() => navigate(`/projects/${project.id}`)} className="space-y-4 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-base font-semibold text-[var(--text-primary)]">{project.name}</h3>
+                        {project.pinned && <Pin size={13} className="text-[var(--warning)]" />}
+                      </div>
+                      <div className="mt-1 text-sm text-[var(--text-tertiary)]">{project.type} · {project.year}</div>
+                    </div>
+                    <button className="btn-ghost p-1.5" onClick={(event) => togglePin(event, project)} aria-label={project.pinned ? 'Unpin project' : 'Pin project'}>
+                      {project.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <PersonToken name={resolveMemberName(project.ownerId || project.owner, data.members, 'No owner')} detail="Owner" />
+                    <StatusDot label={health.label} tone={health.label === 'Healthy' ? 'emerald' : health.label === 'Needs Attention' ? 'amber' : 'red'} lozenge />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
                       <StatusBadge status={project.status} />
                       <StatusBadge status={project.priority} />
-                      <span className={`text-xs font-medium ${healthColor}`}>{health.label}</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {project.type} · {project.year} · {resolveMemberName(project.ownerId || project.owner, data.members, 'No owner')}
-                    </p>
+                    <div className="text-sm text-[var(--text-secondary)]">{next ? `${next.label} · ${formatDateShort(next.date)}` : 'No next date recorded'}</div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => togglePin(e, project)}
-                      className="btn-ghost p-1.5 rounded text-slate-600 hover:text-amber-400 transition-colors"
-                      title={project.pinned ? 'Unpin project' : 'Pin project'}
-                    >
-                      {project.pinned ? <PinOff size={13} /> : <Pin size={13} />}
-                    </button>
-                    <ArrowRight size={14} className="text-slate-600 shrink-0" />
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <ProgressBar value={project.progress} showLabel size="md" />
-                </div>
-
-                <div className="mt-3 flex items-center gap-4 text-xs text-slate-500 flex-wrap">
-                  <span>{project.tasks.length} tasks</span>
-                  {health.overdueCount > 0 && <span className="text-red-400">{health.overdueCount} overdue</span>}
-                  {health.pendingApprovals > 0 && <span className="text-amber-400">{health.pendingApprovals} pending approvals</span>}
-                  {next && (
-                    <span className={isOverdue(next.date) ? 'text-red-400' : ''}>
-                      Next: {next.label.slice(0, 28)}{next.label.length > 28 ? '…' : ''} · {formatDateShort(next.date)}
-                    </span>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                  <ProgressBar value={project.progress} size="md" showLabel />
+                </Card>
+              );
+            })}
+          </div>
+        </section>
       )}
+
+      <section className="space-y-3">
+        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Project health matrix</div>
+        {sorted.length === 0 ? (
+          <EmptyMoment icon={<FolderKanban size={20} />} title="No projects found" description="Adjust the filters or create a new project." action={<button className="btn-primary" onClick={() => setShowForm(true)}>Create project</button>} />
+        ) : (
+          <Matrix
+            columns={['Project', 'Tasks', 'Launches', 'Money', 'Meetings', 'Approvals']}
+            rows={sorted.map((project) => {
+              const health = getProjectHealth(project, data);
+              const meetingCount = data.meetings.filter((meeting) => meeting.projectId === project.id).length;
+              const approvalCount = data.approvals.filter((approval) => approval.projectId === project.id && approval.status !== 'Approved').length;
+              const txCount = data.transactions.filter((transaction) => transaction.projectId === project.id).length;
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                  className="grid w-full grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(84px,1fr))] gap-3 border-b border-[var(--border-hairline)] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03] md:px-5"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">{project.name}</div>
+                    <div className="mt-1 text-xs text-[var(--text-tertiary)]">{health.label}</div>
+                  </div>
+                  <div>{matrixCell(project, project.tasks.filter((task) => task.status !== 'Done' && task.status !== 'Approved').length, project.tasks.some((task) => task.status === 'Blocked') ? 'red' : 'blue')}</div>
+                  <div>{matrixCell(project, project.prItems.filter((item) => item.publishingStatus !== 'Posted' && item.publishingStatus !== 'Archived').length, project.prItems.some((item) => item.approvalStatus === 'Changes Requested') ? 'amber' : 'blue')}</div>
+                  <div>{matrixCell(project, txCount, txCount > 0 ? 'emerald' : 'neutral')}</div>
+                  <div>{matrixCell(project, meetingCount, meetingCount > 0 ? 'blue' : 'neutral')}</div>
+                  <div>{matrixCell(project, approvalCount, approvalCount > 0 ? 'amber' : 'neutral')}</div>
+                </button>
+              );
+            })}
+          />
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Planning, completed, archived</div>
+        <div className="space-y-2">
+          {sorted.map((project) => (
+            <button
+              key={`row-${project.id}`}
+              onClick={() => navigate(`/projects/${project.id}`)}
+              className="solid-panel flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-left transition-colors hover:bg-[var(--surface-elevated)]"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-[var(--text-primary)]">{project.name}</div>
+                <div className="mt-1 text-xs text-[var(--text-tertiary)]">{project.type} · {project.year}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={project.status} />
+                <StatusBadge status={project.priority} />
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Project" size="lg">
         <ProjectForm
           members={data.members}
-          onSave={(p) => {
-            const templateId = (p as Project & { _templateId?: ProjectTemplateId })._templateId ?? 'blank';
-            const { _templateId, ...project } = p as Project & { _templateId?: ProjectTemplateId };
+          onSave={(projectInput) => {
+            const templateId = (projectInput as Project & { _templateId?: ProjectTemplateId })._templateId ?? 'blank';
+            const { _templateId, ...project } = projectInput as Project & { _templateId?: ProjectTemplateId };
             if (templateId !== 'blank') {
               const applied = applyProjectTemplate(templateId, project.id, project.ownerId, project.owner);
-              saveProject({
-                ...project,
-                phases: applied.phases,
-                milestones: applied.milestones,
-                tasks: applied.tasks,
-                prItems: applied.prItems,
-              });
-              applied.deliverables.forEach((d) => saveDeliverable({ ...d, projectId: project.id }));
-              applied.eventDayItems.forEach((e) => saveEventDayItem({ ...e, projectId: project.id }));
+              saveProject({ ...project, phases: applied.phases, milestones: applied.milestones, tasks: applied.tasks, prItems: applied.prItems });
+              applied.deliverables.forEach((deliverable) => saveDeliverable({ ...deliverable, projectId: project.id }));
+              applied.eventDayItems.forEach((item) => saveEventDayItem({ ...item, projectId: project.id }));
             } else {
               saveProject(project);
             }
@@ -200,6 +234,6 @@ export default function ProjectsPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </div>
+    </ScreenCanvas>
   );
 }

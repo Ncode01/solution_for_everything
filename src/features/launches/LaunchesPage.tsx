@@ -1,33 +1,24 @@
-/**
- * LaunchesPage — renamed from PR Planner (Phase Six).
- * PR items are now called "launch items" in the UI.
- * The underlying data structure (prItems, PRItem) is unchanged.
- */
-import React, { useState } from 'react';
-import { Plus, Search, ExternalLink, Edit2, Trash2, Rocket, Copy, AlertTriangle, Send, Clock, CheckCircle2 } from 'lucide-react';
-import { PRItem, PRApprovalStatus, PRPublishingStatus, PRPlatform } from '../../types';
+import React, { useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, Copy, Edit2, ExternalLink, Plus, Rocket, Search, Trash2 } from 'lucide-react';
+import { PRApprovalStatus, PRItem, PRPlatform, PRPublishingStatus } from '../../types';
 import { useAppData } from '../../state/AppDataContext';
-import StatusBadge from '../../components/StatusBadge';
-import EmptyState from '../../components/EmptyState';
+import { getAllPRItems } from '../../lib/stats';
+import { formatDate, isThisWeek } from '../../lib/dateUtils';
+import { useAutoNew } from '../../lib/useAutoNew';
 import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import PageHeader from '../../components/PageHeader';
+import StatusBadge from '../../components/StatusBadge';
+import ScreenCanvas from '../../components/layout/ScreenCanvas';
+import CommandHero from '../../components/layout/CommandHero';
+import ContextActionBar from '../../components/layout/ContextActionBar';
+import Pipeline from '../../components/layout/Pipeline';
+import PipelineLane from '../../components/layout/PipelineLane';
+import EmptyMoment from '../../components/layout/EmptyMoment';
 import Card from '../../components/Card';
-import SectionHeader from '../../components/SectionHeader';
+import PersonToken from '../../components/design/PersonToken';
 import PRItemForm from '../pr/PRItemForm';
-import { formatDate, isThisWeek } from '../../lib/dateUtils';
-import { getAllPRItems } from '../../lib/stats';
-import { useAutoNew } from '../../lib/useAutoNew';
 
 const PLATFORMS: (PRPlatform | 'All')[] = ['All', 'Instagram', 'Facebook', 'LinkedIn', 'WhatsApp', 'Website', 'YouTube', 'Email'];
-
-function missingFields(pr: PRItem): string[] {
-  const missing: string[] = [];
-  if (!pr.caption.trim()) missing.push('caption');
-  if (!pr.designer.trim()) missing.push('designer');
-  if (!pr.publishDate) missing.push('publish date');
-  return missing;
-}
 
 export default function LaunchesPage() {
   const { data, saveProject } = useAppData();
@@ -35,221 +26,191 @@ export default function LaunchesPage() {
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('All');
   const [platformFilter, setPlatformFilter] = useState<PRPlatform | 'All'>('All');
-  const [approvalFilter, setApprovalFilter] = useState<PRApprovalStatus | 'All'>('All');
-  const [publishFilter, setPublishFilter] = useState<PRPublishingStatus | 'All'>('All');
   const [prModal, setPrModal] = useState<{ open: boolean; editing?: PRItem & { projectId: string }; projectId?: string }>({ open: false });
   const [confirmDel, setConfirmDel] = useState<{ projectId: string; pr: PRItem } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useAutoNew(() => setPrModal({ open: true, projectId: projects[0]?.id }));
 
-  const allPRItems = getAllPRItems(projects);
+  const allLaunches = getAllPRItems(projects);
+  const filtered = useMemo(() => allLaunches
+    .filter((launch) => {
+      const matchSearch = launch.title.toLowerCase().includes(search.toLowerCase()) || launch.campaign.toLowerCase().includes(search.toLowerCase());
+      const matchProject = projectFilter === 'All' || launch.projectId === projectFilter;
+      const matchPlatform = platformFilter === 'All' || launch.platform === platformFilter;
+      return matchSearch && matchProject && matchPlatform;
+    })
+    .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999')), [allLaunches, platformFilter, projectFilter, search]);
+
+  const lanes = {
+    Drafting: filtered.filter((launch) => launch.publishingStatus === 'Idea' || launch.publishingStatus === 'Designing'),
+    'In Review': filtered.filter((launch) => launch.approvalStatus === 'Internal Review' || launch.approvalStatus === 'Teacher Review'),
+    Ready: filtered.filter((launch) => launch.approvalStatus === 'Approved' && launch.publishingStatus !== 'Scheduled' && launch.publishingStatus !== 'Posted'),
+    Scheduled: filtered.filter((launch) => launch.publishingStatus === 'Scheduled'),
+    Posted: filtered.filter((launch) => launch.publishingStatus === 'Posted'),
+  };
+  const next14 = filtered.filter((launch) => isThisWeek(launch.publishDate) || (launch.publishDate && launch.publishDate >= new Date().toISOString().slice(0, 10))).slice(0, 8);
 
   function savePR(projectId: string, item: PRItem) {
-    const project = projects.find((p) => p.id === projectId);
+    const project = projects.find((current) => current.id === projectId);
     if (!project) return;
-    const prItems = project.prItems.some((x) => x.id === item.id)
-      ? project.prItems.map((x) => (x.id === item.id ? item : x))
+    const prItems = project.prItems.some((existing) => existing.id === item.id)
+      ? project.prItems.map((existing) => existing.id === item.id ? item : existing)
       : [...project.prItems, item];
     saveProject({ ...project, prItems });
   }
 
   function deletePR(projectId: string, prId: string) {
-    const project = projects.find((p) => p.id === projectId);
+    const project = projects.find((current) => current.id === projectId);
     if (!project) return;
-    saveProject({ ...project, prItems: project.prItems.filter((x) => x.id !== prId) });
+    saveProject({ ...project, prItems: project.prItems.filter((existing) => existing.id !== prId) });
   }
 
   function updateStatus(projectId: string, prId: string, field: 'approvalStatus' | 'publishingStatus', value: string) {
-    const project = projects.find((p) => p.id === projectId);
+    const project = projects.find((current) => current.id === projectId);
     if (!project) return;
     saveProject({
       ...project,
-      prItems: project.prItems.map((pr) =>
-        pr.id !== prId ? pr : field === 'approvalStatus'
-          ? { ...pr, approvalStatus: value as PRApprovalStatus }
-          : { ...pr, publishingStatus: value as PRPublishingStatus }
-      ),
+      prItems: project.prItems.map((launch) => launch.id !== prId ? launch : field === 'approvalStatus'
+        ? { ...launch, approvalStatus: value as PRApprovalStatus }
+        : { ...launch, publishingStatus: value as PRPublishingStatus }),
     });
   }
 
-  function copyCaption(pr: PRItem) {
-    navigator.clipboard?.writeText(pr.caption || '').then(() => {
-      setCopiedId(pr.id);
+  function copyCaption(launch: PRItem) {
+    navigator.clipboard.writeText(launch.caption || '').then(() => {
+      setCopiedId(launch.id);
       setTimeout(() => setCopiedId(null), 1500);
     });
   }
 
-  const filtered = allPRItems.filter((pr) => {
-    const matchSearch = pr.title.toLowerCase().includes(search.toLowerCase()) || pr.campaign.toLowerCase().includes(search.toLowerCase());
-    const matchProject = projectFilter === 'All' || pr.projectId === projectFilter;
-    const matchPlatform = platformFilter === 'All' || pr.platform === platformFilter;
-    const matchApproval = approvalFilter === 'All' || pr.approvalStatus === approvalFilter;
-    const matchPublish = publishFilter === 'All' || pr.publishingStatus === publishFilter;
-    return matchSearch && matchProject && matchPlatform && matchApproval && matchPublish;
-  }).sort((a, b) => new Date(a.publishDate || '2999').getTime() - new Date(b.publishDate || '2999').getTime());
-
-  const needsApproval = allPRItems.filter((pr) => pr.approvalStatus === 'Internal Review' || pr.approvalStatus === 'Teacher Review');
-  const readyToPost = allPRItems.filter((pr) => pr.approvalStatus === 'Approved' && pr.publishingStatus !== 'Posted' && pr.publishingStatus !== 'Archived');
-  const inDesign = allPRItems.filter((pr) => pr.publishingStatus === 'Designing');
-  const scheduled = allPRItems.filter((pr) => pr.publishingStatus === 'Scheduled');
-  const posted = allPRItems.filter((pr) => pr.publishingStatus === 'Posted');
-  const thisWeekItems = allPRItems.filter((pr) => isThisWeek(pr.publishDate) && pr.publishingStatus !== 'Posted');
-
-  function MiniCard({ pr, accent }: { pr: PRItem & { projectName: string }; accent: string }) {
-    return (
-      <button
-        onClick={() => setPrModal({ open: true, editing: pr, projectId: pr.projectId })}
-        className={`w-full text-left bg-slate-900/60 border border-slate-800 border-l-2 ${accent} rounded-lg px-3 py-2 hover:border-slate-700 transition-colors`}
-      >
-        <p className="text-sm text-slate-200 truncate">{pr.title}</p>
-        <p className="text-xs text-slate-500 truncate">{pr.projectName} · {pr.publishDate ? formatDate(pr.publishDate) : 'No date'}</p>
-        {pr.platform && <span className="text-xs text-slate-600">{pr.platform}</span>}
-      </button>
-    );
-  }
-
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
-      <PageHeader
+    <ScreenCanvas variant="wide">
+      <CommandHero
         title="Launches"
-        description={`Every public post, reveal, caption, and campaign. ${allPRItems.length} launch item${allPRItems.length !== 1 ? 's' : ''} across all projects.`}
-        actions={
-          <button className="btn-primary" onClick={() => setPrModal({ open: true, projectId: projects[0]?.id })} disabled={projects.length === 0}>
-            <Plus size={16} /> New Launch Item
-          </button>
-        }
+        description="Posts, reveals, captions, and public releases."
+        tone="launch"
+        primaryAction={<button className="btn-primary" onClick={() => setPrModal({ open: true, projectId: projects[0]?.id })} disabled={projects.length === 0}><Plus size={16} /> New Launch</button>}
+        metrics={[
+          { label: 'Needs Approval', value: lanes['In Review'].length, tone: 'warning' },
+          { label: 'Ready', value: lanes.Ready.length, tone: 'success' },
+          { label: 'Scheduled', value: lanes.Scheduled.length, tone: 'launch' },
+          { label: 'Posted', value: lanes.Posted.length },
+        ]}
       />
 
-      {/* Publishing pipeline */}
-      <div className="grid md:grid-cols-5 gap-3">
-        {[
-          { title: 'Needs Approval', icon: AlertTriangle, items: needsApproval, accent: 'border-l-amber-500', empty: 'Clear.' },
-          { title: 'Ready', icon: CheckCircle2, items: readyToPost, accent: 'border-l-emerald-500', empty: 'Nothing approved yet.' },
-          { title: 'In Design', icon: Send, items: inDesign, accent: 'border-l-blue-500', empty: 'No design work.' },
-          { title: 'Scheduled', icon: Clock, items: scheduled, accent: 'border-l-violet-500', empty: 'No scheduled posts.' },
-          { title: 'Posted', icon: Rocket, items: posted, accent: 'border-l-slate-500', empty: 'No posted items.' },
-        ].map((lane) => (
-          <Card key={lane.title} className="min-h-48">
-            <SectionHeader title={lane.title} icon={lane.icon} count={lane.items.length} tone={lane.title === 'Needs Approval' ? 'warning' : 'default'} />
-            <div className="space-y-2 mt-2">
-              {lane.items.slice(0, 5).map((pr) => <MiniCard key={pr.id} pr={pr} accent={lane.accent} />)}
-              {lane.items.length === 0 && <p className="text-xs text-slate-600 py-2">{lane.empty}</p>}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-44">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input type="text" placeholder="Search launch items…" className="input pl-9 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <ContextActionBar>
+        <div className="relative min-w-[15rem] flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input type="text" placeholder="Search launches..." className="input pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="select w-40 text-sm" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-          <option value="All">All Projects</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select className="select w-44" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+          <option value="All">All projects</option>
+          {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
         </select>
-        <select className="select w-32 text-sm" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value as PRPlatform | 'All')}>
-          {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
+        <select className="select w-36" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value as PRPlatform | 'All')}>
+          {PLATFORMS.map((platform) => <option key={platform}>{platform}</option>)}
         </select>
-        <select className="select w-36 text-sm" value={approvalFilter} onChange={(e) => setApprovalFilter(e.target.value as PRApprovalStatus | 'All')}>
-          <option value="All">All Approval</option>
-          {(['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'] as PRApprovalStatus[]).map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <select className="select w-32 text-sm" value={publishFilter} onChange={(e) => setPublishFilter(e.target.value as PRPublishingStatus | 'All')}>
-          <option value="All">All Status</option>
-          {(['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'] as PRPublishingStatus[]).map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
+      </ContextActionBar>
 
-      {/* Launch items list */}
-      {filtered.length === 0 ? (
-        <EmptyState icon={Rocket} title="No launch items found" description="No launches yet. Create a launch when a poster, reveal, or announcement needs to go public." />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((pr) => {
-            const proj = projects.find((p) => p.id === pr.projectId);
-            const missing = missingFields(pr);
-            return (
-              <Card key={pr.id}>
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-white text-sm">{pr.title}</h3>
-                      <StatusBadge status={pr.approvalStatus} />
-                      <StatusBadge status={pr.publishingStatus} />
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                      <span className="text-blue-400">{proj?.name ?? pr.projectId}</span>
-                      <span>{pr.platform}</span>
-                      {pr.campaign && <span>· {pr.campaign}</span>}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs text-slate-500 mt-2">
-                      <span>{pr.publishDate ? formatDate(pr.publishDate) : 'No date'} {pr.publishTime}</span>
-                      <span>Designer: {pr.designer || '—'}</span>
-                      <span>Caption: {pr.captionWriter || '—'}</span>
-                      <span>Reviewer: {pr.reviewer || '—'}</span>
-                    </div>
-                    {pr.caption && (
-                      <p className="text-xs text-slate-400 mt-2 line-clamp-2 italic">"{pr.caption}"</p>
-                    )}
-                    {missing.length > 0 && (
-                      <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
-                        <AlertTriangle size={11} /> Missing: {missing.join(', ')}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2">
-                      {pr.caption && (
-                        <button className="text-xs text-slate-400 hover:text-white flex items-center gap-1" onClick={() => copyCaption(pr)}>
-                          <Copy size={11} /> {copiedId === pr.id ? 'Copied!' : 'Copy caption'}
-                        </button>
-                      )}
-                      {pr.designLink && (
-                        <a href={pr.designLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 flex items-center gap-1">
-                          <ExternalLink size={11} /> Open design
-                        </a>
-                      )}
-                    </div>
+      <Pipeline title="Publishing pipeline">
+        {Object.entries(lanes).map(([lane, items]) => (
+          <PipelineLane key={lane} title={lane} count={`${items.length} item${items.length === 1 ? '' : 's'}`}>
+            {items.length === 0 ? (
+              <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--border-subtle)] px-3 py-6 text-center text-sm text-[var(--text-tertiary)]">Nothing here</div>
+            ) : (
+              items.slice(0, 5).map((launch) => (
+                <Card key={launch.id} className="space-y-2 p-3" onClick={() => setPrModal({ open: true, editing: launch, projectId: launch.projectId })}>
+                  <div className="text-sm font-medium text-[var(--text-primary)]">{launch.title}</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">{launch.projectName} · {launch.publishDate ? formatDate(launch.publishDate) : 'No date'}</div>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge status={launch.approvalStatus} />
+                    <StatusBadge status={launch.publishingStatus} />
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    <select
-                      className="select text-xs py-1 w-36"
-                      value={pr.approvalStatus}
-                      onChange={(e) => updateStatus(pr.projectId, pr.id, 'approvalStatus', e.target.value)}
-                    >
-                      {(['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'] as PRApprovalStatus[]).map((s) => <option key={s}>{s}</option>)}
+                </Card>
+              ))
+            )}
+          </PipelineLane>
+        ))}
+      </Pipeline>
+
+      <section className="space-y-3">
+        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Next 14 days</div>
+        {next14.length === 0 ? (
+          <EmptyMoment title="No launches on deck" description="Upcoming launch work will appear here once scheduled." />
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {next14.map((launch) => (
+              <Card key={launch.id} className="min-w-[260px] p-4" onClick={() => setPrModal({ open: true, editing: launch, projectId: launch.projectId })}>
+                <div className="text-xs text-[var(--text-tertiary)]">{launch.publishDate ? formatDate(launch.publishDate) : 'No date'}</div>
+                <div className="mt-2 text-sm font-medium text-[var(--text-primary)]">{launch.title}</div>
+                <div className="mt-1 text-xs text-[var(--text-tertiary)]">{launch.projectName} · {launch.platform}</div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-[15px] font-semibold text-[var(--text-primary)]">Launch queue</div>
+        {filtered.length === 0 ? (
+          <EmptyMoment icon={<Rocket size={20} />} title="No launch items found" description="Create a launch when a poster, reveal, or announcement needs to go public." />
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((launch) => (
+              <Card key={launch.id} className="space-y-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-medium text-[var(--text-primary)]">{launch.title}</div>
+                      <StatusBadge status={launch.approvalStatus} />
+                      <StatusBadge status={launch.publishingStatus} />
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--text-tertiary)]">{launch.projectName} · {launch.platform} · {launch.publishDate ? formatDate(launch.publishDate) : 'No date'}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select className="select w-36 text-xs" value={launch.approvalStatus} onChange={(e) => updateStatus(launch.projectId, launch.id, 'approvalStatus', e.target.value)}>
+                      {(['Draft', 'Internal Review', 'Teacher Review', 'Approved', 'Changes Requested'] as PRApprovalStatus[]).map((status) => <option key={status}>{status}</option>)}
                     </select>
-                    <select
-                      className="select text-xs py-1 w-28"
-                      value={pr.publishingStatus}
-                      onChange={(e) => updateStatus(pr.projectId, pr.id, 'publishingStatus', e.target.value)}
-                    >
-                      {(['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'] as PRPublishingStatus[]).map((s) => <option key={s}>{s}</option>)}
+                    <select className="select w-32 text-xs" value={launch.publishingStatus} onChange={(e) => updateStatus(launch.projectId, launch.id, 'publishingStatus', e.target.value)}>
+                      {(['Idea', 'Designing', 'Scheduled', 'Posted', 'Archived'] as PRPublishingStatus[]).map((status) => <option key={status}>{status}</option>)}
                     </select>
-                    <button className="btn-ghost p-1.5" onClick={() => setPrModal({ open: true, editing: pr, projectId: pr.projectId })}>
-                      <Edit2 size={13} />
-                    </button>
-                    <button className="btn-ghost p-1.5 text-red-500" onClick={() => setConfirmDel({ projectId: pr.projectId, pr })}>
-                      <Trash2 size={13} />
-                    </button>
+                    <button className="btn-ghost p-1.5" onClick={() => setPrModal({ open: true, editing: launch, projectId: launch.projectId })}><Edit2 size={13} /></button>
+                    <button className="btn-ghost p-1.5 text-[var(--danger)]" onClick={() => setConfirmDel({ projectId: launch.projectId, pr: launch })}><Trash2 size={13} /></button>
                   </div>
                 </div>
+                <div className="grid gap-3 lg:grid-cols-4">
+                  <PersonToken name={launch.designer || 'No designer'} detail="Designer" />
+                  <PersonToken name={launch.captionWriter || 'No writer'} detail="Caption writer" />
+                  <PersonToken name={launch.reviewer || 'No reviewer'} detail="Reviewer" />
+                  <div className="text-xs text-[var(--text-tertiary)]">
+                    {launch.designLink ? <a href={launch.designLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--accent)]"><ExternalLink size={11} /> Open design</a> : 'No design link'}
+                  </div>
+                </div>
+                {launch.caption && (
+                  <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-black/10 px-3 py-3 text-sm text-[var(--text-secondary)]">
+                    “{launch.caption}”
+                    <button className="btn-ghost ml-3 text-xs" onClick={() => copyCaption(launch)}><Copy size={11} /> {copiedId === launch.id ? 'Copied' : 'Copy caption'}</button>
+                  </div>
+                )}
+                {!launch.caption || !launch.designer || !launch.publishDate ? (
+                  <div className="inline-flex items-center gap-1 text-xs text-[var(--warning)]"><AlertTriangle size={12} /> Missing setup details</div>
+                ) : null}
               </Card>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
 
       {prModal.open && (
-        <Modal open={prModal.open} title={prModal.editing ? 'Edit Launch Item' : 'New Launch Item'} onClose={() => setPrModal({ open: false })}>
+        <Modal open={prModal.open} title={prModal.editing ? 'Edit Launch' : 'New Launch'} onClose={() => setPrModal({ open: false })} size="lg">
           <PRItemForm
             projectId={prModal.editing?.projectId ?? prModal.projectId ?? projects[0]?.id ?? ''}
             members={data.members}
             initial={prModal.editing}
             onSave={(item) => {
-              const pid = prModal.editing?.projectId ?? prModal.projectId ?? projects[0]?.id ?? '';
-              savePR(pid, item);
+              const projectId = prModal.editing?.projectId ?? prModal.projectId ?? projects[0]?.id ?? '';
+              savePR(projectId, item);
               setPrModal({ open: false });
             }}
             onCancel={() => setPrModal({ open: false })}
@@ -260,12 +221,12 @@ export default function LaunchesPage() {
       {confirmDel && (
         <ConfirmDialog
           open={!!confirmDel}
-          title="Delete launch item?"
+          title="Delete launch?"
           message={`Delete "${confirmDel.pr.title}"? This cannot be undone.`}
           onConfirm={() => { deletePR(confirmDel.projectId, confirmDel.pr.id); setConfirmDel(null); }}
           onCancel={() => setConfirmDel(null)}
         />
       )}
-    </div>
+    </ScreenCanvas>
   );
 }

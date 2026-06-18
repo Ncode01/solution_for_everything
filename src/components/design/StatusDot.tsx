@@ -3,12 +3,12 @@ import React from 'react';
 type Tone = 'neutral' | 'blue' | 'emerald' | 'amber' | 'red' | 'violet';
 
 const TONE: Record<Tone, string> = {
-  neutral: 'bg-slate-500 text-slate-400',
-  blue: 'bg-blue-400 text-blue-300',
-  emerald: 'bg-emerald-400 text-emerald-300',
-  amber: 'bg-amber-400 text-amber-300',
-  red: 'bg-red-400 text-red-300',
-  violet: 'bg-violet-400 text-violet-300',
+  neutral: 'bg-[var(--text-faint)] text-[var(--text-tertiary)]',
+  blue: 'bg-[var(--accent)] text-[var(--accent)]',
+  emerald: 'bg-[var(--success)] text-[var(--success)]',
+  amber: 'bg-[var(--warning)] text-[var(--warning)]',
+  red: 'bg-[var(--danger)] text-[var(--danger)]',
+  violet: 'bg-[var(--launch)] text-[var(--launch)]',
 };
 
 interface Props {
@@ -21,7 +21,7 @@ export default function StatusDot({ label, tone = 'neutral', lozenge = false }: 
   if (lozenge) {
     return (
       <span className={`inline-flex items-center gap-1.5 rounded-full border border-current/20 bg-current/10 px-2 py-0.5 text-xs font-medium ${TONE[tone].split(' ').slice(1).join(' ')}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${TONE[tone].split(' ')[0]}`} />
+        <span className={`h-1.5 w-1.5 rounded-full ${TONE[tone].split(' ')[0]}`} />
         {label}
       </span>
     );
@@ -29,7 +29,7 @@ export default function StatusDot({ label, tone = 'neutral', lozenge = false }: 
 
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${TONE[tone].split(' ').slice(1).join(' ')}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${TONE[tone].split(' ')[0]}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${TONE[tone].split(' ')[0]}`} />
       {label}
     </span>
   );

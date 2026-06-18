@@ -8,9 +8,11 @@ import { Project, Meeting, Sponsor, Member, Deliverable, ApprovalRequest, Transa
 import { useAppData } from '../../state/AppDataContext';
 import { isOverdue, daysUntil, formatDateShort } from '../../lib/dateUtils';
 import StatusBadge from '../../components/StatusBadge';
-import PageHeader from '../../components/PageHeader';
 import { CalendarDayInspector, type CalendarDayItem as DayItem } from '../../components/inspectors/EntityInspectors';
 import SegmentedControl from '../../components/design/SegmentedControl';
+import ScreenCanvas from '../../components/layout/ScreenCanvas';
+import CommandHero from '../../components/layout/CommandHero';
+import ContextActionBar from '../../components/layout/ContextActionBar';
 
 type ItemType = 'task' | 'milestone' | 'pr' | 'event' | 'meeting' | 'sponsor' | 'deliverable' | 'approval' | 'payment';
 type FilterType = 'all' | ItemType;
@@ -324,28 +326,27 @@ export default function CalendarPage() {
   const selectedItems = selectedDay ? dayItems(selectedDay) : [];
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
-      <PageHeader
+    <ScreenCanvas variant="calendar">
+      <CommandHero
         title="Calendar"
         description="A rolling operating window: previous 30 days, today, and next 30 days."
-        actions={
+        primaryAction={<button className="btn-secondary text-xs px-3 py-1.5" onClick={goToday}>Today</button>}
+        secondaryActions={
           <div className="flex items-center gap-2 flex-wrap">
             <button className="btn-ghost p-2" onClick={prevMonth}><ChevronLeft size={18} /></button>
-            <button className="btn-secondary text-xs px-3 py-1.5" onClick={goToday}>Today</button>
-            <span className="text-white font-semibold min-w-48 text-center text-sm">{monthLabel}</span>
+            <span className="text-[var(--text-primary)] font-semibold min-w-48 text-center text-sm">{monthLabel}</span>
             <button className="btn-ghost p-2" onClick={nextMonth}><ChevronRight size={18} /></button>
           </div>
         }
       />
 
-      {/* Filters row */}
-      <div className="floating-control flex gap-2 flex-wrap items-center p-2">
+      <ContextActionBar>
         {FILTER_OPTS.map((f) => (
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              filter === f.value ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+              filter === f.value ? 'bg-[var(--royal)] text-white' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             {f.icon} {f.label}
@@ -377,7 +378,7 @@ export default function CalendarPage() {
             {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Export</>}
           </button>
         </div>
-      </div>
+      </ContextActionBar>
 
       {/* ── GRID VIEW ──────────────────────────────────────────────────── */}
       {viewMode === 'grid' && (
@@ -525,6 +526,6 @@ export default function CalendarPage() {
           </span>
         ))}
       </div>
-    </div>
+    </ScreenCanvas>
   );
 }

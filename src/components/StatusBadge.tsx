@@ -1,80 +1,66 @@
 import React from 'react';
 
-// Soft, readable badge palette. Each entry is bg + text + subtle border.
 const COLOR_MAP: Record<string, string> = {
-  // Project status
-  Idea: 'bg-slate-800 text-slate-300 border-slate-700',
-  Planning: 'bg-blue-950 text-blue-300 border-blue-900',
-  Active: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  'On Hold': 'bg-amber-950 text-amber-300 border-amber-900',
-  'Event Week': 'bg-violet-950 text-violet-300 border-violet-900',
-  Completed: 'bg-green-950 text-green-300 border-green-900',
-  Archived: 'bg-slate-800 text-slate-500 border-slate-700',
-  // Phase / Milestone / generic progress
-  'Not Started': 'bg-slate-800 text-slate-400 border-slate-700',
-  'In Progress': 'bg-blue-950 text-blue-300 border-blue-900',
-  Blocked: 'bg-red-950 text-red-300 border-red-900',
-  'Pending Approval': 'bg-amber-950 text-amber-300 border-amber-900',
-  Delayed: 'bg-orange-950 text-orange-300 border-orange-900',
-  Cancelled: 'bg-slate-800 text-slate-500 border-slate-700',
-  Delivered: 'bg-green-950 text-green-300 border-green-900',
-  // Task
-  'To Do': 'bg-slate-800 text-slate-300 border-slate-700',
-  Doing: 'bg-blue-950 text-blue-300 border-blue-900',
-  Waiting: 'bg-amber-950 text-amber-300 border-amber-900',
-  Review: 'bg-violet-950 text-violet-300 border-violet-900',
-  Approved: 'bg-teal-950 text-teal-300 border-teal-900',
-  Done: 'bg-green-950 text-green-300 border-green-900',
-  // PR approval / approvals
-  Draft: 'bg-slate-800 text-slate-400 border-slate-700',
-  Submitted: 'bg-blue-950 text-blue-300 border-blue-900',
-  'Internal Review': 'bg-amber-950 text-amber-300 border-amber-900',
-  'Teacher Review': 'bg-orange-950 text-orange-300 border-orange-900',
-  'Changes Requested': 'bg-red-950 text-red-300 border-red-900',
-  Rejected: 'bg-red-950 text-red-300 border-red-900',
-  // PR publishing
-  Designing: 'bg-violet-950 text-violet-300 border-violet-900',
-  Scheduled: 'bg-teal-950 text-teal-300 border-teal-900',
-  Posted: 'bg-green-950 text-green-300 border-green-900',
-  // Priority
-  Urgent: 'bg-red-950 text-red-300 border-red-900',
-  High: 'bg-orange-950 text-orange-300 border-orange-900',
-  Medium: 'bg-amber-950 text-amber-300 border-amber-900',
-  Low: 'bg-slate-800 text-slate-400 border-slate-700',
-  // Sponsor stages
-  Lead: 'bg-slate-800 text-slate-300 border-slate-700',
-  Contacted: 'bg-blue-950 text-blue-300 border-blue-900',
-  Interested: 'bg-cyan-950 text-cyan-300 border-cyan-900',
-  'Proposal Sent': 'bg-indigo-950 text-indigo-300 border-indigo-900',
-  'Meeting Scheduled': 'bg-violet-950 text-violet-300 border-violet-900',
-  Negotiating: 'bg-amber-950 text-amber-300 border-amber-900',
-  Confirmed: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  // Payment status
-  'Not Requested': 'bg-slate-800 text-slate-400 border-slate-700',
-  Pending: 'bg-amber-950 text-amber-300 border-amber-900',
-  'Partially Paid': 'bg-blue-950 text-blue-300 border-blue-900',
-  Paid: 'bg-green-950 text-green-300 border-green-900',
-  Overdue: 'bg-red-950 text-red-300 border-red-900',
-  // Workload
-  Light: 'bg-slate-800 text-slate-300 border-slate-700',
-  Normal: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  Heavy: 'bg-amber-950 text-amber-300 border-amber-900',
-  Overloaded: 'bg-red-950 text-red-300 border-red-900',
-  // Availability
-  Available: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  Busy: 'bg-amber-950 text-amber-300 border-amber-900',
-  Away: 'bg-slate-800 text-slate-400 border-slate-700',
-  Unavailable: 'bg-red-950 text-red-300 border-red-900',
-  // File status
-  Final: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  Open: 'bg-blue-950 text-blue-300 border-blue-900',
-  // Health labels
-  Healthy: 'bg-emerald-950 text-emerald-300 border-emerald-900',
-  'Needs Attention': 'bg-amber-950 text-amber-300 border-amber-900',
-  'At Risk': 'bg-red-950 text-red-300 border-red-900',
-  // Attention inline
-  Soon: 'bg-amber-950 text-amber-300 border-amber-900',
-  Today: 'bg-blue-950 text-blue-300 border-blue-900',
+  Idea: 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border-[var(--border-subtle)]',
+  Planning: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Active: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  'On Hold': 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  'Event Week': 'bg-[var(--launch-soft)] text-[var(--launch)] border-[rgba(183,156,255,0.22)]',
+  Completed: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Archived: 'bg-[rgba(255,255,255,0.04)] text-[var(--text-faint)] border-[var(--border-subtle)]',
+  'Not Started': 'bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)] border-[var(--border-subtle)]',
+  'In Progress': 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Blocked: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  'Pending Approval': 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Delayed: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Cancelled: 'bg-[rgba(255,255,255,0.04)] text-[var(--text-faint)] border-[var(--border-subtle)]',
+  Delivered: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  'To Do': 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border-[var(--border-subtle)]',
+  Doing: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Waiting: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Review: 'bg-[var(--launch-soft)] text-[var(--launch)] border-[rgba(183,156,255,0.22)]',
+  Approved: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Done: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Draft: 'bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)] border-[var(--border-subtle)]',
+  Submitted: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  'Internal Review': 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  'Teacher Review': 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  'Changes Requested': 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Rejected: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Designing: 'bg-[var(--launch-soft)] text-[var(--launch)] border-[rgba(183,156,255,0.22)]',
+  Scheduled: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Posted: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Urgent: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  High: 'bg-[rgba(255,107,107,0.08)] text-[var(--danger)] border-[rgba(255,107,107,0.18)]',
+  Medium: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Low: 'bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)] border-[var(--border-subtle)]',
+  Lead: 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border-[var(--border-subtle)]',
+  Contacted: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Interested: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  'Proposal Sent': 'bg-[var(--launch-soft)] text-[var(--launch)] border-[rgba(183,156,255,0.22)]',
+  'Meeting Scheduled': 'bg-[var(--launch-soft)] text-[var(--launch)] border-[rgba(183,156,255,0.22)]',
+  Negotiating: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Confirmed: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  'Not Requested': 'bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)] border-[var(--border-subtle)]',
+  Pending: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  'Partially Paid': 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Paid: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Overdue: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Light: 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border-[var(--border-subtle)]',
+  Normal: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Heavy: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Overloaded: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Available: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Busy: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Away: 'bg-[rgba(255,255,255,0.04)] text-[var(--text-tertiary)] border-[var(--border-subtle)]',
+  Unavailable: 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Final: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  Open: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
+  Healthy: 'bg-[var(--success-soft)] text-[var(--success)] border-[rgba(66,211,146,0.2)]',
+  'Needs Attention': 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  'At Risk': 'bg-[var(--danger-soft)] text-[var(--danger)] border-[rgba(255,107,107,0.22)]',
+  Soon: 'bg-[var(--warning-soft)] text-[var(--warning)] border-[rgba(244,199,107,0.22)]',
+  Today: 'bg-[var(--royal-soft)] text-[var(--accent)] border-[var(--royal-glow)]',
 };
 
 interface Props {
@@ -84,10 +70,10 @@ interface Props {
 }
 
 export default function StatusBadge({ status, size = 'sm', subtle = false }: Props) {
-  const color = COLOR_MAP[status] || 'bg-slate-800 text-slate-300 border-slate-700';
+  const color = COLOR_MAP[status] || 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border-[var(--border-subtle)]';
   const sizeClass = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-2.5 py-1';
   return (
-    <span className={`inline-flex items-center rounded-full border font-medium ${color} ${sizeClass} ${subtle ? 'bg-opacity-50' : ''}`}>
+    <span className={`inline-flex items-center rounded-full border font-medium ${color} ${sizeClass} ${subtle ? 'opacity-75' : ''}`}>
       {status}
     </span>
   );

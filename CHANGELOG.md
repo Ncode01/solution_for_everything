@@ -1,5 +1,14 @@
 # Changelog
 
+## Midnight Graphite Royal Redesign - June 18, 2026
+
+- Replaced the app palette with a midnight graphite and royal-blue Liquid Glass system in `src/styles/global.css`, including calmer surfaces, restrained glow, and updated controls.
+- Added shared layout primitives under `src/components/layout/` for screen-specific shells: `ScreenCanvas`, `CommandHero`, queues, pipelines, ledgers, matrices, Finder-style layout, settings rows, and the live cockpit.
+- Restyled the shell in `src/components/Sidebar.tsx`, `Topbar.tsx`, `CommandMenu.tsx`, `Modal.tsx`, `SlideOver.tsx`, and refreshed badges/tokens for the new dark graphite language.
+- Rebuilt Today, Focus, Projects, Launches, Money, People, Library, System, and Event-Day around screen-specific layouts instead of repeated card grids.
+- Updated Calendar framing to use the new command-hero and floating filter grammar while preserving the rolling 60-day logic.
+- Verified the redesign with `npm run build`.
+
 ## Apple-Caliber UI/UX Transformation - June 18, 2026
 
 - Added RCCS OS design tokens and Liquid Glass-inspired CSS material classes with reduced motion, reduced transparency, and contrast fallbacks.
